@@ -1919,7 +1919,7 @@ RETURN x0.name?
     relate(peter, meat, "ATE", Map("times"->4))
 
     val result = parseAndExecute(
-      """    start me=node(1)
+      """start me=node(1)
     match me-[r1:ATE]->food<-[r2:ATE]-you
 
     with me,count(distinct r1) as H1,count(distinct r2) as H2,you

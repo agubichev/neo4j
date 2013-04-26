@@ -36,6 +36,7 @@ case class SliceExpression(collection: Expression, from: Option[Expression], to:
       case (Some(f), Some(n)) => fullSlice(f, n)
       case (Some(f), None)    => fromSlice(f)
       case (None, Some(f))    => toSlice(f)
+      case (None, None)       => (coll, _, _) => coll
     }
   }
 
