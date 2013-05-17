@@ -19,38 +19,38 @@
  */
 package org.neo4j.server.database;
 
+import java.util.HashMap;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.neo4j.kernel.AbstractGraphDatabase;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
-import java.util.HashMap;
-
-public class EphemeralDatabase extends CommunityDatabase {
-
-	public EphemeralDatabase() {
-		this( new MapConfiguration(new HashMap<String,String>()) );
-	}
-	
-	public EphemeralDatabase(Configuration serverConfig) {
-		super(serverConfig);
-	}
-
-    protected AbstractGraphDatabase createDb()
+public class EphemeralDatabase extends CommunityDatabase
+{
+    public EphemeralDatabase()
     {
-        return (AbstractGraphDatabase) new TestGraphDatabaseFactory()
-                        .newImpermanentDatabaseBuilder()
-                        .setConfig( loadNeo4jProperties() )
-                        .newGraphDatabase();
+        this( new MapConfiguration( new HashMap<String, String>() ) );
     }
 
-	@Override
-	public void shutdown()
-	{
-		if(this.graph != null)
-		{
-			this.graph.shutdown();
-		}
-	}
+    public EphemeralDatabase( Configuration serverConfig )
+    {
+        super( serverConfig );
+    }
 
+    @Override
+    protected AbstractGraphDatabase createDb()
+    {
+        return (AbstractGraphDatabase) new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder()
+                .setConfig( loadNeo4jProperties() ).newGraphDatabase();
+    }
+
+    @Override
+    public void shutdown()
+    {
+        if ( this.graph != null )
+        {
+            this.graph.shutdown();
+        }
+    }
 }

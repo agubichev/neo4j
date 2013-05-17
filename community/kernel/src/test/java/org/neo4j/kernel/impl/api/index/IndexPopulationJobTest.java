@@ -64,7 +64,6 @@ import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.NodePropertyUpdate;
 import org.neo4j.kernel.impl.api.KernelSchemaStateStore;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreIndexStoreView;
 import org.neo4j.kernel.impl.util.StringLogger;
@@ -74,6 +73,7 @@ import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.ImpermanentGraphDatabase;
 import org.neo4j.test.OtherThreadExecutor;
 import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
+import org.neo4j.test.TestGraphDatabaseFactory;
 
 public class IndexPopulationJobTest
 {
@@ -217,7 +217,7 @@ public class IndexPopulationJobTest
         IndexStoreView storeView = mock( IndexStoreView.class );
         ControlledStoreScan storeScan = new ControlledStoreScan();
         when( storeView.visitNodesWithPropertyAndLabel( any(IndexDescriptor.class),
-                Matchers.<Visitor<NodePropertyUpdate>>any() ) ).thenReturn( storeScan );
+                Matchers.<Visitor<NodePropertyUpdate, RuntimeException>>any() ) ).thenReturn( storeScan );
         final IndexPopulationJob job = newIndexPopulationJob( FIRST, name, populator, index, storeView, StringLogger.DEV_NULL );
         
         OtherThreadExecutor<Void> populationJobRunner = new OtherThreadExecutor<Void>(
@@ -292,7 +292,7 @@ public class IndexPopulationJobTest
         logger.assertAtLeastOnce( error( "Failed to populate index.", failure ) );
     }
 
-    private static class ControlledStoreScan implements StoreScan
+    private static class ControlledStoreScan implements StoreScan<RuntimeException>
     {
         private final DoubleLatch latch = new DoubleLatch();
         
@@ -426,7 +426,7 @@ public class IndexPopulationJobTest
     @Before
     public void before() throws Exception
     {
-        db = new ImpermanentGraphDatabase();
+        db = (ImpermanentGraphDatabase) new TestGraphDatabaseFactory().newImpermanentDatabase();
         ctxProvider = db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
         context = ctxProvider.getCtxForReading();
         populator = mock( IndexPopulator.class );
@@ -461,9 +461,8 @@ public class IndexPopulationJobTest
             FlippableIndexProxy flipper, IndexStoreView storeView, StringLogger logger )
             throws LabelNotFoundKernelException, PropertyKeyNotFoundException
     {
-        IndexRule indexRule = new IndexRule( 0,
-                context.getLabelId( label.name() ), PROVIDER_DESCRIPTOR, context.getPropertyKeyId( propertyKey ) );
-        IndexDescriptor descriptor = new IndexDescriptor( indexRule.getLabel(), indexRule.getPropertyKey() );
+        IndexDescriptor descriptor = new IndexDescriptor( context.getLabelId( label.name() ),
+                                                          context.getPropertyKeyId( propertyKey ) );
         flipper.setFlipTarget( mock( IndexProxyFactory.class ) );
         return
             new IndexPopulationJob( descriptor, PROVIDER_DESCRIPTOR, populator, flipper, storeView,

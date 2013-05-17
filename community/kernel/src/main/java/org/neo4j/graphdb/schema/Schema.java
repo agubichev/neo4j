@@ -22,7 +22,7 @@ package org.neo4j.graphdb.schema;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.Transaction;
 
 /**
  * Interface for managing the schema of your graph database. This currently includes
@@ -57,18 +57,19 @@ public interface Schema
      * @return an {@link IndexCreator} capable of providing details for, as well as creating
      * an index for the given {@link Label label}.
      */
+    // TODO Think about the method name
     IndexCreator indexCreator( Label label );
-
+    
     /**
      * @param label the {@link Label} to get {@link IndexDefinition indexes} for.
      * @return all {@link IndexDefinition indexes} attached to the given {@link Label label}.
      */
-    ResourceIterable<IndexDefinition> getIndexes( Label label );
+    Iterable<IndexDefinition> getIndexes( Label label );
     
     /**
      * @return all {@link IndexDefinition indexes} in this database.
      */
-    ResourceIterable<IndexDefinition> getIndexes();
+    Iterable<IndexDefinition> getIndexes();
 
     /**
      * Poll the database for the state of a given index. This can be used to track
@@ -81,13 +82,53 @@ public interface Schema
     IndexState getIndexState( IndexDefinition index );
 
     /**
+     * Returns a {@link ConstraintCreator} where details about the constraint can be
+     * specified. When all details have been entered {@link ConstraintCreator#create()}
+     * must be called for it to actually be created.
+     * 
+     * Creating a constraint will have the transaction creating it block on commit until
+     * all existing data has been verified for compliance. If any existing data doesn't
+     * comply with the constraint the transaction will not be able to commit, but
+     * fail in {@link Transaction#finish()}.
+     * 
+     * @param label the label this constraint is for.
+     * @return a {@link ConstraintCreator} capable of providing details for, as well as creating
+     * a constraint for the given {@link Label label}.
+     */
+    // TODO Think about the method name
+    ConstraintCreator constraintCreator( Label label );
+    
+    /**
+     * @param label the label to get constraints for.
+     * @return all constraints for the given label.
+     */
+    Iterable<ConstraintDefinition> getConstraints( Label label );
+    
+    /**
+     * @return all constraints
+     */
+    Iterable<ConstraintDefinition> getConstraints();
+
+    /**
      * Wait until an index comes online
-     *
+     * 
      * @param index the index that we want to wait for
      * @param duration duration to wait for the index to come online
      * @param unit TimeUnit of duration
-     * @throws IllegalStateException if the index did not enter the ONLINE state within the given duration or
-     * if the index entered the FAILED state
+     * @throws IllegalStateException if the index did not enter the ONLINE state
+     *             within the given duration or if the index entered the FAILED
+     *             state
      */
     void awaitIndexOnline( IndexDefinition index, long duration, TimeUnit unit );
+
+    /**
+     * Wait until all indices comes online
+     * 
+     * @param duration duration to wait for all indexes to come online
+     * @param unit TimeUnit of duration
+     * @throws IllegalStateException if some index did not enter the ONLINE
+     *             state within the given duration or if the index entered the
+     *             FAILED state
+     */
+    void awaitIndexesOnline( long duration, TimeUnit unit );
 }

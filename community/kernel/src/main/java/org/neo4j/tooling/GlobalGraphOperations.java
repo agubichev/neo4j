@@ -19,6 +19,7 @@
  */
 package org.neo4j.tooling;
 
+import static org.neo4j.graphdb.DynamicLabel.label;
 import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.helpers.collection.IteratorUtil.emptyIterator;
 
@@ -38,6 +39,7 @@ import org.neo4j.kernel.ThreadToStatementContextBridge;
 import org.neo4j.kernel.api.LabelNotFoundKernelException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.impl.cleanup.CleanupService;
+import org.neo4j.kernel.impl.core.LabelToken;
 import org.neo4j.kernel.impl.core.NodeManager;
 
 /**
@@ -61,9 +63,8 @@ public class GlobalGraphOperations
     /**
      * Get a {@link GlobalGraphOperations} for the given {@code db}.
      * 
-     * @param db
-     *            the {@link GraphDatabaseService} to get global operations for.
-     * @return a {@link GlobalGraphOperations} for the given {@code db}.
+     * @param db the {@link GraphDatabaseService} to get global operations for.
+     * @return {@link GlobalGraphOperations} for the given {@code db}.
      */
     public static GlobalGraphOperations at( GraphDatabaseService db )
     {
@@ -110,7 +111,7 @@ public class GlobalGraphOperations
      * {@link Node#createRelationshipTo node.createRelationshipTo(...)}. Note that this method is
      * guaranteed to return all known relationship types, but it does not guarantee that it won't
      * return <i>more</i> than that (e.g. it can return "historic" relationship types that no longer
-     * have any relationships in the node space).
+     * have any relationships in the graph).
      * 
      * @return all relationship types in the underlying store
      */
@@ -118,12 +119,45 @@ public class GlobalGraphOperations
     {
         return nodeManager.getRelationshipTypes();
     }
+
+    /**
+     * Returns all labels currently in the underlying store. Labels are added to the store the first
+     * they are used. This method guarantees that it will return all labels currently in use. However,
+     * it may also return <i>more</i> than that (e.g. it can return "historic" labels that are no longer used).
+     *
+     * If you call this operation outside of a transaction, please take care that the returned 
+     * {@link ResourceIterable} is closed correctly to avoid potential blocking of write operations.
+     *   
+     * @return all labels in the underlying store.
+     */
+    public ResourceIterable<Label> getAllLabels()
+    {
+        return new ResourceIterable<Label>()
+        {
+            @Override
+            public ResourceIterator<Label> iterator()
+            {
+                StatementContext ctx = statementCtxProvider.getCtxForReading();
+                return cleanupService.resourceIterator( map( new Function<LabelToken, Label>() {
+
+                    @Override
+                    public Label apply( LabelToken labelToken )
+                    {
+                        return label( labelToken.getName() );
+                    }
+                }, ctx.listLabels() ), ctx );
+            }
+        };
+    }
     
     /**
      * Returns all {@link Node nodes} with a specific {@link Label label}.
      * 
+     * If you call this operation outside of a transaction, please take care that the returned 
+     * {@link ResourceIterable} is closed correctly to avoid potential blocking of write operations.
+     *   
      * @param label the {@link Label} to return nodes for.
-     * @return an {@link Iterable} containing nodes with a specific label.
+     * @return {@link Iterable} containing nodes with a specific label.
      */
     public ResourceIterable<Node> getAllNodesWithLabel( final Label label )
     {

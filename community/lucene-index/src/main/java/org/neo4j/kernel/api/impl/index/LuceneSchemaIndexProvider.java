@@ -40,6 +40,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
 import org.neo4j.index.impl.lucene.LuceneUtil;
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
@@ -65,15 +66,16 @@ public class LuceneSchemaIndexProvider extends SchemaIndexProvider
     }
 
     @Override
-    public IndexPopulator getPopulator( long indexId )
+    public IndexPopulator getPopulator( long indexId, IndexConfiguration config )
     {
         return new LuceneIndexPopulator( standard(), directoryFactory, dirFile( indexId ), 10000,
                 documentLogic, writerLogic );
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( long indexId )
+    public IndexAccessor getOnlineAccessor( long indexId, IndexConfiguration config )
     {
+        // TODO: return a uniqueness enforcing IndexAccessor if config says so
         try
         {
             return new LuceneIndexAccessor( standard(), directoryFactory, dirFile( indexId ),

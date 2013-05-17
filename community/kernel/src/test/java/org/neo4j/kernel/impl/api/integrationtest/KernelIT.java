@@ -19,27 +19,32 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.*;
-import static org.neo4j.graphdb.DynamicLabel.label;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
 
 import org.junit.Test;
+
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.helpers.Function;
-import org.neo4j.kernel.api.ConstraintViolationKernelException;
+import org.neo4j.kernel.api.DataIntegrityKernelException;
 import org.neo4j.kernel.api.EntityNotFoundException;
 import org.neo4j.kernel.api.KernelAPI;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.TransactionContext;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
+import org.neo4j.kernel.impl.api.index.IndexDescriptor;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 
 public class KernelIT extends KernelIntegrationTest
 {
@@ -312,6 +317,7 @@ public class KernelIT extends KernelIntegrationTest
 
         // THEN
         assertFalse( "Shouldn't have been added now", added );
+        tx.finish();
     }
 
     @Test
@@ -333,6 +339,7 @@ public class KernelIT extends KernelIntegrationTest
 
         // THEN
         assertTrue( "Should have been added now", added );
+        tx.finish();
     }
 
     @Test
@@ -355,6 +362,7 @@ public class KernelIT extends KernelIntegrationTest
 
         // THEN
         assertTrue( "Should have been removed now", removed );
+        tx.finish();
     }
 
     @Test
@@ -376,6 +384,7 @@ public class KernelIT extends KernelIntegrationTest
 
         // THEN
         assertFalse( "Shouldn't have been removed now", removed );
+        tx.finish();
     }
 
     @Test
@@ -465,7 +474,7 @@ public class KernelIT extends KernelIntegrationTest
     {
         // GIVEN
         newTransaction();
-        IndexRule idx = createIndex( );
+        IndexDescriptor idx = createIndex( );
         commit();
 
         newTransaction();
@@ -475,17 +484,17 @@ public class KernelIT extends KernelIntegrationTest
 
         // WHEN
         newTransaction();
-        statement.dropIndexRule( idx );
+        statement.dropIndex( idx );
         commit();
 
         // THEN
         assertFalse( schemaStateContains("my key") );
     }
 
-    private IndexRule createIndex( ) throws ConstraintViolationKernelException
+    private IndexDescriptor createIndex( ) throws DataIntegrityKernelException
     {
-        return statement.addIndexRule( statement.getOrCreateLabelId( "hello" ),
-                    statement.getOrCreatePropertyKeyId( "hepp" ) );
+        return statement.addIndex( statement.getOrCreateLabelId( "hello" ),
+                                   statement.getOrCreatePropertyKeyId( "hepp" ) );
     }
 
     private String getOrCreateSchemaState( String key, final String maybeSetThisState )

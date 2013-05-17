@@ -22,17 +22,17 @@ package org.neo4j.kernel.impl.api;
 import java.util.Iterator;
 
 import org.neo4j.helpers.Function;
-import org.neo4j.kernel.api.ConstraintViolationKernelException;
+import org.neo4j.kernel.api.DataIntegrityKernelException;
 import org.neo4j.kernel.api.SchemaRuleNotFoundException;
+import org.neo4j.kernel.api.constraints.UniquenessConstraint;
 import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.operations.SchemaOperations;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 
 public class DelegatingSchemaOperations implements SchemaOperations
 {
-    protected final SchemaOperations delegate;
+    private final SchemaOperations delegate;
 
     public DelegatingSchemaOperations( SchemaOperations delegate )
     {
@@ -40,45 +40,108 @@ public class DelegatingSchemaOperations implements SchemaOperations
     }
 
     @Override
-    public IndexRule addIndexRule( long labelId, long propertyKey ) throws ConstraintViolationKernelException
+    public IndexDescriptor getIndex( long labelId, long propertyKey ) throws SchemaRuleNotFoundException
     {
-        return delegate.addIndexRule( labelId, propertyKey );
+        return delegate.getIndex( labelId, propertyKey );
     }
 
     @Override
-    public void dropIndexRule( IndexRule indexRule ) throws ConstraintViolationKernelException
+    public Iterator<IndexDescriptor> getIndexes( long labelId )
     {
-        delegate.dropIndexRule( indexRule );
+        return delegate.getIndexes( labelId );
     }
 
     @Override
-    public IndexDescriptor getIndexDescriptor( long indexId ) throws IndexNotFoundKernelException
+    public Iterator<IndexDescriptor> getIndexes()
     {
-        return delegate.getIndexDescriptor( indexId );
+        return delegate.getIndexes();
     }
 
     @Override
-    public IndexRule getIndexRule( long labelId, long propertyKey ) throws SchemaRuleNotFoundException
+    public Iterator<IndexDescriptor> getConstraintIndexes( long labelId )
     {
-        return delegate.getIndexRule( labelId, propertyKey );
+        return delegate.getConstraintIndexes( labelId );
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules()
+    public Iterator<IndexDescriptor> getConstraintIndexes()
     {
-        return delegate.getIndexRules();
+        return delegate.getConstraintIndexes();
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules( long labelId )
-    {
-        return delegate.getIndexRules( labelId );
-    }
-
-    @Override
-    public InternalIndexState getIndexState( IndexRule indexRule ) throws IndexNotFoundKernelException
+    public InternalIndexState getIndexState( IndexDescriptor indexRule ) throws IndexNotFoundKernelException
     {
         return delegate.getIndexState( indexRule );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints( long labelId, long propertyKeyId )
+    {
+        return delegate.getConstraints( labelId, propertyKeyId );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints( long labelId )
+    {
+        return delegate.getConstraints( labelId );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints()
+    {
+        return delegate.getConstraints();
+    }
+
+    @Override
+    public Long getOwningConstraint( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        return delegate.getOwningConstraint( index );
+    }
+
+    @Override
+    public long getCommittedIndexId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        return delegate.getCommittedIndexId( index );
+    }
+
+    @Override
+    public IndexDescriptor addIndex( long labelId, long propertyKey ) throws
+                                                                      DataIntegrityKernelException
+    {
+        return delegate.addIndex( labelId, propertyKey );
+    }
+
+    @Override
+    public IndexDescriptor addConstraintIndex( long labelId, long propertyKey )
+            throws DataIntegrityKernelException
+    {
+        return delegate.addConstraintIndex( labelId, propertyKey );
+    }
+
+    @Override
+    public void dropIndex( IndexDescriptor indexRule ) throws DataIntegrityKernelException
+    {
+        delegate.dropIndex( indexRule );
+    }
+
+    @Override
+    public void dropConstraintIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    {
+        delegate.dropConstraintIndex( descriptor );
+    }
+
+    @Override
+    public UniquenessConstraint addUniquenessConstraint( long labelId, long propertyKeyId )
+            throws DataIntegrityKernelException, ConstraintCreationKernelException
+    {
+        return delegate.addUniquenessConstraint( labelId, propertyKeyId );
+    }
+
+    @Override
+    public void dropConstraint( UniquenessConstraint constraint )
+    {
+        delegate.dropConstraint( constraint );
     }
 
     @Override

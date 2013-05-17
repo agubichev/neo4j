@@ -19,8 +19,6 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static org.neo4j.helpers.FutureAdapter.VOID;
-
 import java.io.IOException;
 import java.util.concurrent.Future;
 
@@ -31,6 +29,8 @@ import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.NodePropertyUpdate;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
+
+import static org.neo4j.helpers.FutureAdapter.VOID;
 
 /**
  * Controls access to {@link IndexPopulator}, {@link IndexAccessor} during different stages
@@ -79,12 +79,19 @@ public interface IndexProxy
     void force() throws IOException;
     
     /**
-     * 
-     * @return
      * @throws IndexNotFoundKernelException if the index isn't online yet.
      */
     IndexReader newReader() throws IndexNotFoundKernelException;
-    
+
+    /**
+     * @return {@code true} if the call waited, {@code false} if the condition was already reached.
+     */
+    boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException;
+
+    void activate();
+
+    void validate() throws IndexPopulationFailedKernelException;
+
     class Adapter implements IndexProxy
     {
         public static final Adapter EMPTY = new Adapter();
@@ -143,6 +150,22 @@ public interface IndexProxy
         public IndexReader newReader()
         {
             return new IndexReader.Empty();
+        }
+
+        @Override
+        public boolean awaitStoreScanCompleted()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void activate()
+        {
+        }
+
+        @Override
+        public void validate()
+        {
         }
     }
 }

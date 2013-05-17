@@ -21,8 +21,14 @@ package org.neo4j.cypher.internal.parser.v2_0
 
 import org.neo4j.graphdb.Direction
 import org.neo4j.helpers.ThisShouldNotHappenError
-import org.neo4j.cypher.internal.commands.expressions.{LiteralMap, Literal, Expression, Identifier}
-import org.neo4j.cypher.internal.commands.values.{LabelValue, LabelName}
+import org.neo4j.cypher.internal.commands.expressions.LiteralMap
+import org.neo4j.cypher.internal.commands.expressions.{Expression, Identifier}
+import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.internal.parser._
+import org.neo4j.cypher.internal.parser.ParsedEntity
+import org.neo4j.cypher.internal.commands.expressions.Literal
+import org.neo4j.cypher.internal.parser.ParsedShortestPath
+import org.neo4j.cypher.internal.parser.ParsedNamedPath
 
 trait ParserPattern extends Base with Labels {
 
@@ -40,7 +46,7 @@ trait ParserPattern extends Base with Labels {
   }
 
   def usePattern[T](translator: AbstractPattern => Maybe[T]): Parser[Seq[T]] = Parser {
-    case in => translate(in, translator, pattern(in))
+    case in => translate(in, translator, patterns(in))
   }
 
   def usePath[T](translator: AbstractPattern => Maybe[T]): Parser[Seq[T]] = Parser {
@@ -63,7 +69,7 @@ trait ParserPattern extends Base with Labels {
     }
   }
 
-  private def pattern: Parser[Seq[AbstractPattern]] = commaList(patternBit) ^^ (patterns => patterns.flatten)
+  def patterns: Parser[Seq[AbstractPattern]] = commaList(patternBit) ^^ (patterns => patterns.flatten)
 
   private def patternBit: Parser[Seq[AbstractPattern]] =
     pathAssignment |
@@ -85,7 +91,7 @@ trait ParserPattern extends Base with Labels {
       nodeInParenthesis | // (singleNodeDefinition)
       failure("expected an expression that is a node")
 
-  private def labelsAndValues: Parser[(Seq[LabelValue], Map[String, Expression], Boolean)] = optLabelShortForm ~ opt(curlyMap) ^^ {
+  private def labelsAndValues: Parser[(Seq[KeyToken], Map[String, Expression], Boolean)] = optLabelShortForm ~ opt(curlyMap) ^^ {
     case labels ~ optMap =>
       val mapVal = optMap.getOrElse(Map.empty)
       val bare = labels.isEmpty && optMap.isEmpty
@@ -108,16 +114,16 @@ trait ParserPattern extends Base with Labels {
     in =>
       (generatedName ~ expression).apply(in) match {
         case Success(_ ~ Identifier(name), rest) =>
-          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq.empty, true), rest)
+          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq.empty, bare = true), rest)
 
-        case Success(name ~ Literal(n: LabelName), rest) =>
-          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq(n), true), rest)
+        case Success(name ~ Literal(n: KeyToken.Unresolved), rest) =>
+          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq(n), bare = true), rest)
 
         case Success(name ~ x, rest) if x.isInstanceOf[LiteralMap] =>
           Failure("apa", rest)
 
         case Success(name ~ exp, rest) =>
-          Success(ParsedEntity(name, exp, Map[String, Expression](), Seq.empty, true), rest)
+          Success(ParsedEntity(name, exp, Map[String, Expression](), Seq.empty, bare = true), rest)
 
         case x: Error           => x
         case Failure(msg, rest) => failure("expected an expression that is a node", rest)

@@ -19,14 +19,14 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static org.neo4j.helpers.FutureAdapter.VOID;
-
 import java.io.IOException;
 import java.util.concurrent.Future;
 
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
+
+import static org.neo4j.helpers.FutureAdapter.VOID;
 
 public class FailedIndexProxy extends AbstractSwallowingIndexProxy
 {
@@ -35,7 +35,7 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     public FailedIndexProxy( IndexDescriptor descriptor, SchemaIndexProvider.Descriptor providerDescriptor,
                              IndexPopulator populator )
     {
-       this( descriptor, providerDescriptor, populator, null );
+        this( descriptor, providerDescriptor, populator, null );
     }
 
     public FailedIndexProxy( IndexDescriptor descriptor, SchemaIndexProvider.Descriptor providerDescriptor,
@@ -56,5 +56,23 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     public InternalIndexState getState()
     {
         return InternalIndexState.FAILED;
+    }
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException
+    {
+        throw new IndexPopulationFailedKernelException( getDescriptor(), getCause() );
+    }
+
+    @Override
+    public void activate()
+    {
+        throw new UnsupportedOperationException( "Cannot activate a failed index." );
+    }
+
+    @Override
+    public void validate() throws IndexPopulationFailedKernelException
+    {
+        throw new IndexPopulationFailedKernelException( getDescriptor(), getCause() );
     }
 }

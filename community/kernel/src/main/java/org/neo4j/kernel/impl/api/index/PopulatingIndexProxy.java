@@ -112,7 +112,26 @@ public class PopulatingIndexProxy implements IndexProxy
     {
         throw new IndexNotFoundKernelException( descriptor + " is still populating" );
     }
-    
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException
+    {
+        job.awaitCompletion();
+        return true;
+    }
+
+    @Override
+    public void activate()
+    {
+        throw new UnsupportedOperationException( "Cannot activate a populating index." );
+    }
+
+    @Override
+    public void validate()
+    {
+        throw new IllegalStateException( "Cannot validate index while it is still populating." );
+    }
+
     @Override
     public String toString()
     {

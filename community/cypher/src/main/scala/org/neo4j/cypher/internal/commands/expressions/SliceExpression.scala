@@ -20,12 +20,12 @@
 package org.neo4j.cypher.internal.commands.expressions
 
 
-import org.neo4j.cypher.internal.symbols.{NumberType, AnyCollectionType, CypherType, SymbolTable}
+import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.ExecutionContext
-import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.cypher.internal.helpers.CollectionSupport
 import org.neo4j.cypher.internal.helpers.CastSupport.castOrFail
-
+import org.neo4j.cypher.internal.symbols.SymbolTable
+import org.neo4j.cypher.internal.pipes.QueryState
 
 case class SliceExpression(collection: Expression, from: Option[Expression], to: Option[Expression])
   extends Expression with CollectionSupport {
@@ -94,7 +94,7 @@ case class SliceExpression(collection: Expression, from: Option[Expression], to:
   protected def calculateType(symbols: SymbolTable): CypherType = {
     from.foreach(_.evaluateType(NumberType(), symbols))
     to.foreach(_.evaluateType(NumberType(), symbols))
-    collection.evaluateType(AnyCollectionType(), symbols)
+    collection.evaluateType(CollectionType(AnyType()), symbols)
   }
 
   def rewrite(f: (Expression) => Expression): Expression =

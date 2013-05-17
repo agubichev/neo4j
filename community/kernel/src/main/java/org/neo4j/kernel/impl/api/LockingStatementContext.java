@@ -22,10 +22,11 @@ package org.neo4j.kernel.impl.api;
 import java.util.Iterator;
 
 import org.neo4j.helpers.Function;
-import org.neo4j.kernel.api.ConstraintViolationKernelException;
+import org.neo4j.kernel.api.DataIntegrityKernelException;
 import org.neo4j.kernel.api.EntityNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
+import org.neo4j.kernel.api.constraints.UniquenessConstraint;
+import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 
 public class LockingStatementContext extends CompositeStatementContext
 {
@@ -54,17 +55,33 @@ public class LockingStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public IndexRule addIndexRule( long labelId, long propertyKey ) throws ConstraintViolationKernelException
+    public IndexDescriptor addIndex( long labelId, long propertyKey ) throws
+                                                                      DataIntegrityKernelException
     {
         lockHolder.acquireSchemaWriteLock();
-        return delegate.addIndexRule( labelId, propertyKey );
+        return delegate.addIndex( labelId, propertyKey );
     }
 
     @Override
-    public void dropIndexRule( IndexRule indexRule ) throws ConstraintViolationKernelException
+    public IndexDescriptor addConstraintIndex( long labelId, long propertyKey )
+            throws DataIntegrityKernelException
     {
         lockHolder.acquireSchemaWriteLock();
-        delegate.dropIndexRule( indexRule );
+        return delegate.addConstraintIndex( labelId, propertyKey );
+    }
+
+    @Override
+    public void dropIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    {
+        lockHolder.acquireSchemaWriteLock();
+        delegate.dropIndex( descriptor );
+    }
+
+    @Override
+    public void dropConstraintIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    {
+        lockHolder.acquireSchemaWriteLock();
+        delegate.dropConstraintIndex( descriptor );
     }
 
     @Override
@@ -82,17 +99,31 @@ public class LockingStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules( long labelId )
+    public Iterator<IndexDescriptor> getIndexes( long labelId )
     {
         lockHolder.acquireSchemaReadLock();
-        return delegate.getIndexRules( labelId );
+        return delegate.getIndexes( labelId );
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules()
+    public Iterator<IndexDescriptor> getIndexes()
     {
         lockHolder.acquireSchemaReadLock();
-        return delegate.getIndexRules();
+        return delegate.getIndexes();
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> getConstraintIndexes( long labelId )
+    {
+        lockHolder.acquireSchemaReadLock();
+        return delegate.getConstraintIndexes( labelId );
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> getConstraintIndexes()
+    {
+        lockHolder.acquireSchemaReadLock();
+        return delegate.getConstraintIndexes();
     }
 
     @Override
@@ -100,5 +131,41 @@ public class LockingStatementContext extends CompositeStatementContext
     {
         lockHolder.acquireNodeWriteLock( nodeId );
         delegate.deleteNode( nodeId );
+    }
+
+    @Override
+    public UniquenessConstraint addUniquenessConstraint( long labelId, long propertyKeyId )
+            throws DataIntegrityKernelException, ConstraintCreationKernelException
+    {
+        lockHolder.acquireSchemaWriteLock();
+        return delegate.addUniquenessConstraint( labelId, propertyKeyId );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints( long labelId, long propertyKeyId )
+    {
+        lockHolder.acquireSchemaReadLock();
+        return delegate.getConstraints( labelId, propertyKeyId );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints( long labelId )
+    {
+        lockHolder.acquireSchemaReadLock();
+        return delegate.getConstraints( labelId );
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> getConstraints()
+    {
+        lockHolder.acquireSchemaReadLock();
+        return delegate.getConstraints();
+    }
+
+    @Override
+    public void dropConstraint( UniquenessConstraint constraint )
+    {
+        lockHolder.acquireSchemaWriteLock();
+        delegate.dropConstraint( constraint );
     }
 }

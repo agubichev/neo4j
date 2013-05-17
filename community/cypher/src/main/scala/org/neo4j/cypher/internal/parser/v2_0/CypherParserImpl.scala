@@ -23,9 +23,11 @@ import org.neo4j.cypher.SyntaxException
 import org.neo4j.cypher.internal.parser.ActualParser
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.ReattachAliasedExpressions
+import org.neo4j.cypher.internal.commands.expressions.Identifier
 
 class CypherParserImpl extends Base
 with Index
+with Constraint
 with Unions
 with QueryParser
 with Expressions
@@ -49,7 +51,5 @@ Thank you, the Neo4j Team.
     }
   }
 
-  def cypherQuery: Parser[AbstractQuery] = (createIndex | dropIndex | union | query) <~ opt(";")
+  def cypherQuery: Parser[AbstractQuery] = (indexOps | constraintOps | union | query) <~ opt(";")
 }
-
-

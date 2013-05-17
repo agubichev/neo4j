@@ -19,15 +19,6 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.*;
-import static org.neo4j.helpers.Exceptions.launderedException;
-import static org.neo4j.helpers.collection.Iterables.option;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-import static org.neo4j.kernel.api.index.SchemaIndexProvider.NO_INDEX_PROVIDER;
-import static org.neo4j.kernel.impl.api.index.TestSchemaIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,17 +31,28 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
 import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.kernel.api.EntityNotFoundException;
 import org.neo4j.kernel.api.SchemaRuleNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.index.InternalIndexState;
-import org.neo4j.kernel.api.index.SchemaIndexProvider;
-import org.neo4j.kernel.api.operations.SchemaOperations;
+import org.neo4j.kernel.api.operations.SchemaStateOperations;
 import org.neo4j.kernel.impl.api.StateHandlingStatementContext;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
-import org.neo4j.kernel.impl.nioneo.xa.DefaultSchemaIndexProviderMap;
+import org.neo4j.kernel.impl.api.constraints.ConstraintIndexCreator;
+import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.neo4j.helpers.Exceptions.launderedException;
+import static org.neo4j.helpers.collection.Iterables.option;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 
 public class SchemaTransactionStateTest
 {
@@ -61,14 +63,14 @@ public class SchemaTransactionStateTest
         commitNoLabels();
 
         // WHEN
-        IndexRule rule = txContext.addIndexRule( labelId1, key1 );
+        IndexDescriptor rule = txContext.addIndex( labelId1, key1 );
 
         // THEN
-        assertEquals( asSet( rule ), IteratorUtil.asSet( txContext.getIndexRules( labelId1 ) ) );
-        verify( store ).getIndexRules( labelId1 );
+        assertEquals( asSet( rule ), IteratorUtil.asSet( txContext.getIndexes( labelId1 ) ) );
+        verify( store ).getIndexes( labelId1 );
 
-        assertEquals( asSet( rule ), IteratorUtil.asSet( txContext.getIndexRules() ) );
-        verify( store ).getIndexRules();
+        assertEquals( asSet( rule ), IteratorUtil.asSet( txContext.getIndexes() ) );
+        verify( store ).getIndexes();
 
         verifyNoMoreInteractions( store );
     }
@@ -80,18 +82,18 @@ public class SchemaTransactionStateTest
         commitNoLabels();
 
         // WHEN
-        IndexRule rule1 = txContext.addIndexRule( labelId1, key1 );
-        IndexRule rule2 = txContext.addIndexRule( labelId2, key2 );
+        IndexDescriptor rule1 = txContext.addIndex( labelId1, key1 );
+        IndexDescriptor rule2 = txContext.addIndex( labelId2, key2 );
 
         // THEN
-        assertEquals( asSet( rule1 ), IteratorUtil.asSet( txContext.getIndexRules( labelId1 ) ) );
-        verify( store ).getIndexRules( labelId1 );
+        assertEquals( asSet( rule1 ), IteratorUtil.asSet( txContext.getIndexes( labelId1 ) ) );
+        verify( store ).getIndexes( labelId1 );
 
-        assertEquals( asSet( rule2 ), IteratorUtil.asSet( txContext.getIndexRules( labelId2 ) ) );
-        verify( store ).getIndexRules( labelId2 );
+        assertEquals( asSet( rule2 ), IteratorUtil.asSet( txContext.getIndexes( labelId2 ) ) );
+        verify( store ).getIndexes( labelId2 );
 
-        assertEquals( asSet( rule1, rule2 ), IteratorUtil.asSet( txContext.getIndexRules() ) );
-        verify( store ).getIndexRules();
+        assertEquals( asSet( rule1, rule2 ), IteratorUtil.asSet( txContext.getIndexes() ) );
+        verify( store ).getIndexes();
 
         verifyNoMoreInteractions( store );
     }
@@ -103,11 +105,11 @@ public class SchemaTransactionStateTest
         commitNoLabels();
 
         // WHEN
-        IndexRule rule1 = txContext.addIndexRule( labelId1, key1 );
-        IndexRule rule2 = txContext.addIndexRule( labelId1, key2 );
+        IndexDescriptor rule1 = txContext.addIndex( labelId1, key1 );
+        IndexDescriptor rule2 = txContext.addIndex( labelId1, key2 );
 
         // THEN
-        assertEquals( asSet( rule1, rule2 ), IteratorUtil.asSet( txContext.getIndexRules( labelId1 ) ) );
+        assertEquals( asSet( rule1, rule2 ), IteratorUtil.asSet( txContext.getIndexes( labelId1 ) ) );
     }
 
     @Test
@@ -115,7 +117,7 @@ public class SchemaTransactionStateTest
     {
         // GIVEN
         commitLabels( labelId1 );
-        IndexRule rule = txContext.addIndexRule( labelId1, key1 );
+        IndexDescriptor rule = txContext.addIndex( labelId1, key1 );
 
         // THEN
         assertEquals( InternalIndexState.POPULATING, txContext.getIndexState( rule ) );
@@ -126,14 +128,14 @@ public class SchemaTransactionStateTest
     {
         // GIVEN
         // -- non-existent rule added in the transaction
-        txContext.addIndexRule( labelId1, key1 );
+        txContext.addIndex( labelId1, key1 );
 
         // WHEN
-        IndexRule rule = txContext.getIndexRule( labelId1, key1 );
-        Iterator<IndexRule> labelRules = txContext.getIndexRules( labelId1 );
+        IndexDescriptor rule = txContext.getIndex( labelId1, key1 );
+        Iterator<IndexDescriptor> labelRules = txContext.getIndexes( labelId1 );
 
         // THEN
-        IndexRule expectedRule = new IndexRule( rule.getId(), labelId1, PROVIDER_DESCRIPTOR, key1 );
+        IndexDescriptor expectedRule = new IndexDescriptor( labelId1, key1 );
         assertEquals( expectedRule, rule );
         assertEquals( asSet( expectedRule ), asSet( labelRules ) );
     }
@@ -143,14 +145,14 @@ public class SchemaTransactionStateTest
     {
         // GIVEN
         // -- a rule that exists in the store
-        IndexRule rule = new IndexRule( ruleId, labelId1, PROVIDER_DESCRIPTOR, key1 );
-        when( store.getIndexRules( labelId1 ) ).thenReturn( option( rule ).iterator() );
+        IndexDescriptor rule = new IndexDescriptor( labelId1, key1 );
+        when( store.getIndexes( labelId1 ) ).thenReturn( option( rule ).iterator() );
         // -- that same rule dropped in the transaction
-        txContext.dropIndexRule( rule );
+        txContext.dropIndex( rule );
 
         // WHEN
         assertException( getIndexRule(), SchemaRuleNotFoundException.class );
-        Iterator<IndexRule> rulesByLabel = txContext.getIndexRules( labelId1 );
+        Iterator<IndexDescriptor> rulesByLabel = txContext.getIndexes( labelId1 );
 
         // THEN
         assertEquals( asSet(), asSet( rulesByLabel ) );
@@ -163,7 +165,7 @@ public class SchemaTransactionStateTest
             @Override
             public void call() throws SchemaRuleNotFoundException
             {
-                txContext.getIndexRule( labelId1, key1 );
+                txContext.getIndex( labelId1, key1 );
             }
         };
     }
@@ -193,8 +195,7 @@ public class SchemaTransactionStateTest
     // exists
 
     private final long labelId1 = 10, labelId2 = 12, nodeId = 20;
-    private final long key1 = 45, key2 = 46, ruleId = 9;
-    private int rulesCreated;
+    private final long key1 = 45, key2 = 46;
 
     private StatementContext store;
     private OldTxStateBridge oldTxState;
@@ -205,27 +206,26 @@ public class SchemaTransactionStateTest
     public void before() throws Exception
     {
         store = mock( StatementContext.class );
-        when( store.getIndexRules( labelId1 ) ).then( asAnswer( Collections.<IndexRule>emptyList() ) );
-        when( store.getIndexRules( labelId2 ) ).then( asAnswer( Collections.<IndexRule>emptyList() ) );
-        when( store.getIndexRules() ).then( asAnswer( Collections.<IndexRule>emptyList() ) );
-        when( store.addIndexRule( anyLong(), anyLong() ) ).thenAnswer( new Answer<IndexRule>()
+        when( store.getIndexes( labelId1 ) ).then( asAnswer( Collections.<IndexDescriptor>emptyList() ) );
+        when( store.getIndexes( labelId2 ) ).then( asAnswer( Collections.<IndexDescriptor>emptyList() ) );
+        when( store.getIndexes() ).then( asAnswer( Collections.<IndexDescriptor>emptyList() ) );
+        when( store.addIndex( anyLong(), anyLong() ) ).thenAnswer( new Answer<IndexDescriptor>()
         {
             @Override
-            public IndexRule answer( InvocationOnMock invocation ) throws Throwable
+            public IndexDescriptor answer( InvocationOnMock invocation ) throws Throwable
             {
-                return new IndexRule( ruleId + rulesCreated++,
-                        (Long) invocation.getArguments()[0],
-                        (SchemaIndexProvider.Descriptor) invocation.getArguments()[1],
-                        (Long) invocation.getArguments()[2] );
+                return new IndexDescriptor((Long) invocation.getArguments()[0],
+                        (Long) invocation.getArguments()[1] );
             }
         } );
 
         oldTxState = mock( OldTxStateBridge.class );
 
         state = new TxState( oldTxState, mock( PersistenceManager.class ),
-                mock( TxState.IdGeneration.class ), new DefaultSchemaIndexProviderMap( NO_INDEX_PROVIDER ) );
+                mock( TxState.IdGeneration.class ) );
 
-        txContext = new StateHandlingStatementContext( store, mock( SchemaOperations.class), state );
+        txContext = new StateHandlingStatementContext( store, mock( SchemaStateOperations.class), state,
+                                                       mock( ConstraintIndexCreator.class ) );
     }
 
     private static <T> Answer<Iterator<T>> asAnswer( final Iterable<T> values )

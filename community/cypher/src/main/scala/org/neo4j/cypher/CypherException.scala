@@ -74,6 +74,13 @@ class IndexHintException(identifier: String, label: String, property: String, me
   def this(hint: SchemaIndex, message: String) = this(hint.identifier, hint.label, hint.property, message)
 }
 
+class LabelScanHintException(identifier: String, label: String, message: String)
+  extends CypherException(s"$message\nLabel: `$label`") {
+}
+
 class UnableToPickStartPointException(message: String) extends CypherException(message)
 
+
 class OutOfBoundsException(message: String) extends CypherException(message)
+
+class InvalidSemanticsException( message: String ) extends CypherException(message)

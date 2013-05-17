@@ -39,12 +39,12 @@ public class FlippableIndexProxy implements IndexProxy
 
     public static final class FlipFailedKernelException extends KernelException
     {
-        public FlipFailedKernelException( String message, Throwable cause )
+        public FlipFailedKernelException( Throwable cause )
         {
-            super( message, cause );
+            super( cause, "Failed to transition index to new context, see nested exception." );
         }
     }
-    
+
     private static final Callable<Void> NO_OP = new Callable<Void>()
     {
         @Override
@@ -54,7 +54,7 @@ public class FlippableIndexProxy implements IndexProxy
         }
     };
 
-    private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
+    private final ReadWriteLock lock = new ReentrantReadWriteLock( true );
     private IndexProxyFactory flipTarget;
     private IndexProxy delegate;
 
@@ -67,7 +67,7 @@ public class FlippableIndexProxy implements IndexProxy
     {
         this.delegate = originalDelegate;
     }
-    
+
     @Override
     public void start() throws IOException
     {
@@ -81,7 +81,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public void update( Iterable<NodePropertyUpdate> updates ) throws IOException
     {
@@ -95,7 +95,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public void recover( Iterable<NodePropertyUpdate> updates ) throws IOException
     {
@@ -110,7 +110,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public Future<Void> drop() throws IOException
     {
@@ -125,7 +125,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public void force() throws IOException
     {
@@ -181,7 +181,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public Future<Void> close() throws IOException
     {
@@ -196,7 +196,7 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public IndexReader newReader() throws IndexNotFoundKernelException
     {
@@ -210,10 +210,47 @@ public class FlippableIndexProxy implements IndexProxy
             lock.readLock().unlock();
         }
     }
-    
-    public IndexProxy getDelegate()
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException
     {
-        return delegate;
+        IndexProxy proxy;
+        do
+        {
+            lock.readLock().lock();
+            proxy = delegate;
+            lock.readLock().unlock();
+        } while ( proxy.awaitStoreScanCompleted() );
+        return true;
+    }
+
+    @Override
+    public void activate()
+    {
+        // use write lock, since activate() might call flip*() which acquires a write lock itself.
+        lock.writeLock().lock();
+        try
+        {
+            delegate.activate();
+        }
+        finally
+        {
+            lock.writeLock().unlock();
+        }
+    }
+
+    @Override
+    public void validate() throws IndexPopulationFailedKernelException
+    {
+        lock.readLock().lock();
+        try
+        {
+            delegate.validate();
+        }
+        finally
+        {
+            lock.readLock().unlock();
+        }
     }
 
     public void setFlipTarget( IndexProxyFactory flipTarget )
@@ -222,6 +259,19 @@ public class FlippableIndexProxy implements IndexProxy
         try
         {
             this.flipTarget = flipTarget;
+        }
+        finally
+        {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void flipTo( IndexProxy targetDelegate )
+    {
+        lock.writeLock().lock();
+        try
+        {
+            this.delegate = targetDelegate;
         }
         finally
         {
@@ -238,7 +288,7 @@ public class FlippableIndexProxy implements IndexProxy
         catch ( FlipFailedKernelException e )
         {
             throw new ThisShouldNotHappenError( "Mattias",
-                    "Flipping without a particular action should not fail this way" );
+                                                "Flipping without a particular action should not fail this way" );
         }
     }
 
@@ -246,8 +296,8 @@ public class FlippableIndexProxy implements IndexProxy
     {
         flip( actionDuringFlip, delegate );
     }
-    
-    public void flip( Callable<Void> actionDuringFlip, IndexProxy failureFlipTarget ) throws FlipFailedKernelException
+
+    public void flip( Callable<Void> actionDuringFlip, IndexProxy failureDelegate ) throws FlipFailedKernelException
     {
         lock.writeLock().lock();
         try
@@ -260,8 +310,8 @@ public class FlippableIndexProxy implements IndexProxy
             }
             catch ( Exception e )
             {
-                this.delegate = failureFlipTarget;
-                throw new FlipFailedKernelException( "Failed to transition index to new context, see nested exception.", e );
+                this.delegate = failureDelegate;
+                throw new FlipFailedKernelException( e );
             }
         }
         finally
@@ -280,7 +330,8 @@ public class FlippableIndexProxy implements IndexProxy
     {
         if ( closed )
         {
-            throw new IllegalStateException( this.getClass().getSimpleName() + " has been closed. No more interactions allowed" );
+            throw new IllegalStateException(
+                    this.getClass().getSimpleName() + " has been closed. No more interactions allowed" );
         }
     }
 }

@@ -20,71 +20,24 @@
 package org.neo4j.cypher.internal.parser.v2_0
 
 import org.neo4j.cypher.internal.commands._
-import expressions.{Nullable, Property, Identifier}
-import org.neo4j.cypher.internal.mutation.{PropertySetAction, UpdateAction, MergeNodeAction}
+import org.neo4j.cypher.internal.mutation.UpdateAction
 import org.neo4j.cypher.internal.commands.NamedPath
-import org.neo4j.cypher.internal.commands.MergeNodeStartItem
-import org.neo4j.cypher.internal.commands.LabelAction
-import org.neo4j.cypher.internal.commands.HasLabel
+import org.neo4j.cypher.internal.parser.{On, OnAction}
 
 
 trait Merge extends Base with Labels with ParserPattern {
 
-  def merge: Parser[(Seq[StartItem], Seq[NamedPath])] = rep1(mergeNode) ~ rep(onCreate | onUpdate) ^^ {
-    case nodes ~ actions =>
-
-      // Prepares maps with update and create actions
-      var updateActions: Map[String, Seq[UpdateAction]] = Map.empty
-      var createActions: Map[String, Seq[UpdateAction]] = nodes.map(action => action.identifier -> action.onCreate).toMap
-
-      // Adds ON CREATE / ON MATCH actions to maps
-      actions.foreach {
-        case (OnCreate, id, theseActions) => createActions = add(theseActions, createActions, id)
-        case (OnMatch, id, theseActions)  => updateActions = add(theseActions, updateActions, id)
-      }
-
-      // Creates StartItems with the action maps
-      val startItems = nodes.map {
-        case nodeStartAction => MergeNodeStartItem(nodeStartAction.copy(
-          onCreate = createActions(nodeStartAction.identifier),
-          onMatch = updateActions.getOrElse(nodeStartAction.identifier, Seq.empty)))
-      }
-
-      (startItems, Seq.empty)
+  def merge: Parser[(Seq[StartItem], Seq[NamedPath])] = rep1(MERGE ~> patterns) ~ rep(onCreate | onMatch) ^^ {
+    case nodes ~ actions => (Seq(MergeAst(nodes.flatten.toSeq, actions)), Seq.empty)
   }
 
-  private def add(actions: Seq[UpdateAction], map: Map[String, Seq[UpdateAction]], id: String): Map[String, Seq[UpdateAction]] =
-    map + (map.get(id) match {
-      case Some(existingActions) => (id -> (actions ++ existingActions))
-      case None                  => (id -> actions)
-    })
-
-  private def mergeNode: Parser[MergeNodeAction] = MERGE ~> optParens(identity ~ optLabelShortForm ~ opt(curlyMap)) ^^ {
-    case id ~ labels ~ propsOption =>
-      val props = propsOption.getOrElse(Map.empty)
-      val expectations = labels.map(HasLabel(Identifier(id),_)) ++ props.map {
-        case (key, value) => Equals(Nullable(Property(Identifier(id), key)), value)
-      }
-      val onCreate = labels.map(l => LabelAction(Identifier(id), LabelSetOp, Seq(l))) ++ props.map {
-        case (key, value) => PropertySetAction(Property(Identifier(id), key), value)
-      }
-      MergeNodeAction(id, expectations, onCreate, Seq.empty, None)
+  private def onCreate: Parser[OnAction] = ON ~> CREATE ~> identity ~ set ^^ {
+    case id ~ setActions => OnAction(On.Create, id, setActions)
   }
 
-  private def onCreate: Parser[(OnAction, String, Seq[UpdateAction])] = ON ~> CREATE ~> identity ~ set ^^ {
-    case id ~ setActions => (OnCreate, id, setActions)
-  }
-
-  private def onUpdate: Parser[(OnAction, String, Seq[UpdateAction])] = ON ~> MATCH ~> identity ~ set ^^ {
-    case id ~ setActions => (OnMatch, id, setActions)
+  private def onMatch: Parser[OnAction] = ON ~> MATCH ~> identity ~ set ^^ {
+    case id ~ setActions => OnAction(On.Match, id, setActions)
   }
 
   def set: Parser[Seq[UpdateAction]]
-
-  trait OnAction
-
-  case object OnCreate extends OnAction
-
-  case object OnMatch extends OnAction
-
 }

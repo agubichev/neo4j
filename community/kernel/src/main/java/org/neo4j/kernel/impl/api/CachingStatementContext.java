@@ -38,29 +38,31 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import static org.neo4j.helpers.collection.Iterables.filter;
-import static org.neo4j.helpers.collection.Iterables.map;
-
 import java.util.Iterator;
 import java.util.Set;
 
 import org.neo4j.helpers.Function;
 import org.neo4j.helpers.Predicate;
 import org.neo4j.kernel.api.EntityNotFoundException;
+import org.neo4j.kernel.api.SchemaRuleNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
+import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 import org.neo4j.kernel.impl.nioneo.store.SchemaRule;
-import org.neo4j.kernel.impl.nioneo.store.SchemaRule.Kind;
+
+import static org.neo4j.helpers.collection.Iterables.filter;
+import static org.neo4j.helpers.collection.Iterables.map;
 
 public class CachingStatementContext extends CompositeStatementContext
 {
-    private static final Function<? super SchemaRule, IndexRule> TO_INDEX_RULE =
-            new Function<SchemaRule, IndexRule>()
+    private static final Function<? super SchemaRule, IndexDescriptor> TO_INDEX_RULE =
+            new Function<SchemaRule, IndexDescriptor>()
             {
                 @Override
-                public IndexRule apply( SchemaRule from )
+                public IndexDescriptor apply( SchemaRule from )
                 {
-                    return (IndexRule) from;
+                    IndexRule rule = (IndexRule) from;
+                    return new IndexDescriptor( rule.getLabel(), rule.getPropertyKey() );
                 }
             };
     private final PersistenceCache persistenceCache;
@@ -99,27 +101,79 @@ public class CachingStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules( long labelId )
+    public Iterator<IndexDescriptor> getIndexes( long labelId )
     {
-        return toIndexRules( schemaCache.getSchemaRulesForLabel( labelId ) );
+        return toIndexDescriptors( schemaCache.getSchemaRulesForLabel( labelId ), SchemaRule.Kind.INDEX_RULE );
     }
 
     @Override
-    public Iterator<IndexRule> getIndexRules()
+    public Iterator<IndexDescriptor> getIndexes()
     {
-        return toIndexRules( schemaCache.getSchemaRules() );
+        return toIndexDescriptors( schemaCache.getSchemaRules(), SchemaRule.Kind.INDEX_RULE );
     }
 
-    private Iterator<IndexRule> toIndexRules( Iterable<SchemaRule> schemaRules )
+    @Override
+    public Iterator<IndexDescriptor> getConstraintIndexes( long labelId )
+    {
+        return toIndexDescriptors( schemaCache.getSchemaRulesForLabel( labelId ),
+                                   SchemaRule.Kind.CONSTRAINT_INDEX_RULE );
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> getConstraintIndexes()
+    {
+        return toIndexDescriptors( schemaCache.getSchemaRules(), SchemaRule.Kind.CONSTRAINT_INDEX_RULE );
+    }
+
+    private static Iterator<IndexDescriptor> toIndexDescriptors( Iterable<SchemaRule> rules,
+                                                                 final SchemaRule.Kind kind )
     {
         Iterator<SchemaRule> filteredRules = filter( new Predicate<SchemaRule>()
         {
             @Override
             public boolean accept( SchemaRule item )
             {
-                return item.getKind() == Kind.INDEX_RULE;
+                return item.getKind() == kind;
             }
-        }, schemaRules.iterator() );
+        }, rules.iterator() );
         return map( TO_INDEX_RULE, filteredRules );
+    }
+
+    @Override
+    public Long getOwningConstraint( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        IndexRule rule = indexRule( index );
+        if ( rule != null )
+        {
+            return rule.getOwningConstraint();
+        }
+        return delegate.getOwningConstraint( index );
+    }
+
+    @Override
+    public long getCommittedIndexId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        IndexRule rule = indexRule( index );
+        if ( rule != null )
+        {
+            return rule.getId();
+        }
+        return delegate.getCommittedIndexId( index );
+    }
+
+    private IndexRule indexRule( IndexDescriptor index )
+    {
+        for ( SchemaRule rule : schemaCache.getSchemaRulesForLabel( index.getLabelId() ) )
+        {
+            if ( rule instanceof IndexRule )
+            {
+                IndexRule indexRule = (IndexRule) rule;
+                if ( indexRule.getPropertyKey() == index.getPropertyKeyId() )
+                {
+                    return indexRule;
+                }
+            }
+        }
+        return null;
     }
 }

@@ -19,10 +19,6 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.neo4j.helpers.Exceptions.launderedException;
-import static org.neo4j.helpers.collection.IteratorUtil.loop;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,6 +32,7 @@ import java.util.concurrent.Future;
 
 import org.neo4j.helpers.Pair;
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
@@ -49,9 +46,13 @@ import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.kernel.logging.Logging;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.neo4j.helpers.Exceptions.launderedException;
+import static org.neo4j.helpers.collection.IteratorUtil.loop;
+
 /**
  * Manages the "schema indexes" that were introduced in 2.0. These indexes depend on the normal neo4j logical log for
- * transactionality. Each index has an {@link IndexRule}, which it uses to filter changes that come into the database.
+ * transactionality. Each index has an {@link org.neo4j.kernel.impl.nioneo.store.IndexRule}, which it uses to filter changes that come into the database.
  * Changes that apply to the the rule are indexed. This way, "normal" changes to the database can be replayed to perform
  * recovery after a crash.
  * <p/>
@@ -142,7 +143,8 @@ public class IndexingService extends LifecycleAdapter
             Pair<IndexDescriptor, SchemaIndexProvider.Descriptor> descriptors = entry.getValue();
             IndexDescriptor indexDescriptor = descriptors.first();
             SchemaIndexProvider.Descriptor providerDescriptor = descriptors.other();
-            IndexProxy indexProxy = createPopulatingIndexProxy( ruleId, indexDescriptor, providerDescriptor );
+            IndexProxy indexProxy = createPopulatingIndexProxy( ruleId, indexDescriptor, providerDescriptor,
+                                                                serviceRunning );
             indexProxy.start();
             indexes.put( ruleId, indexProxy );
         }
@@ -197,11 +199,6 @@ public class IndexingService extends LifecycleAdapter
         return indexProxy;
     }
 
-    public IndexDescriptor getIndexDescriptor( long indexId ) throws IndexNotFoundKernelException
-    {
-        return getProxyForRule( indexId ).getDescriptor();
-    }
-
     /**
      * Called while the database starts up, before recovery.
      *
@@ -221,14 +218,14 @@ public class IndexingService extends LifecycleAdapter
             {
             case ONLINE:
                 // TODO ask provider to verify
-                indexProxy = createOnlineIndexProxy( ruleId, descriptor, providerDescriptor );
+                indexProxy = createOnlineIndexProxy( ruleId, descriptor, providerDescriptor, indexRule.isConstraintIndex() );
                 break;
             case POPULATING:
                 // The database was shut down during population, or a crash has occurred, or some other sad thing.
                 indexProxy = createRecoveringIndexProxy( ruleId, descriptor, providerDescriptor );
                 break;
             case FAILED:
-                indexProxy = createFailedIndexProxy( ruleId, descriptor, providerDescriptor );
+                indexProxy = createFailedIndexProxy( ruleId, descriptor, providerDescriptor, indexRule.isConstraintIndex() );
                 break;
             }
             indexes.put( ruleId, indexProxy );
@@ -244,13 +241,13 @@ public class IndexingService extends LifecycleAdapter
      */
     public void createIndex( IndexRule rule )
     {
-        IndexProxy index = indexes.get( rule.getId() );
         long ruleId = rule.getId();
+        IndexProxy index = indexes.get( ruleId );
         IndexDescriptor descriptor = createDescriptor( rule );
         if ( serviceRunning )
         {
             assert index == null : "Index " + rule + " already exists";
-            index = createPopulatingIndexProxy( ruleId, descriptor, rule.getProviderDescriptor() );
+            index = createPopulatingIndexProxy( ruleId, descriptor, rule.getProviderDescriptor(), rule.isConstraintIndex() );
             try
             {
                 index.start();
@@ -319,17 +316,17 @@ public class IndexingService extends LifecycleAdapter
 
     private IndexProxy createPopulatingIndexProxy( final long ruleId,
                                                    final IndexDescriptor descriptor,
-                                                   final SchemaIndexProvider.Descriptor providerDescriptor )
+                                                   final SchemaIndexProvider.Descriptor providerDescriptor,
+                                                   final boolean unique )
     {
-        FlippableIndexProxy flipper = new FlippableIndexProxy();
+        final FlippableIndexProxy flipper = new FlippableIndexProxy();
 
         // TODO: This is here because there is a circular dependency from PopulatingIndexProxy to FlippableIndexProxy
-        IndexPopulator populator = getPopulatorFromProvider( providerDescriptor, ruleId );
+        IndexPopulator populator = getPopulatorFromProvider( providerDescriptor, ruleId, new IndexConfiguration( unique ) );
         PopulatingIndexProxy populatingIndex =
                 new PopulatingIndexProxy( scheduler, descriptor, providerDescriptor,
                                           populator, flipper, storeView, updateableSchemaState, logging );
-        flipper.setFlipTarget( singleProxy( populatingIndex ) );
-        flipper.flip();
+        flipper.flipTo( populatingIndex );
 
         // Prepare for flipping to online mode
         flipper.setFlipTarget( new IndexProxyFactory()
@@ -337,8 +334,15 @@ public class IndexingService extends LifecycleAdapter
             @Override
             public IndexProxy create()
             {
-                return new OnlineIndexProxy( descriptor, providerDescriptor,
-                        getOnlineAccessorFromProvider( providerDescriptor, ruleId ) );
+                OnlineIndexProxy onlineProxy = new OnlineIndexProxy( descriptor, providerDescriptor,
+                                                                     getOnlineAccessorFromProvider(
+                                                                             providerDescriptor, ruleId,
+                                                                             new IndexConfiguration( unique ) ) );
+                if ( unique )
+                {
+                    return new TentativeConstraintIndexProxy( flipper, onlineProxy );
+                }
+                return onlineProxy;
             }
         } );
 
@@ -348,11 +352,12 @@ public class IndexingService extends LifecycleAdapter
 
     private IndexProxy createOnlineIndexProxy( long ruleId,
                                                IndexDescriptor descriptor,
-                                               SchemaIndexProvider.Descriptor providerDescriptor )
+                                               SchemaIndexProvider.Descriptor providerDescriptor,
+                                               boolean unique )
     {
         // TODO Hook in version verification/migration calls to the SchemaIndexProvider here
         
-        IndexAccessor onlineAccessor = getOnlineAccessorFromProvider( providerDescriptor, ruleId );
+        IndexAccessor onlineAccessor = getOnlineAccessorFromProvider( providerDescriptor, ruleId, new IndexConfiguration( unique ) );
         IndexProxy result = new OnlineIndexProxy( descriptor, providerDescriptor, onlineAccessor );
         result = contractCheckedProxy( result, true );
         result = serviceDecoratedProxy( ruleId, result );
@@ -361,9 +366,10 @@ public class IndexingService extends LifecycleAdapter
 
     private IndexProxy createFailedIndexProxy( long ruleId,
                                                IndexDescriptor descriptor,
-                                               SchemaIndexProvider.Descriptor providerDescriptor )
+                                               SchemaIndexProvider.Descriptor providerDescriptor, boolean unique )
     {
-        IndexPopulator indexPopulator = getPopulatorFromProvider( providerDescriptor, ruleId );
+        IndexPopulator indexPopulator = getPopulatorFromProvider( providerDescriptor, ruleId,
+                                                                  new IndexConfiguration( unique ) );
         IndexProxy result = new FailedIndexProxy( descriptor, providerDescriptor, indexPopulator );
         result = contractCheckedProxy( result, true );
         return serviceDecoratedProxy( ruleId, result );
@@ -378,17 +384,18 @@ public class IndexingService extends LifecycleAdapter
         return serviceDecoratedProxy( ruleId, result );
     }
 
-    private IndexPopulator getPopulatorFromProvider( SchemaIndexProvider.Descriptor providerDescriptor, long ruleId )
+    private IndexPopulator getPopulatorFromProvider( SchemaIndexProvider.Descriptor providerDescriptor, long ruleId,
+                                                     IndexConfiguration config )
     {
         SchemaIndexProvider indexProvider = providerMap.apply( providerDescriptor );
-        return indexProvider.getPopulator( ruleId );
+        return indexProvider.getPopulator( ruleId, config );
     }
 
     private IndexAccessor getOnlineAccessorFromProvider( SchemaIndexProvider.Descriptor providerDescriptor,
-                                                         long ruleId )
+                                                         long ruleId, IndexConfiguration config )
     {
         SchemaIndexProvider indexProvider = providerMap.apply( providerDescriptor );
-        return indexProvider.getOnlineAccessor( ruleId );
+        return indexProvider.getOnlineAccessor( ruleId, config );
     }
 
     private IndexProxy contractCheckedProxy( IndexProxy result, boolean started )
@@ -429,6 +436,16 @@ public class IndexingService extends LifecycleAdapter
         {
             indexProxy.drop().get();
         }
+    }
+
+    public void activateIndex( long indexId ) throws IndexNotFoundKernelException
+    {
+        getProxyForRule( indexId ).activate();
+    }
+
+    public void validateIndex( long indexId ) throws IndexNotFoundKernelException, IndexPopulationFailedKernelException
+    {
+        getProxyForRule( indexId ).validate();
     }
 
     class ServiceStateUpdatingIndexProxy extends DelegatingIndexProxy

@@ -19,21 +19,22 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static org.neo4j.helpers.FutureAdapter.VOID;
-
 import java.io.IOException;
 import java.util.concurrent.Future;
 
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.NodePropertyUpdate;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
 
+import static org.neo4j.helpers.FutureAdapter.VOID;
+
 public class OnlineIndexProxy implements IndexProxy
 {
     private final IndexDescriptor descriptor;
-    private final IndexAccessor accessor;
+    final IndexAccessor accessor;
     private final SchemaIndexProvider.Descriptor providerDescriptor;
 
     public OnlineIndexProxy( IndexDescriptor descriptor, SchemaIndexProvider.Descriptor providerDescriptor,
@@ -52,7 +53,14 @@ public class OnlineIndexProxy implements IndexProxy
     @Override
     public void update( Iterable<NodePropertyUpdate> updates ) throws IOException
     {
-        accessor.updateAndCommit( updates );
+        try
+        {
+            accessor.updateAndCommit( updates );
+        }
+        catch ( IndexEntryConflictException e )
+        {
+            throw e.notAllowed( descriptor );
+        }
     }
     
     @Override
@@ -104,7 +112,25 @@ public class OnlineIndexProxy implements IndexProxy
     {
         return accessor.newReader();
     }
-    
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException
+    {
+        return false; // the store scan is already completed
+    }
+
+    @Override
+    public void activate()
+    {
+        // ok, already active
+    }
+
+    @Override
+    public void validate()
+    {
+        // ok, it's online so it's valid
+    }
+
     @Override
     public String toString()
     {

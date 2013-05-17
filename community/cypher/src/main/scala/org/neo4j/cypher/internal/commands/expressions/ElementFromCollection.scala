@@ -55,7 +55,7 @@ case class ElementFromCollection(collection: Expression, index: Expression) exte
   }
 
   protected def calculateType(symbols: SymbolTable): CypherType = {
-    val myType = collection.evaluateType(AnyCollectionType(), symbols).asInstanceOf[CollectionType].iteratedType
+    val myType = collection.evaluateType(CollectionType(AnyType()), symbols).asInstanceOf[CollectionType].iteratedType
     index.evaluateType(NumberType(), symbols)
 
     myType

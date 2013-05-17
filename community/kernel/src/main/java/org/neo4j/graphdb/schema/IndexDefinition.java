@@ -30,7 +30,6 @@ import org.neo4j.graphdb.index.IndexManager;
  */
 public interface IndexDefinition
 {
-
     /**
      * @return the {@link Label label} this index definition is associated with.
      */
@@ -46,4 +45,9 @@ public interface IndexDefinition
      * and any related background jobs and files will be stopped and removed.
      */
     void drop();
+
+    /**
+     * @return {@code true} if this index is created as a side effect of the creation of a uniqueness constraint.
+     */
+    boolean isConstraintIndex();
 }

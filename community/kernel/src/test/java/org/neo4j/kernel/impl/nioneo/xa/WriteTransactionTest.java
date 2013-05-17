@@ -93,7 +93,7 @@ public class WriteTransactionTest
 
         // WHEN
         final long ruleId = neoStore.getSchemaStore().nextId();
-        IndexRule schemaRule = new IndexRule( ruleId, 10, PROVIDER_DESCRIPTOR, 8 );
+        IndexRule schemaRule = IndexRule.indexRule( ruleId, 10, 8, PROVIDER_DESCRIPTOR );
         writeTransaction.createSchemaRule( schemaRule );
         writeTransaction.prepare();
         writeTransaction.commit();
@@ -108,7 +108,7 @@ public class WriteTransactionTest
         // GIVEN
         SchemaStore schemaStore = neoStore.getSchemaStore();
         long labelId = 10, propertyKey = 10;
-        IndexRule rule = new IndexRule( schemaStore.nextId(), labelId, PROVIDER_DESCRIPTOR, propertyKey );
+        IndexRule rule = IndexRule.indexRule( schemaStore.nextId(), labelId, propertyKey, PROVIDER_DESCRIPTOR );
         Collection<DynamicRecord> records = schemaStore.allocateFrom( rule );
         for ( DynamicRecord record : records )
             schemaStore.updateRecord( record );
@@ -132,7 +132,7 @@ public class WriteTransactionTest
 
         // WHEN
         final long ruleId = neoStore.getSchemaStore().nextId();
-        writeTransaction.createSchemaRule( new IndexRule( ruleId, 10, PROVIDER_DESCRIPTOR, 7 ) );
+        writeTransaction.createSchemaRule( IndexRule.indexRule( ruleId, 10, 7, PROVIDER_DESCRIPTOR ) );
         writeTransaction.prepare();
         writeTransaction.rollback();
 
@@ -144,7 +144,7 @@ public class WriteTransactionTest
     public void shouldWriteProperBeforeAndAfterPropertyRecordsWhenAddingProperty() throws Exception
     {
         // THEN
-        Visitor<XaCommand> verifier = new Visitor<XaCommand>()
+        Visitor<XaCommand, RuntimeException> verifier = new Visitor<XaCommand, RuntimeException>()
         {
             @Override
             public boolean visit( XaCommand element )
@@ -153,7 +153,7 @@ public class WriteTransactionTest
                 {
                     PropertyRecord before = ((PropertyCommand) element).getBefore();
                     assertFalse( before.inUse() );
-                    assertEquals( Collections.emptyList(), before.getPropertyBlocks() );
+                    assertEquals( Collections.<PropertyBlock>emptyList(), before.getPropertyBlocks() );
 
                     PropertyRecord after = ((PropertyCommand) element).getAfter();
                     assertTrue( after.inUse() );
@@ -420,13 +420,13 @@ public class WriteTransactionTest
         tx.createRelationshipTypeToken( relationshipType, "type" );
         tx.relationshipCreate( relId, 0, nodeId, nodeId );
         tx.relAddProperty( relId, propertyKeyToken,
-                new long[] {1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60, 1 << 60} );
+                new long[] {1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60, 1l << 60} );
         tx.createPropertyKeyToken( propertyKeyToken.getKey(), propertyKeyToken.getKeyId() );
         tx.nodeAddProperty( nodeId, propertyKeyToken,
                 "something long and nasty that requires dynamic records for sure I would think and hope. Ok then åäö%!=" );
         for ( int i = 0; i < 10; i++ )
             tx.addLabelToNode( 10000 + i, nodeId );
-        tx.createSchemaRule( new IndexRule( ruleId, 100, PROVIDER_DESCRIPTOR, propertyKeyId ) );
+        tx.createSchemaRule( IndexRule.indexRule( ruleId, 100, propertyKeyId, PROVIDER_DESCRIPTOR ) );
         prepareAndCommit( tx );
 
         // THEN
@@ -447,12 +447,12 @@ public class WriteTransactionTest
     public void createdSchemaRuleRecordMustBeWrittenHeavy() throws Exception
     {
         // THEN
-        Visitor<XaCommand> verifier = heavySchemaRuleVerifier();
+        Visitor<XaCommand, RuntimeException> verifier = heavySchemaRuleVerifier();
         
         // GIVEN
         WriteTransaction tx = newWriteTransaction( NO_INDEXING, verifier );
         long ruleId = 0, labelId = 5, propertyKeyId = 7;
-        SchemaRule rule = new IndexRule( ruleId, labelId, PROVIDER_DESCRIPTOR, propertyKeyId );
+        SchemaRule rule = IndexRule.indexRule( ruleId, labelId, propertyKeyId, PROVIDER_DESCRIPTOR );
 
         // WHEN
         tx.createSchemaRule( rule );
@@ -486,7 +486,7 @@ public class WriteTransactionTest
         prepareAndCommit( tx );
 
         // WHEN
-        Visitor<XaCommand> verifier = new Visitor<XaCommand>()
+        Visitor<XaCommand, RuntimeException> verifier = new Visitor<XaCommand, RuntimeException>()
         {
             @Override
             public boolean visit( XaCommand element )
@@ -548,9 +548,9 @@ public class WriteTransactionTest
     
     private static class VerifyingXaLogicalLog extends XaLogicalLog
     {
-        private final Visitor<XaCommand> verifier;
+        private final Visitor<XaCommand, RuntimeException> verifier;
 
-        public VerifyingXaLogicalLog( FileSystemAbstraction fs, Visitor<XaCommand> verifier )
+        public VerifyingXaLogicalLog( FileSystemAbstraction fs, Visitor<XaCommand, RuntimeException> verifier )
         {
             super( new File( "log" ), null, null, null, new DefaultLogBufferFactory(),
                     fs, new SingleLoggingService( DEV_NULL ), LogPruneStrategies.NO_PRUNING, null );
@@ -571,7 +571,7 @@ public class WriteTransactionTest
         return newWriteTransaction( indexing, nullVisitor );
     }
     
-    private WriteTransaction newWriteTransaction( IndexingService indexing, Visitor<XaCommand> verifier )
+    private WriteTransaction newWriteTransaction( IndexingService indexing, Visitor<XaCommand, RuntimeException> verifier )
     {
         log = new VerifyingXaLogicalLog( fs.get(), verifier );
         WriteTransaction result = new WriteTransaction( 0, log, transactionState, neoStore,
@@ -603,7 +603,7 @@ public class WriteTransactionTest
     
     private static final long[] none = new long[0];
 
-    private static final Visitor<XaCommand> nullVisitor = new Visitor<XaCommand>()
+    private static final Visitor<XaCommand, RuntimeException> nullVisitor = new Visitor<XaCommand, RuntimeException>()
     {
         @Override
         public boolean visit( XaCommand element )
@@ -612,9 +612,9 @@ public class WriteTransactionTest
         }
     };
 
-    private Visitor<XaCommand> heavySchemaRuleVerifier()
+    private Visitor<XaCommand, RuntimeException> heavySchemaRuleVerifier()
     {
-        return new Visitor<XaCommand>()
+        return new Visitor<XaCommand, RuntimeException>()
         {
             @Override
             public boolean visit( XaCommand element )

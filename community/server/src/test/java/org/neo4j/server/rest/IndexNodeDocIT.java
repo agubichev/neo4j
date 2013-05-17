@@ -19,6 +19,7 @@
  */
 package org.neo4j.server.rest;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -250,19 +251,19 @@ public class IndexNodeDocIT extends AbstractRestFunctionalTestBase
 
     /**
      * Find node by query.
-     *
+     * 
      * The query language used here depends on what type of index you are
      * querying. The default index type is Lucene, in which case you should use
      * the Lucene query language here. Below an example of a fuzzy search over
      * multiple keys.
-     *
-     * See: http://lucene.apache.org/core/old_versioned_docs/versions/{lucene-version}/queryparsersyntax.html
-     *
+     * 
+     * See: {lucene-base-uri}/queryparsersyntax.html
+     * 
      * Getting the results with a predefined ordering requires adding the
      * parameter
-     *
+     * 
      * `order=ordering`
-     *
+     * 
      * where ordering is one of index, relevance or score. In this case an
      * additional field will be added to each result, named score, that holds
      * the float value that is the score reported by the query result.
@@ -733,6 +734,31 @@ public class IndexNodeDocIT extends AbstractRestFunctionalTestBase
         Map<String, Object> data = assertCast( Map.class, result.get( "data" ) );
         assertEquals( value, data.get( key ) );
         assertEquals( 1, data.get( "sequence" ) );
+    }
+
+    @Test
+    public void get_or_create_node_with_array_properties() throws Exception
+    {
+        final String index = "people", key = "name", value = "Tobias";
+        helper.createNodeIndex( index );
+        ResponseEntity response = gen()
+                                     .expectedStatus( 201 /* created */)
+                                     .payloadType( MediaType.APPLICATION_JSON_TYPE )
+                                     .payload( "{\"key\": \"" + key + "\", \"value\": \"" + value
+                                                       + "\", \"properties\": {\"" + key + "\": \"" + value
+                                                       + "\", \"array\": [1,2,3]}}" )
+                                     .post( functionalTestHelper.nodeIndexUri() + index + "?unique" );
+
+        MultivaluedMap<String, String> headers = response.response().getHeaders();
+        Map<String, Object> result = JsonHelper.jsonToMap( response.entity() );
+        String location = headers.getFirst("Location");
+        assertEquals( result.get( "indexed" ), location);
+        Map<String, Object> data = assertCast( Map.class, result.get( "data" ) );
+        assertEquals( value, data.get( key ) );
+        assertEquals(Arrays.asList( 1, 2, 3), data.get( "array" ) );
+        Node node = graphdb().index().forNodes(index).get(key, value).getSingle();
+        assertEquals(value, node.getProperty(key));
+        assertArrayEquals(new int[]{1, 2, 3}, (int[]) node.getProperty("array"));
     }
 
     /**

@@ -21,6 +21,7 @@ package org.neo4j.kernel.impl.api;
 
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.TransactionContext;
+import org.neo4j.kernel.api.TransactionFailureException;
 
 public class DelegatingTransactionContext implements TransactionContext
 {
@@ -44,13 +45,13 @@ public class DelegatingTransactionContext implements TransactionContext
     }
 
     @Override
-    public void commit()
+    public void commit() throws TransactionFailureException
     {
         delegate.commit();
     }
 
     @Override
-    public void rollback()
+    public void rollback() throws TransactionFailureException
     {
         delegate.rollback();
     }

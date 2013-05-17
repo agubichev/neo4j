@@ -53,6 +53,8 @@ import org.neo4j.graphdb.factory.HighlyAvailableGraphDatabaseFactory;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema.IndexState;
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexConfiguration;
+import org.neo4j.kernel.api.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
@@ -253,7 +255,7 @@ public class SchemaIndexHaIT
         }
 
         @Override
-        public void add( long nodeId, Object propertyValue )
+        public void add( long nodeId, Object propertyValue ) throws IndexEntryConflictException, IOException
         {
             inMemoryDelegate.add( nodeId, propertyValue );
             latch.startAndAwaitFinish();
@@ -283,15 +285,15 @@ public class SchemaIndexHaIT
         }
         
         @Override
-        public IndexPopulator getPopulator( long indexId )
+        public IndexPopulator getPopulator( long indexId, IndexConfiguration config )
         {
-            return new ControlledIndexPopulator( inMemoryDelegate.getPopulator( indexId ), latch );
+            return new ControlledIndexPopulator( inMemoryDelegate.getPopulator( indexId, config ), latch );
         }
 
         @Override
-        public IndexAccessor getOnlineAccessor( long indexId )
+        public IndexAccessor getOnlineAccessor( long indexId, IndexConfiguration config )
         {
-            return inMemoryDelegate.getOnlineAccessor( indexId );
+            return inMemoryDelegate.getOnlineAccessor( indexId, config );
         }
 
         @Override

@@ -29,15 +29,20 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.helpers.collection.IteratorUtil.count;
 import static org.neo4j.helpers.collection.IteratorUtil.single;
 
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.neo4j.graphdb.schema.ConstraintCreator;
+import org.neo4j.graphdb.schema.ConstraintDefinition;
+import org.neo4j.graphdb.schema.ConstraintType;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.graphdb.schema.Schema.IndexState;
+import org.neo4j.graphdb.schema.UniquenessConstraintDefinition;
 import org.neo4j.helpers.Function;
 import org.neo4j.test.ImpermanentDatabaseRule;
 
@@ -261,12 +266,30 @@ public class SchemaAcceptanceTest
     }
     
     @Test
-    public void shouldRecreateDroppedIndex() throws Exception
+    public void awaitingAllIndexesComingOnlineWorks()
     {
         // GIVEN
         GraphDatabaseService beansAPI = dbRule.getGraphDatabaseService();
         String property = "name";
         Labels label = Labels.MY_LABEL;
+
+        // WHEN
+        IndexDefinition index = createIndexRule( beansAPI, label, property );
+
+        // PASS
+        beansAPI.schema().awaitIndexesOnline( 1L, TimeUnit.MINUTES );
+
+        // THEN
+        assertEquals( Schema.IndexState.ONLINE, beansAPI.schema().getIndexState( index ) );
+    }
+
+    @Test
+    public void shouldRecreateDroppedIndex() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService beansAPI = dbRule.getGraphDatabaseService();
+        String property = "name";
+        Label label = Labels.MY_LABEL;
         Node node = createNode( beansAPI, property, "Neo", label );
         
         // create an index
@@ -284,6 +307,108 @@ public class SchemaAcceptanceTest
         index = single( beansAPI.schema().getIndexes( label ) );
         assertEquals( IndexState.ONLINE, beansAPI.schema().getIndexState( index ) );
         assertEquals( asSet( node ), asSet( beansAPI.findNodesByLabelAndProperty( label, property, "Neo" ) ) );
+    }
+    
+    @Test
+    public void shouldCreateUniquenessConstraint() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        Label label = Labels.MY_LABEL;
+        String propertyKey = "name";
+
+        // WHEN
+        ConstraintDefinition constraint =
+                createConstraint( db, db.schema().constraintCreator( label ).on( propertyKey ).unique() );
+
+        // THEN
+        assertEquals( ConstraintType.UNIQUENESS, constraint.getConstraintType() );
+        
+        UniquenessConstraintDefinition uniquenessConstraint = constraint.asUniquenessConstraint();
+        assertEquals( label.name(), uniquenessConstraint.getLabel().name() );
+        assertEquals( asSet( propertyKey ), asSet( uniquenessConstraint.getPropertyKeys() ) );
+    }
+    
+    @Test
+    public void shouldListAddedConstraintsByLabel() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        Label label = Labels.MY_LABEL;
+        String propertyKey = "name";
+        ConstraintDefinition createdConstraint = createConstraint( db,
+                db.schema().constraintCreator( label ).on( propertyKey ).unique() );
+
+        // WHEN
+        Iterable<ConstraintDefinition> listedConstraints = db.schema().getConstraints( label );
+
+        // THEN
+        assertEquals( createdConstraint, single( listedConstraints ) );
+    }
+
+    @Test
+    public void shouldListAddedConstraints() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        Label label = Labels.MY_LABEL;
+        String propertyKey = "name";
+        ConstraintDefinition createdConstraint =
+                createConstraint( db, db.schema().constraintCreator( label ).on( propertyKey ).unique() );
+
+        // WHEN
+        Iterable<ConstraintDefinition> listedConstraints = db.schema().getConstraints();
+
+        // THEN
+        ConstraintDefinition foundConstraint = single( listedConstraints );
+        assertEquals( createdConstraint, foundConstraint );
+    }
+    
+
+    @Test
+    public void shouldDropUniquenessConstraint() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        Label label = Labels.MY_LABEL;
+        String propertyKey = "name";
+        ConstraintDefinition constraint =
+                createConstraint( db, db.schema().constraintCreator( label ).on( propertyKey ).unique() );
+        
+        // WHEN
+        dropConstraint( db, constraint );
+        
+        // THEN
+        assertEquals( 0, count( db.schema().getConstraints( label ) ) );
+    }
+
+    private void dropConstraint( GraphDatabaseService db, ConstraintDefinition constraint )
+    {
+        Transaction tx = db.beginTx();
+        try
+        {
+            constraint.drop();
+            tx.success();
+        }
+        finally
+        {
+            tx.finish();
+        }
+    }
+
+    private ConstraintDefinition createConstraint( GraphDatabaseService db, ConstraintCreator constraintCreator )
+    {
+        Transaction tx = db.beginTx();
+        try
+        {
+            ConstraintDefinition constraint = constraintCreator.create();
+            tx.success();
+            return constraint;
+        }
+        finally
+        {
+            tx.finish();
+        }
     }
 
     private IndexDefinition createIndexRule( GraphDatabaseService beansAPI, Label label, String property )

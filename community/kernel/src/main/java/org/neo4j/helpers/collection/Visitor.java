@@ -26,7 +26,7 @@ package org.neo4j.helpers.collection;
  * 
  * @param <E> the element type the visitor accepts.
  */
-public interface Visitor<E>
+public interface Visitor<E, FAILURE extends Exception>
 {
     /**
      * Invoked for each element in a collection. Return <code>true</code> to
@@ -36,5 +36,5 @@ public interface Visitor<E>
      * @return <code>true</code> to terminate the iteration, <code>false</code>
      *         to continue.
      */
-    boolean visit( E element );
+    boolean visit( E element ) throws FAILURE;
 }

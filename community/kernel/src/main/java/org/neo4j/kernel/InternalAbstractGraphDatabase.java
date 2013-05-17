@@ -25,7 +25,6 @@ import static org.neo4j.helpers.collection.Iterables.map;
 import static org.slf4j.impl.StaticLoggerBinder.getSingleton;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -83,10 +82,13 @@ import org.neo4j.kernel.guard.Guard;
 import org.neo4j.kernel.impl.api.Kernel;
 import org.neo4j.kernel.impl.api.KernelSchemaStateStore;
 import org.neo4j.kernel.impl.api.UpdateableSchemaState;
+import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexingService;
+import org.neo4j.kernel.impl.api.index.RemoveOrphanConstraintIndexesOnStartup;
 import org.neo4j.kernel.impl.cache.Cache;
 import org.neo4j.kernel.impl.cache.CacheProvider;
 import org.neo4j.kernel.impl.cache.MonitorGc;
+import org.neo4j.kernel.impl.cleanup.CleanupIfOutsideTransaction;
 import org.neo4j.kernel.impl.cleanup.CleanupService;
 import org.neo4j.kernel.impl.core.CacheAccessBackDoor;
 import org.neo4j.kernel.impl.core.Caches;
@@ -95,7 +97,6 @@ import org.neo4j.kernel.impl.core.DefaultLabelIdCreator;
 import org.neo4j.kernel.impl.core.DefaultPropertyTokenCreator;
 import org.neo4j.kernel.impl.core.DefaultRelationshipTypeCreator;
 import org.neo4j.kernel.impl.core.KernelPanicEventGenerator;
-import org.neo4j.kernel.impl.core.TokenCreator;
 import org.neo4j.kernel.impl.core.LabelTokenHolder;
 import org.neo4j.kernel.impl.core.NodeImpl;
 import org.neo4j.kernel.impl.core.NodeManager;
@@ -105,12 +106,12 @@ import org.neo4j.kernel.impl.core.ReadOnlyNodeManager;
 import org.neo4j.kernel.impl.core.RelationshipImpl;
 import org.neo4j.kernel.impl.core.RelationshipProxy;
 import org.neo4j.kernel.impl.core.RelationshipTypeTokenHolder;
+import org.neo4j.kernel.impl.core.TokenCreator;
 import org.neo4j.kernel.impl.core.TransactionEventsSyncHook;
 import org.neo4j.kernel.impl.core.TxEventSyncHookFactory;
 import org.neo4j.kernel.impl.index.IndexStore;
 import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
-import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
 import org.neo4j.kernel.impl.nioneo.store.StoreId;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource;
@@ -327,21 +328,24 @@ public abstract class InternalAbstractGraphDatabase
             {
                 // TODO do not explicitly depend on order of start() calls in txManager and XaDatasourceManager
                 // use two booleans instead
-                if ( instance instanceof KernelExtensions && to.equals( LifecycleStatus.STARTED ) && txManager
-                        instanceof TxManager )
+                if ( instance instanceof KernelExtensions && to.equals( LifecycleStatus.STARTED ) &&
+                     txManager instanceof TxManager )
                 {
-                    InternalAbstractGraphDatabase.this.doAfterRecoveryAndStartup();
+                    InternalAbstractGraphDatabase.this.doAfterRecoveryAndStartup( true );
                 }
             }
         } );
     }
 
-    protected void doAfterRecoveryAndStartup()
+    protected void doAfterRecoveryAndStartup( boolean isMaster )
     {
         NeoStoreXaDataSource neoStoreDataSource = xaDataSourceManager.getNeoStoreDataSource();
         storeId = neoStoreDataSource.getStoreId();
-        KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this,
-                neoStoreDataSource );
+        KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this, neoStoreDataSource );
+        if ( isMaster )
+        {
+            new RemoveOrphanConstraintIndexesOnStartup( txManager, logging ).perform();
+        }
     }
 
     protected void create()
@@ -395,7 +399,6 @@ public abstract class InternalAbstractGraphDatabase
 
         jobScheduler =
             life.add( new Neo4jJobScheduler( this.toString(), logging.getMessagesLog( Neo4jJobScheduler.class ) ));
-        cleanupService = life.add( CleanupService.create( jobScheduler, logging ) );
 
         kernelEventHandlers = new KernelEventHandlers();
 
@@ -437,6 +440,8 @@ public abstract class InternalAbstractGraphDatabase
         }
         life.add( txManager );
 
+        cleanupService = life.add( createCleanupService() );
+
         transactionEventHandlers = new TransactionEventHandlers( txManager );
 
         txIdGenerator = life.add( createTxIdGenerator() );
@@ -457,26 +462,25 @@ public abstract class InternalAbstractGraphDatabase
         propertyKeyTokenHolder = life.add( new PropertyKeyTokenHolder( txManager, persistenceManager, persistenceSource, createPropertyKeyCreator() ) );
         labelTokenHolder = life.add( new LabelTokenHolder( txManager, persistenceManager, persistenceSource, createLabelIdCreator() ) );
 
-        relationshipTypeTokenHolder = new RelationshipTypeTokenHolder( txManager,
-                persistenceManager, persistenceSource, relationshipTypeCreator );
+        relationshipTypeTokenHolder = life.add( new RelationshipTypeTokenHolder( txManager,
+                persistenceManager, persistenceSource, relationshipTypeCreator ) );
 
         caches.configure( cacheProvider, config );
         Cache<NodeImpl> nodeCache = diagnosticsManager.tryAppendProvider( caches.node() );
         Cache<RelationshipImpl> relCache = diagnosticsManager.tryAppendProvider( caches.relationship() );
 
         kernelAPI = life.add( new Kernel( txManager, propertyKeyTokenHolder, labelTokenHolder, persistenceManager,
-                xaDataSourceManager, lockManager, updateableSchemaState, dependencyResolver ) );
+                xaDataSourceManager, lockManager, updateableSchemaState, dependencyResolver,
+                this.isHighlyAvailable() ) );
         // XXX: Circular dependency, temporary during transition to KernelAPI - TxManager should not depend on KernelAPI
         txManager.setKernel(kernelAPI);
 
-        statementContextProvider = life.add( new ThreadToStatementContextBridge( kernelAPI, txManager
-        ) );
+        statementContextProvider = life.add( new ThreadToStatementContextBridge( kernelAPI, txManager ) );
 
         nodeManager = guard != null ?
                 createGuardedNodeManager( readOnly, cacheProvider, nodeCache, relCache ) :
                 createNodeManager( readOnly, cacheProvider, nodeCache, relCache );
 
-        life.add( nodeManager );
         stateFactory.setDependencies( lockManager, nodeManager, txHook, txIdGenerator );
 
         indexStore = life.add( new IndexStore( this.storeDir, fileSystem ) );
@@ -501,7 +505,7 @@ public abstract class InternalAbstractGraphDatabase
             life.add( kernelExtensions );
         }
 
-        schema = new SchemaImpl( statementContextProvider, cleanupService, propertyKeyTokenHolder );
+        schema = new SchemaImpl( statementContextProvider );
 
         indexManager = new IndexManagerImpl( config, indexStore, xaDataSourceManager, txManager, this );
         nodeAutoIndexer = life.add( new NodeAutoIndexerImpl( config, indexManager, nodeManager ) );
@@ -530,8 +534,17 @@ public abstract class InternalAbstractGraphDatabase
         // Kernel event handlers should be the very last, i.e. very first to receive shutdown events
         life.add( kernelEventHandlers );
 
+        life.add( nodeManager );
+
         // TODO This is probably too coarse-grained and we should have some strategy per user of config instead
         life.add( new ConfigurationChangedRestarter() );
+    }
+
+    protected abstract boolean isHighlyAvailable();
+
+    protected CleanupService createCleanupService()
+    {
+        return CleanupService.create( jobScheduler, logging, new CleanupIfOutsideTransaction( txManager ) );
     }
 
     private Map<Object, Object> newSchemaStateMap() {
@@ -850,19 +863,11 @@ public abstract class InternalAbstractGraphDatabase
     protected void createNeoDataSource()
     {
         // Create DataSource
-        try
-        {
-            // TODO IO stuff should be done in lifecycle. Refactor!
-            neoDataSource = new NeoStoreXaDataSource( config,
-                    storeFactory, lockManager, logging.getMessagesLog( NeoStoreXaDataSource.class ),
-                    xaFactory, stateFactory, transactionInterceptorProviders, jobScheduler, logging,
-                    updateableSchemaState, nodeManager, dependencyResolver );
-            xaDataSourceManager.registerDataSource( neoDataSource );
-        }
-        catch ( IOException e )
-        {
-            throw new IllegalStateException( "Could not create Neo XA datasource", e );
-        }
+        neoDataSource = new NeoStoreXaDataSource( config,
+                storeFactory, lockManager, logging.getMessagesLog( NeoStoreXaDataSource.class ),
+                xaFactory, stateFactory, transactionInterceptorProviders, jobScheduler, logging,
+                updateableSchemaState, nodeManager, dependencyResolver );
+        xaDataSourceManager.registerDataSource( neoDataSource );
     }
 
     @Override
@@ -1504,11 +1509,11 @@ public abstract class InternalAbstractGraphDatabase
 
         try
         {
-            IndexRule indexRule = ctx.getIndexRule( labelId, propertyId );
+            IndexDescriptor indexRule = ctx.getIndex( labelId, propertyId );
             if(ctx.getIndexState( indexRule ) == InternalIndexState.ONLINE)
             {
                 // Ha! We found an index - let's use it to find matching nodes
-                return map2nodes( ctx.exactIndexLookup( indexRule.getId(), value ), ctx );
+                return map2nodes( ctx.exactIndexLookup( indexRule, value ), ctx );
             }
         }
         catch ( SchemaRuleNotFoundException e )

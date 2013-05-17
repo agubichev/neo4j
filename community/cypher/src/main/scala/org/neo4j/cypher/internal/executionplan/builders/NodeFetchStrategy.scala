@@ -20,14 +20,8 @@
 package org.neo4j.cypher.internal.executionplan.builders
 
 import org.neo4j.cypher.internal.commands._
+import org.neo4j.cypher.internal.commands.expressions._
 import org.neo4j.cypher.internal.spi.PlanContext
-import org.neo4j.cypher.internal.commands.expressions.{Literal, IdFunction, Property, Identifier}
-import org.neo4j.cypher.internal.commands.AllNodes
-import org.neo4j.cypher.internal.commands.SchemaIndex
-import org.neo4j.cypher.internal.commands.NodeByLabel
-import org.neo4j.cypher.internal.commands.HasLabel
-
-
 
 /*
 This rather simple class finds a starting strategy for a given single node and a list of predicates required
@@ -50,7 +44,6 @@ are implicitly solved when using the start item
  */
 case class RatedStartItem(s: StartItem, rating: Integer, solvedPredicates: Seq[Predicate])
 
-
 /*
 Finders produce StartItemWithRatings for a node and a set of required predicates over that node
  */
@@ -66,12 +59,11 @@ trait NodeStrategy {
   val LabelScan = 4
   val Global = 5
 
-
   def findRatedStartItems(node: String, where: Seq[Predicate], ctx: PlanContext): Seq[RatedStartItem]
 
   protected def findLabelsForNode(node: String, where: Seq[Predicate]): Seq[SolvedPredicate[LabelName]] =
     where.collect {
-      case predicate@HasLabel(Identifier(identifier), label) if identifier == node => SolvedPredicate(label.name, predicate)
+      case predicate @ HasLabel(Identifier(identifier), label) if identifier == node => SolvedPredicate(label.name, predicate)
     }
 
   case class SolvedPredicate[T](solution: T, predicate: Predicate)
@@ -90,31 +82,36 @@ object NodeByIdStrategy extends NodeStrategy {
 
   private def findEqualityPredicatesUsingNodeId(identifier: IdentifierName, where: Seq[Predicate]): Seq[SolvedPredicate[Long]] =
     where.collect {
-      case predicate@Equals(IdFunction(Identifier(id)), Literal(idValue))
-        if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(idValue.asInstanceOf[Number].longValue(), predicate)
-      case predicate@Equals(Literal(idValue), IdFunction(Identifier(id)))
-        if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(idValue.asInstanceOf[Number].longValue(), predicate)
+      case predicate @ Equals(IdFunction(Identifier(id)), Literal(idValue)) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(idValue.asInstanceOf[Number].longValue(), predicate)
+      case predicate @ Equals(Literal(idValue), IdFunction(Identifier(id))) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(idValue.asInstanceOf[Number].longValue(), predicate)
     }
 
 }
 
 object IndexSeekStrategy extends NodeStrategy {
+
   def findRatedStartItems(node: String, where: Seq[Predicate], ctx: PlanContext): Seq[RatedStartItem] = {
     val labelPredicates: Seq[SolvedPredicate[LabelName]] = findLabelsForNode(node, where)
     val propertyPredicates: Seq[SolvedPredicate[PropertyKey]] = findEqualityPredicatesOnProperty(node, where)
 
     for (
       labelPredicate <- labelPredicates;
-      propertyPredicate <- propertyPredicates
-      if (ctx.getIndexRuleId(labelPredicate.solution, propertyPredicate.solution).nonEmpty)
-    ) yield RatedStartItem(SchemaIndex(node, labelPredicate.solution, propertyPredicate.solution, None), IndexEquality, Seq(labelPredicate.predicate, propertyPredicate.predicate))
+      propertyPredicate <- propertyPredicates if (ctx.getIndexRule(labelPredicate.solution, propertyPredicate.solution).nonEmpty)
+    ) yield {
+      val schemaIndex = SchemaIndex(node, labelPredicate.solution, propertyPredicate.solution, None)
+      val optConstraint = ctx.getUniquenessConstraint(labelPredicate.solution, propertyPredicate.solution)
+      val rating = if (optConstraint.isDefined) Single else IndexEquality
+      val predicates = Seq(labelPredicate.predicate, propertyPredicate.predicate)
+      RatedStartItem(schemaIndex, rating, predicates)
+    }
   }
-
 
   private def findEqualityPredicatesOnProperty(identifier: IdentifierName, where: Seq[Predicate]): Seq[SolvedPredicate[PropertyKey]] =
     where.collect {
-      case predicate@Equals(Property(Identifier(id), propertyName), expression) if id == identifier => SolvedPredicate(propertyName, predicate)
-      case predicate@Equals(expression, Property(Identifier(id), propertyName)) if id == identifier => SolvedPredicate(propertyName, predicate)
+      case predicate @ Equals(Property(Identifier(id), propertyName), expression) if id == identifier => SolvedPredicate(propertyName, predicate)
+      case predicate @ Equals(expression, Property(Identifier(id), propertyName)) if id == identifier => SolvedPredicate(propertyName, predicate)
+      case predicate @ Equals(nullable @ Nullable(Property(Identifier(id), propertyName)), expression) if nullable.default == Some(false) && id == identifier => SolvedPredicate(propertyName, predicate)
+      case predicate @ Equals(expression, nullable @ Nullable(Property(Identifier(id), propertyName))) if nullable.default == Some(false) && id == identifier => SolvedPredicate(propertyName, predicate)
     }
 }
 

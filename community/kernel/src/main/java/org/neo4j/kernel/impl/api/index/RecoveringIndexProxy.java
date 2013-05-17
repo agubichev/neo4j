@@ -19,12 +19,12 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static org.neo4j.helpers.FutureAdapter.VOID;
-
 import java.util.concurrent.Future;
 
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
+
+import static org.neo4j.helpers.FutureAdapter.VOID;
 
 public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
 {
@@ -37,6 +37,24 @@ public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
     public InternalIndexState getState()
     {
         return InternalIndexState.POPULATING;
+    }
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException
+    {
+        throw new UnsupportedOperationException( "cannot await population on a recovering index" );
+    }
+
+    @Override
+    public void activate()
+    {
+        throw new UnsupportedOperationException( "Cannot activate recovering index." );
+    }
+
+    @Override
+    public void validate()
+    {
+        throw new UnsupportedOperationException( "Cannot validate recovering index." );
     }
 
     @Override

@@ -19,9 +19,9 @@
  */
 package org.neo4j.kernel.impl.nioneo.store;
 
-import static org.neo4j.helpers.Exceptions.launderedException;
-
 import java.nio.ByteBuffer;
+
+import static org.neo4j.helpers.Exceptions.launderedException;
 
 public interface SchemaRule extends RecordSerializable
 {
@@ -47,10 +47,26 @@ public interface SchemaRule extends RecordSerializable
             @Override
             protected SchemaRule newRule( long id, long labelId, ByteBuffer buffer )
             {
-                return new IndexRule( id, labelId, buffer );
+                return IndexRule.readIndexRule( id, false, labelId, buffer );
+            }
+        },
+        CONSTRAINT_INDEX_RULE( 2, IndexRule.class )
+        {
+            @Override
+            protected SchemaRule newRule( long id, long labelId, ByteBuffer buffer )
+            {
+                return IndexRule.readIndexRule( id, true, labelId, buffer );
+            }
+        },
+        UNIQUENESS_CONSTRAINT( 3, UniquenessConstraintRule.class )
+        {
+            @Override
+            protected SchemaRule newRule( long id, long labelId, ByteBuffer buffer )
+            {
+                return UniquenessConstraintRule.readUniquenessConstraintRule( id, labelId, buffer );
             }
         };
-        
+
         private final byte id;
         private final Class<? extends SchemaRule> ruleClass;
 
@@ -91,10 +107,17 @@ public interface SchemaRule extends RecordSerializable
         {
             switch ( id )
             {
-            case 1: return Kind.INDEX_RULE;
+            case 1: return INDEX_RULE;
+            case 2: return CONSTRAINT_INDEX_RULE;
+            case 3: return UNIQUENESS_CONSTRAINT;
             default:
                 throw new IllegalArgumentException( "Unknown kind id " + id );
             }
+        }
+
+        public boolean isIndex()
+        {
+            return ruleClass == IndexRule.class;
         }
     }
 }

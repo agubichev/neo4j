@@ -20,14 +20,14 @@
 package org.neo4j.kernel.impl.transaction;
 
 import static java.lang.System.currentTimeMillis;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.neo4j.kernel.impl.transaction.LockWorker.newResourceObject;
 
 import java.io.File;
 import java.util.Random;
+import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
 
 import javax.transaction.Transaction;
@@ -148,6 +148,7 @@ public class TestDeadlockDetection
         private final LockManager lm;
         private volatile Exception error;
         private final Transaction tx = mock( Transaction.class );
+        public volatile Long startedWaiting = null;
 
         StressThread( String name, int numberOfIterations, int depthCount,
             float readWriteRatio, LockManager lm, CountDownLatch startSignal )
@@ -180,55 +181,51 @@ public class TestDeadlockDetection
                             int n = rand.nextInt( resources.length );
                             if ( f < readWriteRatio )
                             {
+                                startedWaiting = currentTimeMillis();
                                 lm.getReadLock( resources[n], tx );
+                                startedWaiting = null;
                                 lockStack.push( READ );
                             }
                             else
                             {
+                                startedWaiting = currentTimeMillis();
                                 lm.getWriteLock( resources[n], tx );
+                                startedWaiting = null;
                                 lockStack.push( WRITE );
                             }
                             resourceStack.push( resources[n] );
                         }
                         while ( --depth > 0 );
-                        /*
-                         * try { sleep( rand.nextInt( 100 ) ); } catch (
-                         * InterruptedException e ) {}
-                         */
-                        while ( !lockStack.isEmpty() )
-                        {
-                            if ( lockStack.pop() == READ )
-                            {
-                                lm.releaseReadLock( resourceStack.pop(), tx );
-                            }
-                            else
-                            {
-                                lm.releaseWriteLock( resourceStack.pop() , tx );
-                            }
-                        }
                     }
                     catch ( DeadlockDetectedException e )
                     {
+                        // This is good
                     }
                     finally
                     {
-                        while ( !lockStack.isEmpty() )
-                        {
-                            if ( lockStack.pop() == READ )
-                            {
-                                lm.releaseReadLock( resourceStack.pop(), tx );
-                            }
-                            else
-                            {
-                                lm.releaseWriteLock( resourceStack.pop(), tx );
-                            }
-                        }
+                        releaseAllLocks( lockStack, resourceStack );
                     }
                 }
             }
             catch ( Exception e )
             {
                 error = e;
+            }
+
+        }
+
+        private void releaseAllLocks( Stack<Object> lockStack, Stack<ResourceObject> resourceStack )
+        {
+            while ( !lockStack.isEmpty() )
+            {
+                if ( lockStack.pop() == READ )
+                {
+                    lm.releaseReadLock( resourceStack.pop(), tx );
+                }
+                else
+                {
+                    lm.releaseWriteLock( resourceStack.pop(), tx );
+                }
             }
         }
 
@@ -242,6 +239,12 @@ public class TestDeadlockDetection
     @Test
     public void testStressMultipleThreads() throws Exception
     {
+        /*
+        This test starts a bunch of threads, and randomly takes read or write locks on random resources.
+        No thread should wait more than five seconds for a lock - if it does, we consider it a failure.
+        Successful outcomes are when threads either finish with all their lock taking and releasing, or
+        are terminated with a DeadlockDetectedException.
+         */
         for ( int i = 0; i < StressThread.resources.length; i++ )
         {
             StressThread.resources[i] = new ResourceObject( "RX" + i );
@@ -253,32 +256,63 @@ public class TestDeadlockDetection
         CountDownLatch startSignal = new CountDownLatch( 1 );
         for ( int i = 0; i < stressThreads.length; i++ )
         {
-            stressThreads[i] = new StressThread( "T" + i, 100, 10, 0.80f, lm, startSignal );
+            int numberOfIterations = 100;
+            int depthCount = 10;
+            float readWriteRatio = 0.80f;
+            stressThreads[i] = new StressThread( "T" + i, numberOfIterations, depthCount, readWriteRatio, lm,
+                    startSignal );
         }
         for ( Thread thread : stressThreads )
         {
             thread.start();
         }
         startSignal.countDown();
-        
-        long end = currentTimeMillis() + SECONDS.toMillis( 10 );
-        boolean anyAlive = true;
-        while ( (anyAlive = anyAliveAndAllWell( stressThreads )) && currentTimeMillis() < end )
+
+        while ( anyAliveAndAllWell( stressThreads ) )
         {
+            throwErrorsIfAny( stressThreads );
             sleepALittle();
         }
-        
-        assertFalse( anyAlive );
+    }
+
+    private String diagnostics( StressThread culprit, StressThread[] stressThreads, long waited )
+    {
+        StringBuilder builder = new StringBuilder();
         for ( StressThread stressThread : stressThreads )
+        {
+            if ( stressThread.isAlive() )
+            {
+                if ( stressThread == culprit )
+                {
+                    builder.append( "This is the thread that waited too long. It waited: " ).append( waited ).append(
+                            " milliseconds" );
+                }
+                for ( StackTraceElement element : stressThread.getStackTrace() )
+                {
+                    builder.append( element.toString() ).append( "\n" );
+                }
+            }
+            builder.append( "\n" );
+        }
+        return builder.toString();
+    }
+
+    private void throwErrorsIfAny( StressThread[] stressThreads ) throws Exception
+    {
+        for ( StressThread stressThread : stressThreads )
+        {
             if ( stressThread.error != null )
+            {
                 throw stressThread.error;
+            }
+        }
     }
 
     private void sleepALittle()
     {
         try
         {
-            Thread.sleep( 100 );
+            Thread.sleep( 1000 );
         }
         catch ( InterruptedException e )
         {
@@ -290,10 +324,20 @@ public class TestDeadlockDetection
     {
         for ( StressThread stressThread : stressThreads )
         {
-            if ( stressThread.error != null )
-                return false;
             if ( stressThread.isAlive() )
+            {
+                Long startedWaiting = stressThread.startedWaiting;
+                if ( startedWaiting != null )
+                {
+                    long waitingTime = currentTimeMillis() - startedWaiting;
+                    if ( waitingTime > 5000 )
+                    {
+                        fail( "One of the threads waited far too long. Diagnostics: \n" +
+                                diagnostics( stressThread, stressThreads, waitingTime) );
+                    }
+                }
                 return true;
+            }
         }
         return false;
     }

@@ -25,7 +25,7 @@ import org.neo4j.graphdb.{PropertyContainer, Relationship, Node}
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.{ExecutionContext, StringExtras}
 import org.neo4j.cypher.internal.spi.QueryContext
-import org.neo4j.cypher.internal.commands.values.LabelValue
+import org.neo4j.cypher.internal.commands.values.KeyToken
 import org.neo4j.cypher.internal.pipes.QueryState
 
 abstract class StringFunction(arg: Expression) extends NullInNullOutExpression(arg) with StringHelper with CollectionSupport {
@@ -62,7 +62,7 @@ trait StringHelper {
                                "{ " + map.map { case (k,v) => k + ": " + text(v, ctx)  }.mkString(",") + " }"
     case IsCollection(coll) => coll.map(elem => text(elem, ctx)).mkString("[", ",", "]")
     case x: String          => "\"" + x + "\""
-    case v: LabelValue      => v.name
+    case v: KeyToken        => v.name
     case Some(x)            => x.toString
     case null               => "<null>"
     case x                  => x.toString

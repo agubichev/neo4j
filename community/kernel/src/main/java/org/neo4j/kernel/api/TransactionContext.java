@@ -62,10 +62,11 @@ public interface TransactionContext
      * If you have not called {@link #prepare()} before calling this method, the transaction
      * is implicitly prepared.
      */
-    void commit();
+    void commit() throws TransactionFailureException;
 
     /**
      * Roll back this transaction, undoing any changes that have been made.
+     * @throws TransactionFailureException 
      */
-    void rollback();
+    void rollback() throws TransactionFailureException;
 }

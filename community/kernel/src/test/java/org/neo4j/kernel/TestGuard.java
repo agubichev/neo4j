@@ -19,18 +19,8 @@
  */
 package org.neo4j.kernel;
 
-import static java.lang.Integer.MAX_VALUE;
-import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.sleep;
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
-import static junit.framework.Assert.assertNull;
-import static junit.framework.Assert.assertTrue;
-import static junit.framework.Assert.fail;
-import static org.neo4j.graphdb.DynamicRelationshipType.withName;
-
-import org.junit.Ignore;
 import org.junit.Test;
+
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.factory.GraphDatabaseSetting;
@@ -39,6 +29,14 @@ import org.neo4j.kernel.guard.Guard;
 import org.neo4j.kernel.guard.GuardOperationsCountException;
 import org.neo4j.kernel.guard.GuardTimeoutException;
 import org.neo4j.test.TestGraphDatabaseFactory;
+
+import static java.lang.Integer.MAX_VALUE;
+import static java.lang.Thread.sleep;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
+import static junit.framework.Assert.fail;
+import static org.neo4j.graphdb.DynamicRelationshipType.withName;
 
 public class TestGuard
 {
@@ -124,31 +122,27 @@ public class TestGuard
         db.shutdown();
     }
 
-    @Test @Ignore
+    @Test
     public void testTimeoutGuardFail() throws InterruptedException
     {
         GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().
-            newImpermanentDatabaseBuilder().
-            setConfig( GraphDatabaseSettings.execution_guard_enabled, GraphDatabaseSetting.TRUE ).
-            newGraphDatabase();
+                newImpermanentDatabaseBuilder().
+                setConfig( GraphDatabaseSettings.execution_guard_enabled, GraphDatabaseSetting.TRUE ).
+                newGraphDatabase();
         db.beginTx();
 
         db.getGuard().startTimeout( 50 );
-        int i = 0;
+        sleep( 100 );
+
         try
         {
-            for ( i = 0; i < 1000; i++ )
-            {
-                db.createNode();
-                sleep(1);
-            }
-            fail();
-        } catch ( GuardTimeoutException e )
+            db.createNode();
+            fail( "Expected guard to stop this" );
+        }
+        catch ( GuardTimeoutException e )
         {
             // expected
         }
-        assertTrue( i > 1 );
-        assertTrue( i < 100 );
         db.shutdown();
     }
 
@@ -156,32 +150,15 @@ public class TestGuard
     public void testTimeoutGuardPass()
     {
         GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().
-            newImpermanentDatabaseBuilder().
-            setConfig( GraphDatabaseSettings.execution_guard_enabled, GraphDatabaseSetting.TRUE ).
-            newGraphDatabase();
+                newImpermanentDatabaseBuilder().
+                setConfig( GraphDatabaseSettings.execution_guard_enabled, GraphDatabaseSetting.TRUE ).
+                newGraphDatabase();
         db.beginTx();
 
         int timeout = 1000;
-        db.getGuard().startTimeout(timeout);
-        long startTime = currentTimeMillis();
-        try
-        {
-            for( int i = 0; i < 1000; i++ )
-            {
-                db.createNode();
-            }
-        }
-        catch (GuardTimeoutException e )
-        {
-            // Just extra stability check. If it actually took longer than the threshold
-            // that the test was designed to run within it still passes.
-            if( currentTimeMillis() - startTime < timeout )
-            {
-                throw e;
-            }
-        } finally
-        {
-            db.shutdown();
-        }
+        db.getGuard().startTimeout( timeout );
+
+        db.createNode(); // This should not throw
+        db.shutdown();
     }
 }

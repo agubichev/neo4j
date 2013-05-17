@@ -45,14 +45,15 @@ object Query {
 trait AbstractQuery {
   def queryString: QueryString
   def setQueryText(t:String):AbstractQuery
-  def getQueryText : String = queryString.text
+  def getQueryText: String = queryString.text
+  def verifySemantics() {}
 }
 
 case class Query(returns: Return,
                  start: Seq[StartItem],
                  updatedCommands:Seq[UpdateAction],
                  matching: Seq[Pattern],
-                 hints:Seq[SchemaIndex],
+                 hints:Seq[StartItem with Hint],
                  where: Predicate,
                  aggregation: Option[Seq[AggregationExpression]],
                  sort: Seq[SortItem],

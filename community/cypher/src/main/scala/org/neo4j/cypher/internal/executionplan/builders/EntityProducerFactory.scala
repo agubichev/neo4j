@@ -28,8 +28,9 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.{IndexHintException, InternalException}
 import org.neo4j.cypher.internal.data.SimpleVal._
 import org.neo4j.cypher.internal.data.SimpleVal
+import org.neo4j.cypher.internal.mutation.GraphElementPropertyFunctions
 
-class EntityProducerFactory {
+class EntityProducerFactory extends GraphElementPropertyFunctions {
 
     private def asProducer[T <: PropertyContainer](startItem: StartItem)
                                                 (f: (ExecutionContext, QueryState) => Iterator[T]) =
@@ -56,7 +57,8 @@ class EntityProducerFactory {
       asProducer[Node](startItem) { (m: ExecutionContext, state: QueryState) =>
           val keyVal = key(m)(state).toString
           val valueVal = value(m)(state)
-          state.query.nodeOps.indexGet(idxName, keyVal, valueVal)
+          val neoValue = makeValueNeoSafe(valueVal)
+          state.query.nodeOps.indexGet(idxName, keyVal, neoValue)
       }
   }
 
@@ -77,13 +79,21 @@ class EntityProducerFactory {
   }
 
   val nodeByLabel: PartialFunction[(PlanContext, StartItem), EntityProducer[Node]] = {
-    case (planContext, startItem @ NodeByLabel(identifier, label)) if planContext.getLabelId(label).nonEmpty =>
-      val labelId:Long = planContext.getLabelId(label).get
+    // The label exists at compile time - no need to look up the label id for every run
+    case (planContext, startItem@NodeByLabel(identifier, label)) if planContext.getLabelId(label).nonEmpty =>
+      val labelId: Long = planContext.getLabelId(label).get
+      asProducer[Node](startItem) {
+        (m: ExecutionContext, state: QueryState) => state.query.getNodesByLabel(labelId)
+      }
 
-      asProducer[Node](startItem) { (m: ExecutionContext, state: QueryState) => state.query.getNodesByLabel(labelId) }
-
-    //The label does not exist, so we simply let the execution plan always return an empty result
-    case (planContext, NodeByLabel(_, label)) => NO_NODES
+    // The label is missing at compile time - we look it up every time this plan is run
+    case (planContext, startItem@NodeByLabel(identifier, label)) => asProducer(startItem) {
+      (m: ExecutionContext, state: QueryState) =>
+        state.query.getLabelId(label) match {
+          case Some(labelId) => state.query.getNodesByLabel(labelId)
+          case None          => Iterator.empty
+        }
+    }
   }
 
   val nodesAll: PartialFunction[(PlanContext, StartItem), EntityProducer[Node]] = {
@@ -100,9 +110,9 @@ class EntityProducerFactory {
 
   val nodeByIndexHint: PartialFunction[(PlanContext, StartItem), EntityProducer[Node]] = {
     case (planContext, startItem @ SchemaIndex(identifier, labelName, propertyName, valueExp)) =>
-      val indexIdGetter = planContext.getIndexRuleId(labelName, propertyName)
+      val indexGetter = planContext.getIndexRule(labelName, propertyName)
 
-      val indexId = indexIdGetter getOrElse
+      val index = indexGetter getOrElse
         (throw new IndexHintException(identifier, labelName, propertyName, "No such index found."))
 
       val expression = valueExp getOrElse
@@ -110,7 +120,8 @@ class EntityProducerFactory {
 
       asProducer[Node](startItem) { (m: ExecutionContext, state: QueryState) =>
         val value = expression(m)(state)
-        state.query.exactIndexSearch(indexId, value)
+        val neoValue = makeValueNeoSafe(value)
+        state.query.exactIndexSearch(index, neoValue)
       }
   }
 
@@ -120,7 +131,8 @@ class EntityProducerFactory {
       asProducer[Relationship](startItem) { (m: ExecutionContext, state: QueryState) =>
         val keyVal = key(m)(state).toString
         val valueVal = value(m)(state)
-        state.query.relationshipOps.indexGet(idxName, keyVal, valueVal)
+        val neoValue = makeValueNeoSafe(valueVal)
+        state.query.relationshipOps.indexGet(idxName, keyVal, neoValue)
       }
   }
 
@@ -140,7 +152,7 @@ class EntityProducerFactory {
       }
   }
 
-  private val NO_NODES = new EntityProducer[Node] {
+  object NO_NODES extends EntityProducer[Node] {
     def description: Seq[(String, SimpleVal)] = Seq.empty
 
     def name: String = "No nodes"

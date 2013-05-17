@@ -99,7 +99,7 @@ import org.neo4j.kernel.logging.Logging;
  * The {@link NioNeoDbPersistenceSource} will create a <CODE>NeoStoreXaDataSoruce</CODE>
  * and then Neo4j kernel will use it to create {@link XaConnection XaConnections} and
  * {@link XaResource XaResources} when running transactions and performing
- * operations on the node space.
+ * operations on the graph.
  */
 public class NeoStoreXaDataSource extends LogBackedXaDataSource
 {
@@ -194,7 +194,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         {
             if ( applicable( phase ) )
             {
-                log.logLongMessage( message, new Visitor<StringLogger.LineLogger>()
+                log.logLongMessage( message, new Visitor<StringLogger.LineLogger, RuntimeException>()
                 {
                     @Override
                     public boolean visit( StringLogger.LineLogger logger )
@@ -227,9 +227,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
      * <CODE>IOException</CODE> is thrown. If any problem is found with that
      * configuration file or Neo4j store can't be loaded an <CODE>IOException is
      * thrown</CODE>.
-     *
-     * @throws IOException
-     *             If unable to create data source
      */
     public NeoStoreXaDataSource( Config config, StoreFactory sf, LockManager lockManager,
                                  StringLogger stringLogger, XaFactory xaFactory, TransactionStateFactory stateFactory,
@@ -237,7 +234,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
                                  JobScheduler scheduler, Logging logging,
                                  UpdateableSchemaState updateableSchemaState, NodeManager nodeManager,
                                  DependencyResolver dependencyResolver )
-            throws IOException
     {
         super( BRANCH_ID, Config.DEFAULT_DATA_SOURCE_NAME );
         this.config = config;
@@ -254,7 +250,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         this.storeFactory = sf;
         this.xaFactory = xaFactory;
         this.updateableSchemaState = updateableSchemaState;
-
     }
 
     @Override
@@ -688,7 +683,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
             @Override
             public boolean accept( SchemaRule item )
             {
-                return item.getKind() == SchemaRule.Kind.INDEX_RULE;
+                return item.getKind().isIndex();
             }
         }, neoStore.getSchemaStore().loadAll() ) );
     }

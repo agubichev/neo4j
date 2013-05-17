@@ -22,9 +22,9 @@ package org.neo4j.kernel.impl.api;
 import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
 
-import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.TransactionContext;
+import org.neo4j.kernel.api.TransactionFailureException;
 import org.neo4j.kernel.impl.transaction.LockManager;
 
 public class LockingTransactionContext extends DelegatingTransactionContext
@@ -41,7 +41,7 @@ public class LockingTransactionContext extends DelegatingTransactionContext
         }
         catch ( SystemException e )
         {
-            throw new TransactionFailureException( "Unable to get transaction", e );
+            throw new org.neo4j.graphdb.TransactionFailureException( "Unable to get transaction", e );
         }
     }
 
@@ -58,7 +58,7 @@ public class LockingTransactionContext extends DelegatingTransactionContext
     }
 
     @Override
-    public void commit()
+    public void commit() throws TransactionFailureException
     {
         try
         {
@@ -71,7 +71,7 @@ public class LockingTransactionContext extends DelegatingTransactionContext
     }
 
     @Override
-    public void rollback()
+    public void rollback() throws TransactionFailureException
     {
         try
         {

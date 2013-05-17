@@ -91,7 +91,25 @@ public abstract class AbstractDelegatingIndexProxy implements IndexProxy
     {
         return getDelegate().newReader();
     }
-    
+
+    @Override
+    public boolean awaitStoreScanCompleted() throws IndexPopulationFailedKernelException, InterruptedException
+    {
+        return getDelegate().awaitStoreScanCompleted();
+    }
+
+    @Override
+    public void activate()
+    {
+        getDelegate().activate();
+    }
+
+    @Override
+    public void validate() throws IndexPopulationFailedKernelException
+    {
+        getDelegate().validate();
+    }
+
     @Override
     public String toString()
     {

@@ -23,7 +23,6 @@ import static java.lang.String.format;
 import static org.neo4j.helpers.FutureAdapter.latchGuardedValue;
 import static org.neo4j.helpers.ValueGetter.NO_VALUE;
 import static org.neo4j.helpers.collection.Iterables.filter;
-import static org.neo4j.kernel.impl.api.index.IndexingService.singleProxy;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -34,6 +33,7 @@ import java.util.concurrent.Future;
 
 import org.neo4j.helpers.Predicate;
 import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.kernel.api.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.NodePropertyUpdate;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
@@ -61,7 +61,7 @@ public class IndexPopulationJob implements Runnable
     private final StringLogger log;
     private final CountDownLatch doneSignal = new CountDownLatch( 1 );
 
-    private volatile StoreScan storeScan;
+    private volatile StoreScan<IndexPopulationFailedKernelException> storeScan;
     private volatile boolean cancelled;
     private final SchemaIndexProvider.Descriptor providerDescriptor;
 
@@ -98,11 +98,11 @@ public class IndexPopulationJob implements Runnable
             Callable<Void> duringFlip = new Callable<Void>()
             {
                 @Override
-                public Void call() throws IOException
+                public Void call() throws Exception
                 {
                     populateFromQueueIfAvailable( Long.MAX_VALUE );
                     populator.close( true );
-                    updateableSchemaState.flush();
+                    updateableSchemaState.clear();
                     return null;
                 }
             };
@@ -117,8 +117,20 @@ public class IndexPopulationJob implements Runnable
         }
         catch ( Throwable t )
         {
-            log.error( "Failed to populate index.", t );
-            log.flush();
+            if ( t instanceof IndexPopulationFailedKernelException )
+            {
+                Throwable cause = t.getCause();
+                if ( cause instanceof IndexEntryConflictException )
+                {
+                    t = cause;
+                }
+            }
+            // Index conflicts are expected (for unique indexes) so we don't need to log them.
+            if ( !(t instanceof IndexEntryConflictException) /*TODO: && this is a unique index...*/ )
+            {
+                log.error( "Failed to populate index.", t );
+                log.flush();
+            }
             // The flipper will have already flipped to a failed index context here, but
             // it will not include the cause of failure, so we do another flip to a failed
             // context that does.
@@ -126,9 +138,7 @@ public class IndexPopulationJob implements Runnable
             // The reason for having the flipper transition to the failed index context in the first
             // place is that we would otherwise introduce a race condition where updates could come
             // in to the old context, if something failed in the job we send to the flipper.
-            flipper.setFlipTarget(
-                    singleProxy( new FailedIndexProxy( descriptor, providerDescriptor, populator, t ) ) );
-            flipper.flip();
+            flipper.flipTo( new FailedIndexProxy( descriptor, providerDescriptor, populator, t ) );
         }
         finally
         {
@@ -151,23 +161,30 @@ public class IndexPopulationJob implements Runnable
         }
     }
 
-    private void indexAllNodes()
+    private void indexAllNodes() throws IndexPopulationFailedKernelException
     {
-        storeScan = storeView.visitNodesWithPropertyAndLabel( descriptor, new Visitor<NodePropertyUpdate>()
+        storeScan = storeView.visitNodesWithPropertyAndLabel( descriptor, new Visitor<NodePropertyUpdate,
+                IndexPopulationFailedKernelException>()
         {
             @Override
-            public boolean visit( NodePropertyUpdate update )
+            public boolean visit( NodePropertyUpdate update ) throws IndexPopulationFailedKernelException
             {
-                populator.add( update.getNodeId(), update.getValueAfter() );
-                populateFromQueueIfAvailable( update.getNodeId() );
-
+                try
+                {
+                    populator.add( update.getNodeId(), update.getValueAfter() );
+                    populateFromQueueIfAvailable( update.getNodeId() );
+                }
+                catch ( Exception conflict )
+                {
+                    throw new IndexPopulationFailedKernelException( descriptor, conflict );
+                }
                 return false;
             }
         });
         storeScan.run();
     }
 
-    private void populateFromQueueIfAvailable( final long highestIndexedNodeId )
+    private void populateFromQueueIfAvailable( final long highestIndexedNodeId ) throws IndexEntryConflictException, IOException
     {
         if ( !queue.isEmpty() )
         {
@@ -210,5 +227,10 @@ public class IndexPopulationJob implements Runnable
     public String toString()
     {
         return getClass().getSimpleName() + "[populator:" + populator + ",descriptor:" + descriptor + "]";
+    }
+
+    public void awaitCompletion() throws InterruptedException
+    {
+        doneSignal.await();
     }
 }

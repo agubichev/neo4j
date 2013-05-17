@@ -19,6 +19,10 @@
  */
 package org.neo4j.cypher.internal.spi
 
+import org.neo4j.kernel.impl.api.index.IndexDescriptor
+import org.neo4j.graphdb.schema.ConstraintDefinition
+import org.neo4j.kernel.api.constraints.UniquenessConstraint
+
 
 /**
  * PlanContext is an internal access layer to the graph that is solely used during plan building
@@ -28,7 +32,9 @@ package org.neo4j.cypher.internal.spi
  * to index rule lookup in QueryContext as that should happen at query compile time.
  */
 trait PlanContext {
-  def getIndexRuleId(labelName: String, propertyKey: String): Option[Long]
+  def getIndexRule(labelName: String, propertyKey: String): Option[IndexDescriptor]
+
+  def getUniquenessConstraint(labelName: String, propertyKey: String): Option[UniquenessConstraint]
 
   def checkNodeIndex(idxName: String)
 
