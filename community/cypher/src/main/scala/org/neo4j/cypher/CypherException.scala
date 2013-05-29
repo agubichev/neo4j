@@ -57,12 +57,6 @@ class InvalidAggregateException(message: String) extends CypherException(message
 class NodeStillHasRelationshipsException(val nodeId: Long, cause: Throwable)
   extends CypherException("Node with id " + nodeId + " still has relationships, and can not be deleted.")
 
-class IndexAlreadyDefinedException(labelName: String, property: String, cause: Throwable)
-  extends CypherException(s"Property `$property` is already indexed for label `$labelName`.", cause)
-
-class CouldNotDropIndexException(labelName: String, property: String, cause: Throwable)
-  extends CypherException(String.format(s"Unable to drop index on label `$labelName` for property `$property`."), cause)
-
 class ProfilerStatisticsNotReadyException()
   extends CypherException("This result has not been materialised yet. Iterate over it to get profiler stats.")
 
