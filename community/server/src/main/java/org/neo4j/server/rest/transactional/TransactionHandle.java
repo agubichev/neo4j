@@ -29,7 +29,7 @@ import org.neo4j.cypher.CypherException;
 import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.cypher.javacompat.ExecutionResult;
 import org.neo4j.kernel.api.KernelAPI;
-import org.neo4j.kernel.api.TransactionFailureException;
+import org.neo4j.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.server.rest.transactional.error.InternalBeginTransactionError;
 import org.neo4j.server.rest.transactional.error.Neo4jError;
@@ -173,7 +173,8 @@ public class TransactionHandle
         if ( errors.isEmpty() )
         {
             context.suspendSinceTransactionsAreStillThreadBound();
-            registry.release( id, this );
+            long lastActiveTimestamp = registry.release( id, this );
+            output.transactionStatus( lastActiveTimestamp );
         }
         else
         {
@@ -285,5 +286,4 @@ public class TransactionHandle
             errors.add( new Neo4jError( StatusCode.INTERNAL_DATABASE_ERROR, e ) );
         }
     }
-
 }

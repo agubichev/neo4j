@@ -25,17 +25,17 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 
 import org.neo4j.helpers.ThisShouldNotHappenError;
-import org.neo4j.kernel.api.BeginTransactionFailureException;
-import org.neo4j.kernel.api.KernelException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.TransactionContext;
-import org.neo4j.kernel.api.TransactionFailureException;
-import org.neo4j.kernel.api.TransactionalException;
+import org.neo4j.kernel.api.exceptions.BeginTransactionFailureException;
+import org.neo4j.kernel.api.exceptions.KernelException;
+import org.neo4j.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.kernel.api.exceptions.TransactionalException;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
 
 public class Transactor
 {
-    public static interface Statement<RESULT, FAILURE extends KernelException>
+    public interface Statement<RESULT, FAILURE extends KernelException>
     {
         RESULT perform( StatementContext statementContext ) throws FAILURE;
     }

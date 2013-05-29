@@ -21,17 +21,19 @@ package org.neo4j.cypher
 
 import java.io.PrintWriter
 import java.lang.String
+import org.neo4j.graphdb.ResourceIterator
 
 trait ExecutionResult extends Iterator[Map[String, Any]] {
   def columns: List[String]
   def javaColumns: java.util.List[String]
-  def javaColumnAs[T](column: String): java.util.Iterator[T]
+  def javaColumnAs[T](column: String): ResourceIterator[T]
   def columnAs[T](column: String): Iterator[T]
-  def javaIterator: java.util.Iterator[java.util.Map[String, Any]]
+  def javaIterator: ResourceIterator[java.util.Map[String, Any]]
   def dumpToString(writer: PrintWriter)
   def dumpToString(): String
   def queryStatistics(): QueryStatistics
   def executionPlanDescription(): PlanDescription
+  def close()
 }
 
 // Whenever you add a field here, please update the following classes:
@@ -45,15 +47,26 @@ case class QueryStatistics(nodesCreated: Int = 0,
                            propertiesSet: Int = 0,
                            deletedNodes: Int = 0,
                            deletedRelationships: Int = 0,
-                           addedLabels: Int = 0,
-                           removedLabels: Int = 0) {
-  def containsUpdates = nodesCreated > 0 ||
-  relationshipsCreated > 0 ||
-  propertiesSet > 0 ||
-  deletedNodes > 0 ||
-  deletedRelationships > 0 ||
-  addedLabels > 0 ||
-  removedLabels > 0
+                           labelsAdded: Int = 0,
+                           labelsRemoved: Int = 0,
+                           indexesAdded: Int = 0,
+                           indexesRemoved: Int = 0,
+                           constraintsAdded: Int = 0,
+                           constraintsRemoved: Int = 0)
+{
+  def containsUpdates =
+    nodesCreated > 0 ||
+      relationshipsCreated > 0 ||
+      propertiesSet > 0 ||
+      deletedNodes > 0 ||
+      deletedRelationships > 0 ||
+      labelsAdded > 0 ||
+      labelsRemoved > 0 ||
+      indexesAdded > 0 ||
+      indexesRemoved > 0 ||
+      constraintsAdded > 0 ||
+      constraintsRemoved > 0
+
 
   override def toString = {
     val builder = new StringBuilder
@@ -63,8 +76,12 @@ case class QueryStatistics(nodesCreated: Int = 0,
     includeIfNonZero(builder, "Properties set: ", propertiesSet)
     includeIfNonZero(builder, "Nodes deleted: ", deletedNodes)
     includeIfNonZero(builder, "Relationships deleted: ", deletedRelationships)
-    includeIfNonZero(builder, "Labels added: ", addedLabels)
-    includeIfNonZero(builder, "Labels removed: ", removedLabels)
+    includeIfNonZero(builder, "Labels added: ", labelsAdded)
+    includeIfNonZero(builder, "Labels removed: ", labelsRemoved)
+    includeIfNonZero(builder, "Indexes added: ", indexesAdded)
+    includeIfNonZero(builder, "Indexes removed: ", indexesRemoved)
+    includeIfNonZero(builder, "Constraints added: ", constraintsAdded)
+    includeIfNonZero(builder, "Constraints removed: ", constraintsRemoved)
 
     val result = builder.toString()
 

@@ -19,20 +19,22 @@
  */
 package org.neo4j.qa.features;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.ConnectException;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+import org.junit.Before;
+import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.neo4j.qa.features.support.FileHelper.copyFile;
 import static org.neo4j.qa.features.support.ProcessHelper.exec;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.ConnectException;
-
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.junit.Before;
-import org.junit.Test;
 
 public class StartAndStopFeatureTest
 {
@@ -77,14 +79,13 @@ public class StartAndStopFeatureTest
     private void And_wait_for_Server_started_at( String uri ) throws IOException, InterruptedException
     {
         DefaultHttpClient httpClient = new DefaultHttpClient();
-        HttpGet request = new HttpGet( uri );
         boolean success = false;
         long startTime = System.currentTimeMillis();
         while ( !success && System.currentTimeMillis() - startTime < 60000 )
         {
             try
             {
-                success = httpClient.execute( request ).getStatusLine().getStatusCode() == 200;
+                success = statusCode( uri, httpClient ) == 200;
             }
             catch ( ConnectException e )
             {
@@ -98,14 +99,13 @@ public class StartAndStopFeatureTest
     private void And_wait_for_Server_stopped_at( String uri ) throws IOException, InterruptedException
     {
         DefaultHttpClient httpClient = new DefaultHttpClient();
-        HttpGet request = new HttpGet( uri );
         boolean success = false;
         long startTime = System.currentTimeMillis();
         while ( !success && System.currentTimeMillis() - startTime < 6000 )
         {
             try
             {
-                httpClient.execute( request ).getStatusLine().getStatusCode();
+                statusCode( uri, httpClient );
                 System.out.println( "Connection still available, sleeping" );
             }
             catch ( ConnectException e )
@@ -119,14 +119,14 @@ public class StartAndStopFeatureTest
 
     private void Then_it_should_provide_the_Neo4j_REST_interface_at( String uri ) throws Exception
     {
-        assertEquals( 200, new DefaultHttpClient().execute( new HttpGet( uri ) ).getStatusLine().getStatusCode() );
+        assertEquals( 200, statusCode( uri, new DefaultHttpClient() ) );
     }
 
     private void Then_it_should_not_provide_the_Neo4j_REST_interface_at( String uri ) throws Exception
     {
         try
         {
-            new DefaultHttpClient().execute( new HttpGet( uri ) ).getStatusLine().getStatusCode();
+            statusCode( uri, new DefaultHttpClient() );
             fail( "Should refuse connections" );
         }
         catch ( ConnectException e )
@@ -134,5 +134,11 @@ public class StartAndStopFeatureTest
             // expected
         }
     }
-
+    
+    private int statusCode( String uri, DefaultHttpClient httpClient ) throws IOException
+    {
+        HttpResponse response = httpClient.execute( new HttpGet( uri ) );
+        EntityUtils.toString( response.getEntity() );
+        return response.getStatusLine().getStatusCode();
+    }
 }

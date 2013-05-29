@@ -19,12 +19,6 @@
  */
 package org.neo4j.shell.kernel.apps;
 
-import static org.neo4j.helpers.collection.Iterables.filter;
-import static org.neo4j.helpers.collection.Iterables.indexOf;
-import static org.neo4j.helpers.collection.Iterables.sort;
-import static org.neo4j.helpers.collection.Iterables.toList;
-import static org.neo4j.shell.Continuation.INPUT_COMPLETE;
-
 import java.rmi.RemoteException;
 import java.util.concurrent.TimeUnit;
 
@@ -43,26 +37,31 @@ import org.neo4j.shell.OptionValueType;
 import org.neo4j.shell.Output;
 import org.neo4j.shell.Session;
 
+import static org.neo4j.helpers.collection.Iterables.filter;
+import static org.neo4j.helpers.collection.Iterables.indexOf;
+import static org.neo4j.helpers.collection.Iterables.sort;
+import static org.neo4j.helpers.collection.Iterables.toList;
+import static org.neo4j.shell.Continuation.INPUT_COMPLETE;
+
 public class Schema extends GraphDatabaseApp
 {
-    private static final Label[] EMPTY_LABELS = new Label[0];
     private static final Function<IndexDefinition, String> LABEL_COMPARE_FUNCTION =
             new Function<IndexDefinition, String>()
-    {
-        @Override
-        public String apply( IndexDefinition index )
-        {
-            return index.getLabel().name();
-        }
-    };
-    
+            {
+                @Override
+                public String apply( IndexDefinition index )
+                {
+                    return index.getLabel().name();
+                }
+            };
+
     {
         addOptionDefinition( "l", new OptionDefinition( OptionValueType.MUST,
                 "Specifies which label selected operation is about" ) );
         addOptionDefinition( "p", new OptionDefinition( OptionValueType.MUST,
                 "Specifies which property selected operation is about" ) );
     }
-    
+
     @Override
     public String getDescription()
     {
@@ -73,7 +72,7 @@ public class Schema extends GraphDatabaseApp
                 "Awaiting indexes to come online\n" +
                 "  schema await -l Person -p name";
     }
-    
+
     @Override
     protected Continuation exec( AppCommandParser parser, Session session, Output out ) throws Exception
     {
@@ -81,14 +80,20 @@ public class Schema extends GraphDatabaseApp
         org.neo4j.graphdb.schema.Schema schema = getServer().getDb().schema();
         Label[] labels = parseLabels( parser );
         String property = parser.option( "p", null );
-        
+
         if ( action.equals( "await" ) )
-            // Await an index to come online
+        {
             awaitIndexes( out, schema, labels, property );
+        }
         else if ( action.equals( "ls" ) )
-            // List schema rules (currently only indexes)
-            listIndexes( out, schema, labels, property );
-        
+        {
+            listIndexesAndConstraints( out, schema, labels, property );
+        }
+        else
+        {
+            out.println( "Unknown action: " + action + "\nUSAGE:\n" + getDescription() );
+        }
+
         return INPUT_COMPLETE;
     }
 
@@ -99,46 +104,101 @@ public class Schema extends GraphDatabaseApp
         {
             if ( schema.getIndexState( index ) != IndexState.ONLINE )
             {
-                out.println( "Awaiting :" + index.getLabel().name() + " ON " +
-                        toList( index.getPropertyKeys() ) + " " + IndexState.ONLINE );
+                out.println( String.format( "Awaiting :%s ON %s %s", index.getLabel().name(),
+                        toList( index.getPropertyKeys() ), IndexState.ONLINE ) );
                 schema.awaitIndexOnline( index, 10000, TimeUnit.DAYS );
             }
         }
     }
 
-    private void listIndexes( Output out, org.neo4j.graphdb.schema.Schema schema, Label[] labels,
-            final String property ) throws RemoteException
+    private void listIndexesAndConstraints( Output out, org.neo4j.graphdb.schema.Schema schema, Label[] labels,
+                                            final String property ) throws RemoteException
     {
-        ColumnPrinter printer = new ColumnPrinter( "  :", "ON ", "" );
+        reportIndexes( out, schema, labels, property );
+        reportConstraints( out, schema, labels, property );
+    }
+
+    private void reportConstraints( Output out, org.neo4j.graphdb.schema.Schema schema, Label[] labels, String
+            property ) throws RemoteException
+    {
+        int j = 0;
+        for ( ConstraintDefinition constraint : constraintsByLabelAndProperty( schema, labels, property ) )
+        {
+            if ( j == 0 )
+            {
+                out.println();
+                out.println( "Constraints" );
+            }
+
+            String labelName = constraint.getLabel().name();
+
+            out.println( String.format( "  ON (%s:%s) ASSERT %s", labelName.toLowerCase(), labelName,
+                    constraint.toString() ) );
+            j++;
+
+        }
+        if ( j == 0 )
+        {
+            out.println();
+            out.println( "No constraints" );
+        }
+    }
+
+    private void reportIndexes( Output out, org.neo4j.graphdb.schema.Schema schema, Label[] labels, String property )
+            throws RemoteException
+    {
+        ColumnPrinter printer = new ColumnPrinter( "  ON ", "", "" );
         Iterable<IndexDefinition> indexes = indexesByLabelAndProperty( schema, labels, property );
 
         int i = 0;
         for ( IndexDefinition index : sort( indexes, LABEL_COMPARE_FUNCTION ) )
         {
             if ( i == 0 )
+            {
                 out.println( "Indexes" );
-            printer.add( index.getLabel().name(), toList( index.getPropertyKeys() ),
-                    schema.getIndexState( index ) );
+            }
+            String labelAndProperties = String.format( ":%s(%s)", index.getLabel().name(), commaSeparate( index
+                    .getPropertyKeys() ) );
+
+            IndexState state = schema.getIndexState( index );
+
+            String uniqueOrNot = index.isConstraintIndex() ? "(for uniqueness constraint)" : "";
+
+            printer.add( labelAndProperties, state, uniqueOrNot );
             i++;
         }
         if ( i == 0 )
-            out.println( "No indexes" );
-        
-        int j = 0;
-        for ( ConstraintDefinition constraint : constraintsByLabelAndProperty( schema, labels, property ) )
         {
-            if ( j == 0 ) out.println( "Constraints" );
-            printer.add( constraint.getLabel().name(), constraint.getConstraintType().name(), constraint.toString() );
-            j++;
-
+            out.println( "No indexes" );
         }
-        if ( j == 0 ) out.println( "No constraints" );
+        else
+        {
+            printer.print( out );
+        }
+    }
 
-        printer.print( out );
+    private String commaSeparate( Iterable<String> keys )
+    {
+        StringBuilder builder = new StringBuilder();
+        boolean first = true;
+        for ( String key : keys )
+        {
+            if ( !first )
+            {
+                builder.append( ", " );
+
+            }
+            else
+            {
+                first = false;
+            }
+            builder.append( key );
+        }
+        return builder.toString();
     }
 
     private Iterable<IndexDefinition> indexesByLabelAndProperty( org.neo4j.graphdb.schema.Schema schema,
-            Label[] labels, final String property )
+                                                                 Label[] labels, final String property )
     {
         Iterable<IndexDefinition> indexes = indexesByLabel( schema, labels );
         if ( property != null )
@@ -156,31 +216,25 @@ public class Schema extends GraphDatabaseApp
     }
 
     private Iterable<ConstraintDefinition> constraintsByLabelAndProperty( org.neo4j.graphdb.schema.Schema schema,
-            final Label[] labels, final String property )
+                                                                          final Label[] labels, final String property )
     {
-        Iterable<ConstraintDefinition> constraints = filter( new Predicate<ConstraintDefinition>()
+
+        return filter( new Predicate<ConstraintDefinition>()
         {
             @Override
             public boolean accept( ConstraintDefinition constraint )
             {
-                if ( hasLabel( constraint, labels ) )
-                {
-                    return isMatchingConstraint( constraint, property );
-                }
-                else
-                {
-                    return false;
-                }
+                return hasLabel( constraint, labels ) && isMatchingConstraint( constraint, property );
             }
         }, schema.getConstraints() );
-
-        return constraints;
     }
 
     private boolean hasLabel( ConstraintDefinition constraint, Label[] labels )
     {
         if ( labels.length == 0 )
+        {
             return true;
+        }
 
         for ( Label label : labels )
         {
@@ -189,7 +243,7 @@ public class Schema extends GraphDatabaseApp
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -202,14 +256,14 @@ public class Schema extends GraphDatabaseApp
 
         switch ( constraint.getConstraintType() )
         {
-        case UNIQUENESS:
-            UniquenessConstraintDefinition typedConstraint = constraint.asUniquenessConstraint();
-            return indexOf( property, typedConstraint.getPropertyKeys() ) != -1;
-        default:
-            return false;
+            case UNIQUENESS:
+                UniquenessConstraintDefinition typedConstraint = constraint.asUniquenessConstraint();
+                return indexOf( property, typedConstraint.getPropertyKeys() ) != -1;
+            default:
+                return false;
         }
     }
-    
+
     private Iterable<IndexDefinition> indexesByLabel( org.neo4j.graphdb.schema.Schema schema, Label[] labels )
     {
         Iterable<IndexDefinition> indexes = schema.getIndexes();

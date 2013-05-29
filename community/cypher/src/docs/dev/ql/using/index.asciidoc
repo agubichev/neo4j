@@ -21,3 +21,5 @@ NOTE: You cannot use index hints if your query has a +START+ clause.
 include::query-using-an-index-hint.asciidoc[]
 
 include::query-using-multiple-index-hints.asciidoc[]
+
+include::hinting-a-label-scan.asciidoc[]

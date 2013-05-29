@@ -23,23 +23,24 @@ import java.io.Closeable;
 import java.util.Iterator;
 
 import org.neo4j.helpers.Function;
-import org.neo4j.kernel.api.DataIntegrityKernelException;
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
-import org.neo4j.kernel.api.SchemaRuleNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
-import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyNotFoundException;
+import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.schema.DropIndexFailureException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaKernelException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaRuleNotFoundException;
 import org.neo4j.kernel.api.index.InternalIndexState;
 import org.neo4j.kernel.api.operations.EntityOperations;
 import org.neo4j.kernel.api.operations.KeyOperations;
 import org.neo4j.kernel.api.operations.SchemaOperations;
 import org.neo4j.kernel.api.operations.SchemaStateOperations;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
-import org.neo4j.kernel.impl.core.LabelToken;
+import org.neo4j.kernel.impl.core.Token;
 
 import static org.neo4j.helpers.Exceptions.launderedException;
 
@@ -136,8 +137,8 @@ public class CompositeStatementContext implements StatementContext
         else
         {
             throw new IllegalStateException( "Asked to close, but was not given a full implementation of statement " +
-                    "context. Please either override this close method, or give CompositeStatementContext a full " +
-                    "implementation of the statement context interface." );
+                                             "context. Please either override this close method, or give CompositeStatementContext a full " +
+                                             "implementation of the statement context interface." );
         }
     }
 
@@ -157,11 +158,11 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public <K, V> V getOrCreateFromSchemaState( K key, Function<K, V> creator )
+    public <K, V> V schemaStateGetOrCreate( K key, Function<K, V> creator )
     {
         beforeOperation();
 
-        V result = schemaStateOperations.getOrCreateFromSchemaState( key, creator );
+        V result = schemaStateOperations.schemaStateGetOrCreate( key, creator );
 
         afterOperation();
         return result;
@@ -172,12 +173,12 @@ public class CompositeStatementContext implements StatementContext
     //
 
     @Override
-    public Iterator<Long> getNodesWithLabel( long labelId )
+    public Iterator<Long> nodesGetForLabel( long labelId )
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<Long> result = entityOperations.getNodesWithLabel( labelId );
+        Iterator<Long> result = entityOperations.nodesGetForLabel( labelId );
 
         afterReadOperation();
         afterOperation();
@@ -185,12 +186,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<Long> exactIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException
+    public Iterator<Long> nodesGetFromIndexLookup( IndexDescriptor index, Object value )
+            throws IndexNotFoundKernelException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<Long> result = entityOperations.exactIndexLookup( index, value );
+        Iterator<Long> result = entityOperations.nodesGetFromIndexLookup( index, value );
 
         afterReadOperation();
         afterOperation();
@@ -198,12 +200,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public long getLabelId( String label ) throws LabelNotFoundKernelException
+    public long labelGetForName( String label ) throws LabelNotFoundKernelException
     {
         beforeOperation();
         beforeReadOperation();
 
-        long result = keyOperations.getLabelId( label );
+        long result = keyOperations.labelGetForName( label );
 
         afterReadOperation();
         afterOperation();
@@ -211,12 +213,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public String getLabelName( long labelId ) throws LabelNotFoundKernelException
+    public String labelGetName( long labelId ) throws LabelNotFoundKernelException
     {
         beforeOperation();
         beforeReadOperation();
 
-        String result = keyOperations.getLabelName( labelId );
+        String result = keyOperations.labelGetName( labelId );
 
         afterReadOperation();
         afterOperation();
@@ -224,12 +226,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public boolean isLabelSetOnNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public boolean nodeHasLabel( long nodeId, long labelId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        boolean result = entityOperations.isLabelSetOnNode( labelId, nodeId );
+        boolean result = entityOperations.nodeHasLabel( nodeId, labelId );
 
         afterReadOperation();
         afterOperation();
@@ -237,12 +239,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<Long> getLabelsForNode( long nodeId ) throws EntityNotFoundException
+    public Iterator<Long> nodeGetLabels( long nodeId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<Long> result = entityOperations.getLabelsForNode( nodeId );
+        Iterator<Long> result = entityOperations.nodeGetLabels( nodeId );
 
         afterReadOperation();
         afterOperation();
@@ -250,12 +252,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public long getPropertyKeyId( String propertyKey ) throws PropertyKeyNotFoundException
+    public long propertyKeyGetForName( String propertyKey ) throws PropertyKeyNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        long result = keyOperations.getPropertyKeyId( propertyKey );
+        long result = keyOperations.propertyKeyGetForName( propertyKey );
 
         afterReadOperation();
         afterOperation();
@@ -263,12 +265,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public String getPropertyKeyName( long propertyId ) throws PropertyKeyIdNotFoundException
+    public String propertyKeyGetName( long propertyKeyId ) throws PropertyKeyIdNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        String result = keyOperations.getPropertyKeyName( propertyId );
+        String result = keyOperations.propertyKeyGetName( propertyKeyId );
 
         afterReadOperation();
         afterOperation();
@@ -276,28 +278,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Object getNodePropertyValue( long nodeId, long propertyId ) throws PropertyKeyIdNotFoundException,
-            PropertyNotFoundException, EntityNotFoundException
-    {
-        beforeOperation();
-        beforeReadOperation();
-
-        Object result = entityOperations.getNodePropertyValue( nodeId, propertyId );
-
-        afterReadOperation();
-        afterOperation();
-        return result;
-    }
-
-
-    @Override
-    public boolean nodeHasProperty(long nodeId, long propertyId)
+    public Property nodeGetProperty( long nodeId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        boolean result = entityOperations.nodeHasProperty( nodeId, propertyId );
+        Property result = entityOperations.nodeGetProperty( nodeId, propertyKeyId );
 
         afterReadOperation();
         afterOperation();
@@ -305,12 +292,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<Long> listNodePropertyKeys( long nodeId )
+    public Property relationshipGetProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<Long> result = entityOperations.listNodePropertyKeys( nodeId );
+        Property result = entityOperations.relationshipGetProperty( relationshipId, propertyKeyId );
 
         afterReadOperation();
         afterOperation();
@@ -318,12 +306,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<Long> listRelationshipPropertyKeys( long relationshipId )
+    public boolean nodeHasProperty( long nodeId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<Long> result = entityOperations.listRelationshipPropertyKeys( relationshipId );
+        boolean result = entityOperations.nodeHasProperty( nodeId, propertyKeyId );
 
         afterReadOperation();
         afterOperation();
@@ -331,12 +320,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public IndexDescriptor getIndex( long labelId, long propertyKey ) throws SchemaRuleNotFoundException
+    public boolean relationshipHasProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        IndexDescriptor result = schemaOperations.getIndex( labelId, propertyKey );
+        boolean result = entityOperations.relationshipHasProperty( relationshipId, propertyKeyId );
 
         afterReadOperation();
         afterOperation();
@@ -344,12 +334,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes( long labelId )
+    public Iterator<Long> nodeGetPropertyKeys( long nodeId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<IndexDescriptor> result = schemaOperations.getIndexes( labelId );
+        Iterator<Long> result = entityOperations.nodeGetPropertyKeys( nodeId );
 
         afterReadOperation();
         afterOperation();
@@ -357,12 +347,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes()
+    public Iterator<Property> nodeGetAllProperties( long nodeId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<IndexDescriptor> result = schemaOperations.getIndexes();
+        Iterator<Property> result = entityOperations.nodeGetAllProperties( nodeId );
 
         afterReadOperation();
         afterOperation();
@@ -370,12 +360,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes( long labelId )
+    public Iterator<Long> relationshipGetPropertyKeys( long relationshipId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<IndexDescriptor> result = schemaOperations.getConstraintIndexes( labelId );
+        Iterator<Long> result = entityOperations.relationshipGetPropertyKeys( relationshipId );
 
         afterReadOperation();
         afterOperation();
@@ -383,12 +373,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes()
+    public Iterator<Property> relationshipGetAllProperties( long relationshipId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<IndexDescriptor> result = schemaOperations.getConstraintIndexes();
+        Iterator<Property> result = entityOperations.relationshipGetAllProperties( relationshipId );
 
         afterReadOperation();
         afterOperation();
@@ -396,12 +386,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public InternalIndexState getIndexState( IndexDescriptor indexRule ) throws IndexNotFoundKernelException
+    public IndexDescriptor indexesGetForLabelAndPropertyKey( long labelId, long propertyKey )
+            throws SchemaRuleNotFoundException
     {
         beforeOperation();
         beforeReadOperation();
 
-        InternalIndexState result = schemaOperations.getIndexState( indexRule );
+        IndexDescriptor result = schemaOperations.indexesGetForLabelAndPropertyKey( labelId, propertyKey );
 
         afterReadOperation();
         afterOperation();
@@ -409,12 +400,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId, long propertyKeyId )
+    public Iterator<IndexDescriptor> indexesGetForLabel( long labelId )
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<UniquenessConstraint> result = schemaOperations.getConstraints( labelId, propertyKeyId );
+        Iterator<IndexDescriptor> result = schemaOperations.indexesGetForLabel( labelId );
 
         afterReadOperation();
         afterOperation();
@@ -422,12 +413,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId )
+    public Iterator<IndexDescriptor> indexesGetAll()
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<UniquenessConstraint> result = schemaOperations.getConstraints( labelId );
+        Iterator<IndexDescriptor> result = schemaOperations.indexesGetAll();
 
         afterReadOperation();
         afterOperation();
@@ -435,12 +426,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Long getOwningConstraint( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    public Iterator<IndexDescriptor> uniqueIndexesGetForLabel( long labelId )
     {
         beforeOperation();
         beforeReadOperation();
 
-        Long result = schemaOperations.getOwningConstraint( index );
+        Iterator<IndexDescriptor> result = schemaOperations.uniqueIndexesGetForLabel( labelId );
 
         afterReadOperation();
         afterOperation();
@@ -448,12 +439,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public long getCommittedIndexId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    public Iterator<IndexDescriptor> uniqueIndexesGetAll()
     {
         beforeOperation();
         beforeReadOperation();
 
-        long result = schemaOperations.getCommittedIndexId( index );
+        Iterator<IndexDescriptor> result = schemaOperations.uniqueIndexesGetAll();
 
         afterReadOperation();
         afterOperation();
@@ -461,12 +452,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints()
+    public InternalIndexState indexGetState( IndexDescriptor descriptor ) throws IndexNotFoundKernelException
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<UniquenessConstraint> result = schemaOperations.getConstraints();
+        InternalIndexState result = schemaOperations.indexGetState( descriptor );
 
         afterReadOperation();
         afterOperation();
@@ -474,12 +465,78 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<LabelToken> listLabels()
+    public Iterator<UniquenessConstraint> constraintsGetForLabelAndPropertyKey( long labelId, long propertyKeyId )
     {
         beforeOperation();
         beforeReadOperation();
 
-        Iterator<LabelToken> result = keyOperations.listLabels();
+        Iterator<UniquenessConstraint> result = schemaOperations.constraintsGetForLabelAndPropertyKey( labelId,
+                                                                                                       propertyKeyId );
+
+        afterReadOperation();
+        afterOperation();
+        return result;
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> constraintsGetForLabel( long labelId )
+    {
+        beforeOperation();
+        beforeReadOperation();
+
+        Iterator<UniquenessConstraint> result = schemaOperations.constraintsGetForLabel( labelId );
+
+        afterReadOperation();
+        afterOperation();
+        return result;
+    }
+
+    @Override
+    public Long indexGetOwningUniquenessConstraintId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        beforeOperation();
+        beforeReadOperation();
+
+        Long result = schemaOperations.indexGetOwningUniquenessConstraintId( index );
+
+        afterReadOperation();
+        afterOperation();
+        return result;
+    }
+
+    @Override
+    public long indexGetCommittedId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    {
+        beforeOperation();
+        beforeReadOperation();
+
+        long result = schemaOperations.indexGetCommittedId( index );
+
+        afterReadOperation();
+        afterOperation();
+        return result;
+    }
+
+    @Override
+    public Iterator<UniquenessConstraint> constraintsGetAll()
+    {
+        beforeOperation();
+        beforeReadOperation();
+
+        Iterator<UniquenessConstraint> result = schemaOperations.constraintsGetAll();
+
+        afterReadOperation();
+        afterOperation();
+        return result;
+    }
+
+    @Override
+    public Iterator<Token> labelsGetAllTokens()
+    {
+        beforeOperation();
+        beforeReadOperation();
+
+        Iterator<Token> result = keyOperations.labelsGetAllTokens();
 
         afterReadOperation();
         afterOperation();
@@ -491,12 +548,12 @@ public class CompositeStatementContext implements StatementContext
     //
 
     @Override
-    public long getOrCreateLabelId( String label ) throws DataIntegrityKernelException
+    public long labelGetOrCreateForName( String label ) throws SchemaKernelException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        long result = keyOperations.getOrCreateLabelId( label );
+        long result = keyOperations.labelGetOrCreateForName( label );
 
         afterWriteOperation();
         afterOperation();
@@ -504,12 +561,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public boolean addLabelToNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public boolean nodeAddLabel( long nodeId, long labelId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        boolean result = entityOperations.addLabelToNode( labelId, nodeId );
+        boolean result = entityOperations.nodeAddLabel( nodeId, labelId );
 
         afterWriteOperation();
         afterOperation();
@@ -517,12 +574,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public boolean removeLabelFromNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public boolean nodeRemoveLabel( long nodeId, long labelId ) throws EntityNotFoundException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        boolean result = entityOperations.removeLabelFromNode( labelId, nodeId );
+        boolean result = entityOperations.nodeRemoveLabel( nodeId, labelId );
 
         afterWriteOperation();
         afterOperation();
@@ -530,12 +587,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public long getOrCreatePropertyKeyId( String propertyKey ) throws DataIntegrityKernelException
+    public long propertyKeyGetOrCreateForName( String propertyKey ) throws SchemaKernelException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        long result = keyOperations.getOrCreatePropertyKeyId( propertyKey );
+        long result = keyOperations.propertyKeyGetOrCreateForName( propertyKey );
 
         afterWriteOperation();
         afterOperation();
@@ -543,13 +600,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public IndexDescriptor addIndex( long labelId, long propertyKey ) throws
-                                                                      DataIntegrityKernelException
+    public IndexDescriptor indexCreate( long labelId, long propertyKey ) throws SchemaKernelException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        IndexDescriptor result = schemaOperations.addIndex( labelId, propertyKey );
+        IndexDescriptor result = schemaOperations.indexCreate( labelId, propertyKey );
 
         afterWriteOperation();
         afterOperation();
@@ -557,13 +613,12 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public IndexDescriptor addConstraintIndex( long labelId, long propertyKey )
-            throws DataIntegrityKernelException
+    public IndexDescriptor uniqueIndexCreate( long labelId, long propertyKey ) throws SchemaKernelException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        IndexDescriptor result = schemaOperations.addConstraintIndex( labelId, propertyKey );
+        IndexDescriptor result = schemaOperations.uniqueIndexCreate( labelId, propertyKey );
 
         afterWriteOperation();
         afterOperation();
@@ -571,13 +626,13 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public UniquenessConstraint addUniquenessConstraint( long labelId, long propertyKeyId )
-            throws DataIntegrityKernelException, ConstraintCreationKernelException
+    public UniquenessConstraint uniquenessConstraintCreate( long labelId, long propertyKeyId )
+            throws SchemaKernelException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        UniquenessConstraint result = schemaOperations.addUniquenessConstraint( labelId, propertyKeyId );
+        UniquenessConstraint result = schemaOperations.uniquenessConstraintCreate( labelId, propertyKeyId );
 
         afterWriteOperation();
         afterOperation();
@@ -585,62 +640,49 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public void dropConstraint( UniquenessConstraint constraint )
+    public void constraintDrop( UniquenessConstraint constraint )
     {
         beforeOperation();
         beforeWriteOperation();
 
-        schemaOperations.dropConstraint( constraint );
+        schemaOperations.constraintDrop( constraint );
 
         afterWriteOperation();
         afterOperation();
     }
 
     @Override
-    public void dropIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    public void indexDrop( IndexDescriptor descriptor ) throws DropIndexFailureException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        schemaOperations.dropIndex( descriptor );
+        schemaOperations.indexDrop( descriptor );
 
         afterWriteOperation();
         afterOperation();
     }
 
     @Override
-    public void dropConstraintIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    public void uniqueIndexDrop( IndexDescriptor descriptor ) throws DropIndexFailureException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        schemaOperations.dropConstraintIndex( descriptor );
+        schemaOperations.uniqueIndexDrop( descriptor );
 
         afterWriteOperation();
         afterOperation();
     }
 
     @Override
-    public void nodeSetPropertyValue( long nodeId, long propertyKeyId, Object value )
+    public Property nodeSetProperty( long nodeId, Property property )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        entityOperations.nodeSetPropertyValue( nodeId, propertyKeyId, value );
-
-        afterWriteOperation();
-        afterOperation();
-    }
-
-    @Override
-    public Object nodeRemoveProperty( long nodeId, long propertyKeyId )
-            throws PropertyKeyIdNotFoundException, EntityNotFoundException
-    {
-        beforeOperation();
-        beforeWriteOperation();
-
-        Object result = entityOperations.nodeRemoveProperty( nodeId, propertyKeyId );
+        Property result = entityOperations.nodeSetProperty( nodeId, property );
 
         afterWriteOperation();
         afterOperation();
@@ -649,12 +691,70 @@ public class CompositeStatementContext implements StatementContext
     }
 
     @Override
-    public void deleteNode( long nodeId )
+    public Property relationshipSetProperty( long relationshipId, Property property )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         beforeOperation();
         beforeWriteOperation();
 
-        entityOperations.deleteNode( nodeId );
+        Property result = entityOperations.relationshipSetProperty( relationshipId, property );
+
+        afterWriteOperation();
+        afterOperation();
+
+        return result;
+    }
+
+    @Override
+    public Property nodeRemoveProperty( long nodeId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    {
+        beforeOperation();
+        beforeWriteOperation();
+
+        Property result = entityOperations.nodeRemoveProperty( nodeId, propertyKeyId );
+
+        afterWriteOperation();
+        afterOperation();
+
+        return result;
+    }
+
+    @Override
+    public Property relationshipRemoveProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    {
+        beforeOperation();
+        beforeWriteOperation();
+
+        Property result = entityOperations.relationshipRemoveProperty( relationshipId, propertyKeyId );
+
+        afterWriteOperation();
+        afterOperation();
+
+        return result;
+    }
+
+    @Override
+    public void nodeDelete( long nodeId )
+    {
+        beforeOperation();
+        beforeWriteOperation();
+
+        entityOperations.nodeDelete( nodeId );
+
+        afterWriteOperation();
+        afterOperation();
+    }
+
+
+    @Override
+    public void relationshipDelete( long relationshipId )
+    {
+        beforeOperation();
+        beforeWriteOperation();
+
+        entityOperations.relationshipDelete( relationshipId );
 
         afterWriteOperation();
         afterOperation();

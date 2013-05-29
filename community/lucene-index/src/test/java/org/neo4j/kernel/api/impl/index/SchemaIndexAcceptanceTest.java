@@ -19,19 +19,12 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.graphdb.DynamicLabel.label;
-import static org.neo4j.helpers.collection.Iterables.count;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-import static org.neo4j.helpers.collection.IteratorUtil.asUniqueSet;
-import static org.neo4j.helpers.collection.MapUtil.map;
-
 import java.util.Map;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -40,6 +33,17 @@ import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema.IndexState;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.impl.EphemeralFileSystemAbstraction;
+
+import static java.util.concurrent.TimeUnit.MINUTES;
+
+import static org.junit.Assert.assertEquals;
+
+import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.helpers.collection.Iterables.count;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.helpers.collection.IteratorUtil.asUniqueSet;
+import static org.neo4j.helpers.collection.IteratorUtil.emptySetOf;
+import static org.neo4j.helpers.collection.MapUtil.map;
 
 public class SchemaIndexAcceptanceTest
 {
@@ -77,7 +81,7 @@ public class SchemaIndexAcceptanceTest
         crashAndRestart();
         
         // THEN
-        assertEquals( asSet(), asSet( db.schema().getIndexes( label ) ) );
+        assertEquals( emptySetOf( IndexDefinition.class ), asSet( db.schema().getIndexes( label ) ) );
     }
     
     private EphemeralFileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
@@ -136,7 +140,7 @@ public class SchemaIndexAcceptanceTest
     private IndexDefinition createIndex( Label label, String propertyKey )
     {
         Transaction tx = db.beginTx();
-        IndexDefinition indexDefinition = db.schema().indexCreator( label ).on( propertyKey ).create();
+        IndexDefinition indexDefinition = db.schema().indexFor( label ).on( propertyKey ).create();
         tx.success();
         tx.finish();
         db.schema().awaitIndexOnline( indexDefinition, 1, MINUTES );

@@ -28,8 +28,9 @@ import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.neo4j.graphdb.factory.GraphDatabaseSetting;
+import org.neo4j.helpers.Settings;
 import org.neo4j.kernel.StoreLockException;
 import org.neo4j.server.ServerTestUtils;
 import org.neo4j.server.configuration.Configurator;
@@ -37,16 +38,21 @@ import org.neo4j.server.logging.InMemoryAppender;
 import org.neo4j.shell.ShellException;
 import org.neo4j.shell.ShellLobby;
 import org.neo4j.shell.ShellSettings;
+import org.neo4j.test.Mute;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.server.ServerTestUtils.createTempDir;
+import static org.neo4j.test.Mute.muteAll;
 
 public class TestCommunityDatabase
 {
+    @Rule
+    public Mute mute = muteAll();
     private File databaseDirectory;
     private Database theDatabase;
     private boolean deletionFailureOk;
@@ -137,11 +143,11 @@ public class TestCommunityDatabase
         int customPort = findFreeShellPortToUse( 8881 );
         File tempDir = createTempDir();
         File tuningProperties = new File( tempDir, "neo4j.properties" );
-        tuningProperties.createNewFile();
+        assertTrue( "create " + tuningProperties, tuningProperties.createNewFile() );
         
         ServerTestUtils.writePropertiesToFile(
-                stringMap( ShellSettings.remote_shell_enabled.name(), GraphDatabaseSetting.TRUE,
-                        ShellSettings.remote_shell_port.name(), "" + customPort ), tuningProperties );
+                stringMap( ShellSettings.remote_shell_enabled.name(), Settings.TRUE,
+                           ShellSettings.remote_shell_port.name(), "" + customPort ), tuningProperties );
         
         Configuration conf = new MapConfiguration( new HashMap<String, String>() );
         conf.addProperty( Configurator.DATABASE_LOCATION_PROPERTY_KEY, tempDir.getAbsolutePath() );
@@ -160,6 +166,7 @@ public class TestCommunityDatabase
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void shouldBeAbleToGetLocation() throws Throwable
     {
         theDatabase.start();

@@ -71,7 +71,7 @@ public class TransactionFacade
 
     public TransactionHandle findTransactionHandle( long txId ) throws TransactionLifecycleException
     {
-        return registry.acquire( txId );
+       return registry.acquire( txId );
     }
 
     public StatementDeserializer deserializer( InputStream input )

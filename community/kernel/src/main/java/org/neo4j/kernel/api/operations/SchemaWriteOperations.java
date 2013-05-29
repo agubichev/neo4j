@@ -19,31 +19,39 @@
  */
 package org.neo4j.kernel.api.operations;
 
-import org.neo4j.kernel.api.DataIntegrityKernelException;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
-import org.neo4j.kernel.impl.api.ConstraintCreationKernelException;
+import org.neo4j.kernel.api.exceptions.schema.DropIndexFailureException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 
 public interface SchemaWriteOperations
 {
     /**
-     * Adds a {@link IndexDescriptor} to the database which applies globally on both
-     * existing as well as new data.
+     * Creates an index, indexing properties with the given {@code propertyKeyId} for nodes with the given
+     * {@code labelId}.
      */
-    IndexDescriptor addIndex( long labelId, long propertyKey ) throws DataIntegrityKernelException;
-
-    IndexDescriptor addConstraintIndex( long labelId, long propertyKey ) throws
-                                                                         DataIntegrityKernelException;
+    IndexDescriptor indexCreate( long labelId, long propertyKeyId ) throws SchemaKernelException;
 
     /**
-     * Drops a {@link IndexDescriptor} from the database
+     * Creates an index for use with a uniqueness constraint. The index indexes properties with the given
+     * {@code propertyKeyId} for nodes with the given {@code labelId}, and assumes that the database provides it with
+     * unique property values. If unique property values are not provided by the database, the index will notify
+     * through an exception and enter a "bad state". (This notification facility is used during the verification phase
+     * of uniqueness constraint creation).
+     *
+     * This method is not used from the outside. It is used internally when
+     * {@link #uniquenessConstraintCreate(long, long) creating a uniqueness constraint}, invoked through a separate
+     * transaction (the separate transaction is why it has to be exposed in this API).
      */
-    void dropIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException;
+    IndexDescriptor uniqueIndexCreate( long labelId, long propertyKey ) throws SchemaKernelException;
 
-    void dropConstraintIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException;
+    /** Drops a {@link IndexDescriptor} from the database */
+    void indexDrop( IndexDescriptor descriptor ) throws DropIndexFailureException;
 
-    UniquenessConstraint addUniquenessConstraint( long labelId, long propertyKeyId )
-            throws DataIntegrityKernelException, ConstraintCreationKernelException;
+    void uniqueIndexDrop( IndexDescriptor descriptor ) throws DropIndexFailureException;
 
-    void dropConstraint( UniquenessConstraint constraint );
+    UniquenessConstraint uniquenessConstraintCreate( long labelId, long propertyKeyId )
+            throws SchemaKernelException;
+
+    void constraintDrop( UniquenessConstraint constraint );
 }

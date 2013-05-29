@@ -21,10 +21,10 @@ package org.neo4j.kernel.api.operations;
 
 import java.util.Iterator;
 
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
-import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 
 public interface EntityReadOperations
@@ -35,41 +35,51 @@ public interface EntityReadOperations
      * @param labelId the label id of the label that returned nodes are guaranteed to have
      * @return ids of all nodes that have the given label
      */
-    Iterator<Long> getNodesWithLabel( long labelId );
+    Iterator<Long> nodesGetForLabel( long labelId );
 
     /**
      * Returns an iterable with the matched nodes.
      *
-     * @throws org.neo4j.kernel.api.index.IndexNotFoundKernelException
-     *          if no such index found.
+     * @throws IndexNotFoundKernelException if no such index found.
      */
-    Iterator<Long> exactIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException;
+    Iterator<Long> nodesGetFromIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException;
 
     /**
      * Checks if a node is labeled with a certain label or not. Returns
      * {@code true} if the node is labeled with the label, otherwise {@code false.}
-     * Label ids are retrieved from {@link KeyWriteOperations#getOrCreateLabelId(String)} or
-     * {@link KeyReadOperations#getLabelId(String)}.
+     * Label ids are retrieved from {@link KeyWriteOperations#labelGetOrCreateForName(String)} or
+     * {@link KeyReadOperations#labelGetForName(String)}.
      */
-    boolean isLabelSetOnNode( long labelId, long nodeId ) throws EntityNotFoundException;
+    boolean nodeHasLabel( long nodeId, long labelId ) throws EntityNotFoundException;
 
     /**
      * Returns all labels set on node with id {@code nodeId}.
      * If the node has no labels an empty {@link Iterable} will be returned.
      */
-    Iterator<Long> getLabelsForNode( long nodeId ) throws EntityNotFoundException;
+    Iterator<Long> nodeGetLabels( long nodeId ) throws EntityNotFoundException;
 
-    /** Returns the value of the property given it's property key id for the node with the given node id */
-    Object getNodePropertyValue( long nodeId, long propertyId )
-            throws PropertyKeyIdNotFoundException, PropertyNotFoundException, EntityNotFoundException;
-
-    /** Returns true if node has the property given it's property key id for the node with the given node id */
-    boolean nodeHasProperty( long nodeId, long propertyId )
+    Property nodeGetProperty( long nodeId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
-    /** Return all property keys associated with a node. */
-    Iterator<Long> listNodePropertyKeys( long nodeId );
+    Property relationshipGetProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
+    /** Returns true if node has the property given it's property key id for the node with the given node id */
+    boolean nodeHasProperty( long nodeId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException;
+
+    boolean relationshipHasProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException;
+
+    // TODO: decide if this should be replaced by nodeGetAllProperties()
+    /** Return all property keys associated with a node. */
+    Iterator<Long> nodeGetPropertyKeys( long nodeId ) throws EntityNotFoundException;
+
+    Iterator<Property> nodeGetAllProperties( long nodeId ) throws EntityNotFoundException;
+
+    // TODO: decide if this should be replaced by relationshipGetAllProperties()
     /** Return all property keys associated with a relationship. */
-    Iterator<Long> listRelationshipPropertyKeys( long relationshipId );
+    Iterator<Long> relationshipGetPropertyKeys( long relationshipId ) throws EntityNotFoundException;
+
+    Iterator<Property> relationshipGetAllProperties( long relationshipId ) throws EntityNotFoundException;
 }

@@ -19,17 +19,17 @@
  */
 package org.neo4j.kernel.impl;
 
+import java.io.File;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.ClassRule;
-import org.junit.Rule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.qa.tooling.DumpProcessInformationRule;
+import org.neo4j.kernel.impl.core.NodeManager;
 import org.neo4j.test.EmbeddedDatabaseRule;
 import org.neo4j.test.TargetDirectory;
 import org.neo4j.test.subprocess.BreakPoint;
@@ -40,7 +40,16 @@ import org.neo4j.test.subprocess.DebuggedThread;
 import org.neo4j.test.subprocess.DebuggerDeadlockCallback;
 import org.neo4j.test.subprocess.EnabledBreakpoints;
 import org.neo4j.test.subprocess.ForeignBreakpoints;
+import org.neo4j.test.subprocess.SubProcess;
 import org.neo4j.test.subprocess.SubProcessTestRunner;
+
+import static java.util.concurrent.TimeUnit.MINUTES;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.neo4j.helpers.Predicates.stringContains;
+import static org.neo4j.qa.tooling.DumpProcessInformation.doThreadDump;
+import static org.neo4j.qa.tooling.DumpVmInformation.dumpVmInfo;
 
 @ForeignBreakpoints( {
                       @ForeignBreakpoints.BreakpointDef( type = "org.neo4j.kernel.impl.core.ArrayBasedPrimitive",
@@ -48,16 +57,14 @@ import org.neo4j.test.subprocess.SubProcessTestRunner;
                       @ForeignBreakpoints.BreakpointDef( type = "org.neo4j.kernel.impl.core.NodeManager",
                               method = "getNodeIfCached" ) } )
 @RunWith( SubProcessTestRunner.class )
+@Ignore( "Ignored in 2.0 due to half-way refactoring moving properties into kernel API. " +
+		"Unignore and change appropriately when it's done" )
 public class TestPropertyDataRace
 {
     @ClassRule
     public static EmbeddedDatabaseRule database = new EmbeddedDatabaseRule();
 
     public static final TargetDirectory targetDir = TargetDirectory.forTest( TestPropertyDataRace.class );
-
-    @Rule
-    public DumpProcessInformationRule dumpingRule = new DumpProcessInformationRule( "", targetDir.directory( "dumps" ),
-            60, TimeUnit.SECONDS );
 
     @Test
     @EnabledBreakpoints( { "enable breakpoints", "done" } )
@@ -150,17 +157,25 @@ public class TestPropertyDataRace
                 done.countDown();
             }
         }.start();
-        done.await();
+        
+        if ( !done.await( 1, MINUTES ) )
+        {
+            File dumpDirectory = targetDir.directory( "dump", true );
+            dumpVmInfo( dumpDirectory );
+            doThreadDump( stringContains( SubProcess.class.getSimpleName() ), dumpDirectory );
+            fail( "Test didn't complete within a reasonable time, dumping process information to " + dumpDirectory );
+        }
+        
         for ( String key : two.getPropertyKeys() )
         {
-            two.getProperty( key );
+            assertEquals( "two", two.getProperty( key ) );
         }
     }
 
     @BreakpointTrigger( "enable breakpoints" )
     private void clearCaches()
     {
-        database.getGraphDatabaseAPI().getNodeManager().clearCache();
+        database.getGraphDatabaseAPI().getDependencyResolver().resolveDependency( NodeManager.class ).clearCache();
     }
 
     @BreakpointTrigger( "done" )

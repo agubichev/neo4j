@@ -19,24 +19,7 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-import static org.neo4j.kernel.impl.api.index.TestSchemaIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
-import static org.neo4j.kernel.impl.util.TestLogger.LogCall.info;
-import static org.neo4j.test.AwaitAnswer.afterAwaiting;
-
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
@@ -66,6 +49,24 @@ import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.impl.util.TestLogger;
 import org.neo4j.kernel.lifecycle.LifeRule;
 import org.neo4j.kernel.logging.Logging;
+
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.kernel.impl.api.index.TestSchemaIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
+import static org.neo4j.kernel.impl.util.TestLogger.LogCall.info;
+import static org.neo4j.test.AwaitAnswer.afterAwaiting;
 
 public class IndexingServiceTest
 {
@@ -242,9 +243,9 @@ public class IndexingServiceTest
 
         // then
         logger.assertExactly(
-                info( "IndexingService.initIndexes: IndexDescriptor[label:1, property:1] is ONLINE" ),
-                info( "IndexingService.initIndexes: IndexDescriptor[label:2, property:2] is POPULATING" ),
-                info( "IndexingService.initIndexes: IndexDescriptor[label:3, property:3] is FAILED" )
+                info( "IndexingService.initIndexes: index on :label[1](property[1]) is ONLINE" ),
+                info( "IndexingService.initIndexes: index on :label[2](property[2]) is POPULATING" ),
+                info( "IndexingService.initIndexes: index on :label[3](property[3]) is FAILED" )
         );
     }
 
@@ -279,11 +280,11 @@ public class IndexingServiceTest
 
         // then
         logger.assertAtLeastOnce(
-                info( "IndexingService.start: IndexDescriptor[label:1, property:1] is ONLINE" ) );
+                info( "IndexingService.start: index on :label[1](property[1]) is ONLINE" ) );
         logger.assertAtLeastOnce(
-                info( "IndexingService.start: IndexDescriptor[label:2, property:2] is POPULATING" ) );
+                info( "IndexingService.start: index on :label[2](property[2]) is POPULATING" ) );
         logger.assertAtLeastOnce(
-                info( "IndexingService.start: IndexDescriptor[label:3, property:3] is FAILED" ) );
+                info( "IndexingService.start: index on :label[3](property[3]) is FAILED" ) );
     }
 
     private static Logging mockLogging( StringLogger logger )
@@ -300,7 +301,7 @@ public class IndexingServiceTest
 
     private IndexingService newIndexingServiceWithMockedDependencies( IndexPopulator populator,
                                                                       IndexAccessor accessor,
-                                                                      DataUpdates data )
+                                                                      DataUpdates data ) throws IOException
     {
         StringLogger logger = mock( StringLogger.class );
         SchemaIndexProvider indexProvider = mock( SchemaIndexProvider.class );

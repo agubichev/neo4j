@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.api;
 
+import java.lang.reflect.Array;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -34,8 +35,9 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.kernel.GraphDatabaseAPI;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyNotFoundException;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.core.LabelTokenHolder;
@@ -46,17 +48,21 @@ import org.neo4j.kernel.impl.transaction.XaDataSourceManager;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import static org.neo4j.graphdb.DynamicLabel.label;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.cache_type;
 import static org.neo4j.helpers.collection.IteratorUtil.addToCollection;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 import static org.neo4j.helpers.collection.IteratorUtil.asUniqueSet;
+import static org.neo4j.helpers.collection.IteratorUtil.single;
 import static org.neo4j.helpers.collection.MapUtil.map;
 
 public class StoreStatementContextTest
@@ -67,7 +73,7 @@ public class StoreStatementContextTest
     {
         // When
         try {
-            statement.addLabelToNode( 12, 12);
+            statement.nodeAddLabel( 12, 12 );
             fail("Should have thrown unsupported operation.");
         } catch(UnsupportedOperationException e)
         {
@@ -90,8 +96,8 @@ public class StoreStatementContextTest
         tx.finish();
 
         // WHEN
-        long propertyKeyId = statement.getPropertyKeyId( propertyKey );
-        int result = (Integer) statement.getNodePropertyValue( nodeId, propertyKeyId );
+        long propertyKeyId = statement.propertyKeyGetForName( propertyKey );
+        int result = (Integer) statement.nodeGetProperty( nodeId, propertyKeyId ).value();
 
         // THEN
         assertThat( propertyValue, equalTo( result ) );
@@ -112,17 +118,17 @@ public class StoreStatementContextTest
         tx.finish();
 
         // WHEN
-        long propertyKeyId = statement.getPropertyKeyId( propertyKey );
+        long propertyKeyId = statement.propertyKeyGetForName( propertyKey );
+        Property property = statement.nodeGetProperty( nodeId, propertyKeyId );
         try
         {
-            statement.getNodePropertyValue( nodeId, propertyKeyId );
-
+            property.value();
             fail( "Should have thrown exception" );
         }
         // THEN
         catch ( PropertyNotFoundException e )
         {
-            assertEquals( "No property with id 0 on node with id 2", e.getMessage() );
+            assertEquals( "No property with propertyKeyId=0", e.getMessage() );
         }
     }
     
@@ -133,13 +139,13 @@ public class StoreStatementContextTest
         Transaction tx = db.beginTx();
         long nodeId = db.createNode(label, label2).getId();
         String labelName1 = label.name(), labelName2 = label2.name();
-        long labelId1 = statement.getLabelId( labelName1 );
-        long labelId2 = statement.getOrCreateLabelId( labelName2 );
+        long labelId1 = statement.labelGetForName( labelName1 );
+        long labelId2 = statement.labelGetOrCreateForName( labelName2 );
         tx.success();
         tx.finish();
 
         // THEN
-        Iterator<Long> readLabels = statement.getLabelsForNode( nodeId );
+        Iterator<Long> readLabels = statement.nodeGetLabels( nodeId );
         assertEquals( new HashSet<Long>( asList( labelId1, labelId2 ) ),
                 addToCollection( readLabels, new HashSet<Long>() ) );
     }
@@ -149,10 +155,10 @@ public class StoreStatementContextTest
     {
         // GIVEN
         String labelName = label.name();
-        long labelId = statement.getOrCreateLabelId( labelName );
+        long labelId = statement.labelGetOrCreateForName( labelName );
 
         // WHEN
-        String readLabelName = statement.getLabelName( labelId );
+        String readLabelName = statement.labelGetName( labelId );
 
         // THEN
         assertEquals( labelName, readLabelName );
@@ -185,19 +191,78 @@ public class StoreStatementContextTest
         Node node2 = createLabeledNode( db, map( "type", "Node", "count", 10 ), label, label2 );
 
         // WHEN
-        Iterator<Long> nodesForLabel1 = statement.getNodesWithLabel( statement.getLabelId( label.name() ) );
-        Iterator<Long> nodesForLabel2 = statement.getNodesWithLabel( statement.getLabelId( label2.name() ) );
+        Iterator<Long> nodesForLabel1 = statement.nodesGetForLabel( statement.labelGetForName( label.name() ) );
+        Iterator<Long> nodesForLabel2 = statement.nodesGetForLabel( statement.labelGetForName( label2.name() ) );
 
         // THEN
         assertEquals( asSet( node1.getId(), node2.getId() ), asSet( nodesForLabel1 ) );
         assertEquals( asSet( node2.getId() ), asSet( nodesForLabel2 ) );
     }
-    
+
+    @Test
+    public void should_get_all_node_properties() throws Exception
+    {
+        // GIVEN
+        String longString =
+            "AlalalalalongAlalalalalongAlalalalalongAlalalalalongAlalalalalongAlalalalalongAlalalalalongAlalalalalong";
+        Object[] properties = {
+                longString,
+                gimme( String.class ),
+                gimme( long.class ),
+                gimme( int.class ),
+                gimme( byte.class ),
+                gimme( short.class ),
+                gimme( boolean.class ),
+                gimme( char.class ),
+                gimme( float.class ),
+                gimme( double.class ),
+                array( 0, String.class ),
+                array( 0, long.class ),
+                array( 0, int.class ),
+                array( 0, byte.class ),
+                array( 0, short.class ),
+                array( 0, boolean.class ),
+                array( 0, char.class ),
+                array( 0, float.class ),
+                array( 0, double.class ),
+                array( 1, String.class ),
+                array( 1, long.class ),
+                array( 1, int.class ),
+                array( 1, byte.class ),
+                array( 1, short.class ),
+                array( 1, boolean.class ),
+                array( 1, char.class ),
+                array( 1, float.class ),
+                array( 1, double.class ),
+                array( 256, String.class ),
+                array( 256, long.class ),
+                array( 256, int.class ),
+                array( 256, byte.class ),
+                array( 256, short.class ),
+                array( 256, boolean.class ),
+                array( 256, char.class ),
+                array( 256, float.class ),
+                array( 256, double.class ),
+        };
+
+        for ( Object value : properties )
+        {
+            // given
+            long nodeId = createLabeledNode( db, singletonMap( "prop", value ), label ).getId();
+
+            // when
+            Property property = single( statement.nodeGetAllProperties( nodeId ) );
+
+            //then
+            assertTrue( property + ".valueEquals(" + value + ")", property.valueEquals( value ) );
+        }
+    }
+
     @Test
     public void should_create_property_key_if_not_exists() throws Exception
     {
         // WHEN
-        long id = statement.getOrCreatePropertyKeyId( propertyKey );
+        long id = statement.propertyKeyGetOrCreateForName( propertyKey );
 
         // THEN
         assertTrue( "Should have created a non-negative id", id >= 0 );
@@ -207,10 +272,10 @@ public class StoreStatementContextTest
     public void should_get_previously_created_property_key() throws Exception
     {
         // GIVEN
-        long id = statement.getOrCreatePropertyKeyId( propertyKey );
+        long id = statement.propertyKeyGetOrCreateForName( propertyKey );
 
         // WHEN
-        long secondId = statement.getPropertyKeyId( propertyKey );
+        long secondId = statement.propertyKeyGetForName( propertyKey );
 
         // THEN
         assertEquals( id, secondId );
@@ -220,10 +285,10 @@ public class StoreStatementContextTest
     public void should_be_able_to_get_or_create_previously_created_property_key() throws Exception
     {
         // GIVEN
-        long id = statement.getOrCreatePropertyKeyId( propertyKey );
+        long id = statement.propertyKeyGetOrCreateForName( propertyKey );
 
         // WHEN
-        long secondId = statement.getOrCreatePropertyKeyId( propertyKey );
+        long secondId = statement.propertyKeyGetOrCreateForName( propertyKey );
 
         // THEN
         assertEquals( id, secondId );
@@ -235,7 +300,7 @@ public class StoreStatementContextTest
         // WHEN
         try
         {
-            statement.getPropertyKeyId( "non-existent-property-key" );
+            statement.propertyKeyGetForName( "non-existent-property-key" );
             fail( "Should have failed with property key not found exception" );
         }
         catch ( PropertyKeyNotFoundException e )
@@ -253,7 +318,7 @@ public class StoreStatementContextTest
         Node mrTaylor = createLabeledNode( db, map( propertyKey, name ), label );
 
         // WHEN
-        Set<Long> foundNodes = asUniqueSet( statement.exactIndexLookup( index, name ) );
+        Set<Long> foundNodes = asUniqueSet( statement.nodesGetFromIndexLookup( index, name ) );
 
         // THEN
         assertEquals( asSet( mrTaylor.getId() ), foundNodes );
@@ -310,7 +375,7 @@ public class StoreStatementContextTest
         IndexDefinition index = null;
         try
         {
-            index = db.schema().indexCreator( label ).on( propertyKey ).create();
+            index = db.schema().indexFor( label ).on( propertyKey ).create();
             tx.success();
         }
         finally
@@ -319,7 +384,58 @@ public class StoreStatementContextTest
         }
         
         db.schema().awaitIndexOnline( index, 10, SECONDS );
-        return statement.getIndex( statement.getLabelId( label.name() ),
-                                   statement.getPropertyKeyId( propertyKey ) );
+        return statement.indexesGetForLabelAndPropertyKey( statement.labelGetForName( label.name() ),
+                                                           statement.propertyKeyGetForName( propertyKey ) );
+    }
+
+    private Object array( int length, Class<?> componentType )
+    {
+        Object array = Array.newInstance( componentType, length );
+        for ( int i = 0; i < length; i++ )
+        {
+            Array.set(array, i, gimme( componentType ));
+        }
+        return array;
+    }
+
+    private Object gimme( Class<?> type )
+    {
+        if (type == int.class )
+        {
+            return 666;
+        }
+        if (type == long.class)
+        {
+            return 17l;
+        }
+        if (type == double.class)
+        {
+            return 6.28318530717958647692d;
+        }
+        if (type == float.class)
+        {
+            return 3.14f;
+        }
+        if (type == short.class)
+        {
+            return (short) 8733;
+        }
+        if (type == byte.class)
+        {
+            return (byte) 123;
+        }
+        if (type == boolean.class)
+        {
+            return false;
+        }
+        if (type == char.class)
+        {
+            return 'Z';
+        }
+        if (type == String.class)
+        {
+            return "hello world";
+        }
+        throw new IllegalArgumentException( type.getName() );
     }
 }

@@ -21,29 +21,27 @@ package org.neo4j.kernel.api.index;
 
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 
-/**
- * Thrown from update methods (eg. {@link IndexPopulator#add(long, Object)}, {@link IndexPopulator#update(Iterable)},
- * and {@link IndexAccessor#updateAndCommit(Iterable)}) of an index that is unique when a conflicting entry (clashing
- * with an existing value - violating uniqueness) is being added.
- */
-public class IndexEntryConflictException extends Exception
-{
-    private final long addedNodeId;
-    private final Object propertyValue;
-    private final long existingNodeId;
+import static java.lang.String.format;
+import static java.lang.String.valueOf;
 
-    public IndexEntryConflictException( long addedNodeId, Object propertyValue, long existingNodeId )
+public abstract class IndexEntryConflictException extends Exception
+{
+    public IndexEntryConflictException( String message )
     {
-        super( String.format( "Could not index node with id:%d for propertyValue:[%s], " +
-                              "the unique index already contains an entry with that value for node with id:%d",
-                              addedNodeId, propertyValue, existingNodeId ) );
-        this.addedNodeId = addedNodeId;
-        this.propertyValue = propertyValue;
-        this.existingNodeId = existingNodeId;
+        super( message );
+    }
+
+    protected static String quote( Object propertyValue )
+    {
+        if (propertyValue instanceof String)
+        {
+            return format( "'%s'", propertyValue );
+        }
+        return valueOf( propertyValue );
     }
 
     /**
-     * Use this method in cases where {@link IndexEntryConflictException} was caught but it should not have been
+     * Use this method in cases where {@link org.neo4j.kernel.api.index.IndexEntryConflictException} was caught but it should not have been
      * allowed to be thrown in the first place. Typically where the index we performed an operation on is not a
      * unique index.
      */
@@ -59,18 +57,7 @@ public class IndexEntryConflictException extends Exception
         return notAllowed( descriptor.getLabelId(), descriptor.getPropertyKeyId() );
     }
 
-    public long getAddedNodeId()
-    {
-        return addedNodeId;
-    }
+    public abstract Object getPropertyValue();
 
-    public long getExistingNodeId()
-    {
-        return existingNodeId;
-    }
-
-    public Object getPropertyValue()
-    {
-        return propertyValue;
-    }
+    public abstract String evidenceMessage( String labelName, String propertyKey );
 }

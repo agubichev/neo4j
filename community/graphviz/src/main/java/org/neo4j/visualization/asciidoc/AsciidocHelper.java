@@ -31,6 +31,8 @@ import org.neo4j.visualization.graphviz.GraphStyle;
 import org.neo4j.visualization.graphviz.GraphvizWriter;
 import org.neo4j.walk.Walker;
 
+import static java.lang.String.format;
+
 public class AsciidocHelper
 {
     /**
@@ -211,10 +213,14 @@ public class AsciidocHelper
             formattedQuery = breakOnKeywords( query, keywordsToBreakOn );
             formattedQuery = uppercaseKeywords( formattedQuery, unbreakableKeywords );
         }
-        String result = "[source," + language + "]\n----\n" + formattedQuery
-                + (formattedQuery.endsWith( "\n" ) ? "" : "\n")
-                + "----\n";
+        String result = createAsciiDocSnippet(language, formattedQuery);
         return limitChars( result );
+    }
+
+    public static String createAsciiDocSnippet(String language, String formattedQuery)
+    {
+        return format("[source,%s]\n----\n%s%s----\n",
+                language, formattedQuery, formattedQuery.endsWith("\n") ? "" : "\n");
     }
 
     private static String breakOnKeywords( String query, String[] keywordsToBreakOn )

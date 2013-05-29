@@ -22,19 +22,12 @@ package org.neo4j.kernel.impl.api;
 import java.util.Iterator;
 
 import org.neo4j.helpers.Function;
-import org.neo4j.kernel.api.DataIntegrityKernelException;
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
-import org.neo4j.kernel.api.SchemaRuleNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
-import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.index.InternalIndexState;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
-import org.neo4j.kernel.impl.core.LabelToken;
+import org.neo4j.kernel.impl.core.Token;
 
 public enum UnsupportiveStatementContext implements StatementContext
 {
@@ -52,194 +45,229 @@ public enum UnsupportiveStatementContext implements StatementContext
     }
 
     @Override
-    public Iterator<Long> getNodesWithLabel( long labelId )
+    public Iterator<Long> nodesGetForLabel( long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<Long> exactIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException
+    public Iterator<Long> nodesGetFromIndexLookup( IndexDescriptor index, Object value )
     {
         throw unsupported();
     }
 
     @Override
-    public void deleteNode( long nodeId )
+    public void nodeDelete( long nodeId )
     {
         throw unsupported();
     }
 
     @Override
-    public long getOrCreateLabelId( String label ) throws DataIntegrityKernelException
+    public void relationshipDelete( long nodeId )
     {
         throw unsupported();
     }
 
     @Override
-    public long getLabelId( String label ) throws LabelNotFoundKernelException
+    public long labelGetOrCreateForName( String label )
     {
         throw unsupported();
     }
 
     @Override
-    public String getLabelName( long labelId ) throws LabelNotFoundKernelException
+    public long labelGetForName( String label )
     {
         throw unsupported();
     }
 
     @Override
-    public boolean addLabelToNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public String labelGetName( long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public boolean isLabelSetOnNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public boolean nodeAddLabel( long nodeId, long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<Long> getLabelsForNode( long nodeId ) throws EntityNotFoundException
+    public boolean nodeHasLabel( long nodeId, long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public boolean removeLabelFromNode( long labelId, long nodeId ) throws EntityNotFoundException
+    public Iterator<Long> nodeGetLabels( long nodeId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<LabelToken> listLabels()
+    public boolean nodeRemoveLabel( long nodeId, long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public long getOrCreatePropertyKeyId( String propertyKey ) throws DataIntegrityKernelException
+    public Iterator<Token> labelsGetAllTokens()
     {
         throw unsupported();
     }
 
     @Override
-    public long getPropertyKeyId( String propertyKey ) throws PropertyKeyNotFoundException
+    public long propertyKeyGetOrCreateForName( String propertyKey )
     {
         throw unsupported();
     }
 
     @Override
-    public String getPropertyKeyName( long propertyId ) throws PropertyKeyIdNotFoundException
+    public long propertyKeyGetForName( String propertyKey )
     {
         throw unsupported();
     }
 
     @Override
-    public Object getNodePropertyValue( long nodeId, long propertyId ) throws PropertyKeyIdNotFoundException,
-                                                                              PropertyNotFoundException,
-                                                                              EntityNotFoundException
+    public String propertyKeyGetName( long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public boolean nodeHasProperty( long nodeId, long propertyId ) throws PropertyKeyIdNotFoundException,
-                                                                          EntityNotFoundException
+    public Property nodeGetProperty( long nodeId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public void nodeSetPropertyValue( long nodeId, long propertyId,
-                                      Object value ) throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    public Property relationshipGetProperty( long relationshipId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Object nodeRemoveProperty( long nodeId, long propertyId ) throws PropertyKeyIdNotFoundException,
-                                                                            EntityNotFoundException
+    public boolean nodeHasProperty( long nodeId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<Long> listNodePropertyKeys( long nodeId )
+    public boolean relationshipHasProperty( long relationshipId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<Long> listRelationshipPropertyKeys( long relationshipId )
+    public Property nodeSetProperty( long nodeId, Property property )
     {
         throw unsupported();
     }
 
     @Override
-    public IndexDescriptor addIndex( long labelId, long propertyKey ) throws
-                                                                      DataIntegrityKernelException
+    public Property relationshipSetProperty( long relationshipId, Property property )
     {
         throw unsupported();
     }
 
     @Override
-    public IndexDescriptor addConstraintIndex( long labelId, long propertyKey )
-            throws DataIntegrityKernelException
+    public Property nodeRemoveProperty( long nodeId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public IndexDescriptor getIndex( long labelId, long propertyKey ) throws SchemaRuleNotFoundException
+    public Property relationshipRemoveProperty( long relationshipId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes( long labelId )
+    public Iterator<Long> nodeGetPropertyKeys( long nodeId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes()
+    public Iterator<Property> nodeGetAllProperties( long nodeId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes( long labelId )
+    public Iterator<Long> relationshipGetPropertyKeys( long relationshipId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes()
+    public Iterator<Property> relationshipGetAllProperties( long relationshipId )
     {
         throw unsupported();
     }
 
     @Override
-    public InternalIndexState getIndexState( IndexDescriptor indexRule ) throws IndexNotFoundKernelException
+    public IndexDescriptor indexCreate( long labelId, long propertyKey )
     {
         throw unsupported();
     }
 
     @Override
-    public void dropIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    public IndexDescriptor uniqueIndexCreate( long labelId, long propertyKey )
     {
         throw unsupported();
     }
 
     @Override
-    public void dropConstraintIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    public IndexDescriptor indexesGetForLabelAndPropertyKey( long labelId, long propertyKey )
     {
         throw unsupported();
     }
 
     @Override
-    public <K, V> V getOrCreateFromSchemaState( K key, Function<K, V> creator )
+    public Iterator<IndexDescriptor> indexesGetForLabel( long labelId )
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> indexesGetAll()
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> uniqueIndexesGetForLabel( long labelId )
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> uniqueIndexesGetAll()
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public InternalIndexState indexGetState( IndexDescriptor descriptor )
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public void indexDrop( IndexDescriptor descriptor )
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public void uniqueIndexDrop( IndexDescriptor descriptor )
+    {
+        throw unsupported();
+    }
+
+    @Override
+    public <K, V> V schemaStateGetOrCreate( K key, Function<K, V> creator )
     {
         throw unsupported();
     }
@@ -251,43 +279,43 @@ public enum UnsupportiveStatementContext implements StatementContext
     }
 
     @Override
-    public UniquenessConstraint addUniquenessConstraint( long labelId, long propertyKeyId )
+    public UniquenessConstraint uniquenessConstraintCreate( long labelId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId, long propertyKeyId )
+    public Iterator<UniquenessConstraint> constraintsGetForLabelAndPropertyKey( long labelId, long propertyKeyId )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId )
+    public Iterator<UniquenessConstraint> constraintsGetForLabel( long labelId )
     {
         throw unsupported();
     }
 
     @Override
-    public Long getOwningConstraint( IndexDescriptor index )
+    public Long indexGetOwningUniquenessConstraintId( IndexDescriptor index )
     {
         throw unsupported();
     }
 
     @Override
-    public long getCommittedIndexId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    public long indexGetCommittedId( IndexDescriptor index )
     {
         throw unsupported();
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints()
+    public Iterator<UniquenessConstraint> constraintsGetAll()
     {
         throw unsupported();
     }
 
     @Override
-    public void dropConstraint( UniquenessConstraint constraint )
+    public void constraintDrop( UniquenessConstraint constraint )
     {
         throw unsupported();
     }

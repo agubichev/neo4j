@@ -19,10 +19,6 @@
  */
 package org.neo4j.tooling;
 
-import static org.neo4j.graphdb.DynamicLabel.label;
-import static org.neo4j.helpers.collection.Iterables.map;
-import static org.neo4j.helpers.collection.IteratorUtil.emptyIterator;
-
 import java.util.Iterator;
 
 import org.neo4j.graphdb.DependencyResolver;
@@ -36,11 +32,15 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.Function;
 import org.neo4j.kernel.GraphDatabaseAPI;
 import org.neo4j.kernel.ThreadToStatementContextBridge;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
 import org.neo4j.kernel.api.StatementContext;
+import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
 import org.neo4j.kernel.impl.cleanup.CleanupService;
-import org.neo4j.kernel.impl.core.LabelToken;
 import org.neo4j.kernel.impl.core.NodeManager;
+import org.neo4j.kernel.impl.core.Token;
+
+import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.helpers.collection.Iterables.map;
+import static org.neo4j.helpers.collection.IteratorUtil.emptyIterator;
 
 /**
  * A tool for doing global operations, for example {@link #getAllNodes()}.
@@ -138,14 +138,14 @@ public class GlobalGraphOperations
             public ResourceIterator<Label> iterator()
             {
                 StatementContext ctx = statementCtxProvider.getCtxForReading();
-                return cleanupService.resourceIterator( map( new Function<LabelToken, Label>() {
+                return cleanupService.resourceIterator( map( new Function<Token, Label>() {
 
                     @Override
-                    public Label apply( LabelToken labelToken )
+                    public Label apply( Token labelToken )
                     {
-                        return label( labelToken.getName() );
+                        return label( labelToken.name() );
                     }
-                }, ctx.listLabels() ), ctx );
+                }, ctx.labelsGetAllTokens() ), ctx );
             }
         };
     }
@@ -176,8 +176,8 @@ public class GlobalGraphOperations
         StatementContext context = statementCtxProvider.getCtxForReading();
         try
         {
-            long labelId = context.getLabelId( label );
-            final Iterator<Long> nodeIds = context.getNodesWithLabel( labelId );
+            long labelId = context.labelGetForName( label );
+            final Iterator<Long> nodeIds = context.nodesGetForLabel( labelId );
             return cleanupService.resourceIterator( map( new Function<Long, Node>()
             {
                 @Override

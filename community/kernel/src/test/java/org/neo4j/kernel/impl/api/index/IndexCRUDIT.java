@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,8 +37,8 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.kernel.GraphDatabaseAPI;
 import org.neo4j.kernel.ThreadToStatementContextBridge;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
+import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyNotFoundException;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexPopulator;
@@ -53,6 +54,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import static org.neo4j.graphdb.DynamicLabel.label;
 import static org.neo4j.helpers.collection.IteratorUtil.asCollection;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
@@ -77,8 +79,8 @@ public class IndexCRUDIT
         Node node = createNode( map( indexProperty, value1, otherProperty, otherValue ), myLabel );
 
         // Then, for now, this should trigger two NodePropertyUpdates
-        long propertyKey1 = ctxProvider.getCtxForReading().getPropertyKeyId( indexProperty );
-        long[] labels = new long[] {ctxProvider.getCtxForReading().getLabelId( myLabel.name() )};
+        long propertyKey1 = ctxProvider.getCtxForReading().propertyKeyGetForName( indexProperty );
+        long[] labels = new long[] {ctxProvider.getCtxForReading().labelGetForName( myLabel.name() )};
         assertThat( writer.updates, equalTo( asSet(
                 NodePropertyUpdate.add( node.getId(), propertyKey1, value1, labels ) ) ) );
 
@@ -111,14 +113,13 @@ public class IndexCRUDIT
         tx.finish();
 
         // THEN
-        long propertyKey1 = ctxProvider.getCtxForReading().getPropertyKeyId( indexProperty );
-        long[] labels = new long[] {ctxProvider.getCtxForReading().getLabelId( myLabel.name() )};
+        long propertyKey1 = ctxProvider.getCtxForReading().propertyKeyGetForName( indexProperty );
+        long[] labels = new long[] {ctxProvider.getCtxForReading().labelGetForName( myLabel.name() )};
         assertThat( writer.updates, equalTo( asSet(
                 NodePropertyUpdate.add( node.getId(), propertyKey1, value, labels ) ) ) );
     }
 
     private GraphDatabaseAPI db;
-    private TestGraphDatabaseFactory factory;
     @Rule public EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
     private final SchemaIndexProvider mockedIndexProvider = mock( SchemaIndexProvider.class );
     private final KernelExtensionFactory<?> mockedIndexProviderFactory =
@@ -142,7 +143,7 @@ public class IndexCRUDIT
     private void createIndex( Label myLabel, String indexProperty )
     {
         Transaction tx = db.beginTx();
-        IndexDefinition index = db.schema().indexCreator( myLabel ).on( indexProperty ).create();
+        IndexDefinition index = db.schema().indexFor( myLabel ).on( indexProperty ).create();
         tx.success();
         tx.finish();
         db.schema().awaitIndexOnline( index, 10, TimeUnit.SECONDS );
@@ -151,14 +152,14 @@ public class IndexCRUDIT
     @Before
     public void before() throws Exception
     {
-        factory = new TestGraphDatabaseFactory();
+        TestGraphDatabaseFactory factory = new TestGraphDatabaseFactory();
         factory.setFileSystem( fs.get() );
         factory.setKernelExtensions( Arrays.<KernelExtensionFactory<?>>asList( mockedIndexProviderFactory ) );
         db = (GraphDatabaseAPI) factory.newImpermanentDatabase();
         ctxProvider = db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
     }
     
-    private GatheringIndexWriter newWriter( String propertyKey )
+    private GatheringIndexWriter newWriter( String propertyKey ) throws IOException
     {
         GatheringIndexWriter writer = new GatheringIndexWriter( propertyKey );
         when( mockedIndexProvider.getPopulator( anyLong(), any( IndexConfiguration.class ) ) ).thenReturn( writer );
@@ -193,8 +194,9 @@ public class IndexCRUDIT
         {
             try
             {
-                updates.add( NodePropertyUpdate.add( nodeId, ctxProvider.getCtxForReading().getPropertyKeyId( propertyKey ),
-                        propertyValue, new long[] {ctxProvider.getCtxForReading().getLabelId( myLabel.name() )} ) );
+                updates.add( NodePropertyUpdate.add( nodeId, ctxProvider.getCtxForReading().propertyKeyGetForName(
+                        propertyKey ),
+                        propertyValue, new long[] {ctxProvider.getCtxForReading().labelGetForName( myLabel.name() )} ) );
             }
             catch ( PropertyKeyNotFoundException e )
             {

@@ -47,6 +47,7 @@ import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 import static java.util.Collections.synchronizedList;
+
 import static org.neo4j.helpers.collection.IteratorUtil.loop;
 
 /**
@@ -210,10 +211,11 @@ public class Kernel extends LifecycleAdapter implements KernelAPI
                                                       newTxState(), providerMap, persistenceCache, schemaCache,
                                                       persistenceManager, schemaState,
                                                       new ConstraintIndexCreator(
-                                                              new Transactor( transactionManager ), indexService ) );
+                                                      new Transactor( transactionManager ), indexService ) );
 
         // + Constraint evaluation
         result = new ConstraintValidatingTransactionContext( result );
+
         // + Locking
         result = new LockingTransactionContext( result, lockManager, transactionManager );
 

@@ -19,11 +19,6 @@
  */
 package org.neo4j.kernel.impl.nioneo.store;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource.LOGICAL_LOG_DEFAULT_NAME;
-import static org.neo4j.kernel.impl.util.StringLogger.DEV_NULL;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,13 +30,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.DependencyResolver.Adapter;
 import org.neo4j.graphdb.Node;
@@ -56,12 +51,10 @@ import org.neo4j.kernel.TransactionInterceptorProviders;
 import org.neo4j.kernel.api.index.SchemaIndexProvider;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.KernelSchemaStateStore;
-import org.neo4j.kernel.impl.core.CacheAccessBackDoor;
 import org.neo4j.kernel.impl.core.NodeManager;
-import org.neo4j.kernel.impl.core.PropertyKeyToken;
+import org.neo4j.kernel.impl.core.Token;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaConnection;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource;
-import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.PlaceboTm;
 import org.neo4j.kernel.impl.transaction.TransactionStateFactory;
 import org.neo4j.kernel.impl.transaction.XidImpl;
@@ -77,6 +70,12 @@ import org.neo4j.kernel.logging.DevNullLoggingService;
 import org.neo4j.kernel.logging.SingleLoggingService;
 import org.neo4j.test.impl.EphemeralFileSystemAbstraction;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource.LOGICAL_LOG_DEFAULT_NAME;
+import static org.neo4j.kernel.impl.util.StringLogger.DEV_NULL;
+
 public class TestXa
 {
     private final EphemeralFileSystemAbstraction fileSystem = new EphemeralFileSystemAbstraction();
@@ -85,17 +84,7 @@ public class TestXa
     private NeoStoreXaConnection xaCon;
     private Logger log;
     private Level level;
-    private Map<String, PropertyKeyToken> propertyKeyTokens;
-
-    private static class MyPropertyKeyToken extends PropertyKeyToken
-    {
-        protected MyPropertyKeyToken( String key, int keyId )
-        {
-            super( key, keyId );
-        }
-    }
-
-    private LockManager lockManager;
+    private Map<String, Token> propertyKeyTokens;
 
     private File path()
     {
@@ -121,7 +110,7 @@ public class TestXa
         log = Logger
                 .getLogger( "org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource" );
         log.setLevel( Level.OFF );
-        propertyKeyTokens = new HashMap<String, PropertyKeyToken>();
+        propertyKeyTokens = new HashMap<String, Token>();
 
         StoreFactory sf = new StoreFactory( new Config( Collections.<String, String>emptyMap(),
                 GraphDatabaseSettings.class ), new DefaultIdGeneratorFactory(),
@@ -208,13 +197,12 @@ public class TestXa
 
     private void truncateLogicalLog( int size ) throws IOException
     {
-        char active = '1';
         FileChannel af = fileSystem.open( new File( logBaseFileName.getPath() + ".active" ), "r" );
         ByteBuffer buffer = ByteBuffer.allocate( 1024 );
         af.read( buffer );
         af.close();
         buffer.flip();
-        active = buffer.asCharBuffer().get();
+        char active = buffer.asCharBuffer().get();
         buffer.clear();
         FileChannel fileChannel = fileSystem.open( new File( logBaseFileName.getPath() + "." + active ), "rw" );
 //        System.out.println( fileChannel.size() );
@@ -236,7 +224,6 @@ public class TestXa
     public static Pair<Pair<File, File>, Pair<File, File>> copyLogicalLog( FileSystemAbstraction fileSystem,
             File logBaseFileName ) throws IOException
     {
-        char active = '1';
         File activeLog = new File( logBaseFileName.getPath() + ".active" );
         FileChannel af = fileSystem.open( activeLog, "r" );
         ByteBuffer buffer = ByteBuffer.allocate( 1024 );
@@ -248,13 +235,13 @@ public class TestXa
         activeCopy.close();
         af.close();
         buffer.flip();
-        active = buffer.asCharBuffer().get();
+        char active = buffer.asCharBuffer().get();
         buffer.clear();
         File currentLog = new File( logBaseFileName.getPath() + "." + active );
         FileChannel source = fileSystem.open( currentLog, "r" );
         File currentLogBackup = new File( logBaseFileName.getPath() + ".bak." + active );
         FileChannel dest = fileSystem.open( currentLogBackup, "rw" );
-        int read = -1;
+        int read;
         do
         {
             read = source.read( buffer );
@@ -268,16 +255,16 @@ public class TestXa
         return Pair.of( Pair.of( activeLog, activeLogBackup ), Pair.of( currentLog, currentLogBackup ) );
     }
 
-    private PropertyKeyToken index( String key )
+    private Token index( String key )
     {
-        PropertyKeyToken result = propertyKeyTokens.get( key );
+        Token result = propertyKeyTokens.get( key );
         if ( result != null )
         {
             return result;
         }
 
-        int id = (int) ds.nextId( PropertyKeyToken.class );
-        PropertyKeyToken index = new MyPropertyKeyToken( key, id );
+        int id = (int) ds.nextId( PropertyKeyTokenRecord.class );
+        Token index = new Token( key, id );
         propertyKeyTokens.put( key, index );
         xaCon.getWriteTransaction().createPropertyKeyToken( key, id );
         return index;
@@ -338,7 +325,7 @@ public class TestXa
         StoreFactory sf = new StoreFactory( config, new DefaultIdGeneratorFactory(), new DefaultWindowPoolFactory(),
                 fileSystem, StringLogger.DEV_NULL, null );
 
-        PlaceboTm txManager = new PlaceboTm( lockManager, TxIdGenerator.DEFAULT );
+        PlaceboTm txManager = new PlaceboTm( null, TxIdGenerator.DEFAULT );
         LogBufferFactory logBufferFactory = new DefaultLogBufferFactory();
 
         // Since these tests fiddle with copying logical logs and such themselves
@@ -351,8 +338,8 @@ public class TestXa
             }
         }
 
-        NeoStoreXaDataSource neoStoreXaDataSource = new NeoStoreXaDataSource( config, sf, lockManager,
-                StringLogger.DEV_NULL,
+        NeoStoreXaDataSource neoStoreXaDataSource = new NeoStoreXaDataSource( config, sf,
+                                                                              StringLogger.DEV_NULL,
                 new XaFactory( TxIdGenerator.DEFAULT, txManager,
                         logBufferFactory, fileSystem, new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
                         LogPruneStrategies.NO_PRUNING ), TransactionStateFactory.noStateFactory( new DevNullLoggingService() ),
@@ -381,68 +368,11 @@ public class TestXa
     private Adapter dependencyResolverForConfig( final Config config )
     {
         return new DependencyResolver.Adapter()
-                  {
-                     @Override
-                     public <T> T resolveDependency( Class<T> type, SelectionStrategy<T> selector )
-                     {
-        return (T) config;
-                     }
-                  };
-    }
-
-    private CacheAccessBackDoor noCacheAccess()
-    {
-        return new CacheAccessBackDoor()
         {
             @Override
-            public void removeSchemaRuleFromCache( long id )
+            public <T> T resolveDependency( Class<T> type, SelectionStrategy<T> selector )
             {
-            }
-            
-            @Override
-            public void removeRelationshipTypeFromCache( int id )
-            {
-            }
-            
-            @Override
-            public void removeRelationshipFromCache( long id )
-            {
-            }
-            
-            @Override
-            public void removeNodeFromCache( long nodeId )
-            {
-            }
-            
-            @Override
-            public void removeGraphPropertiesFromCache()
-            {
-            }
-            
-            @Override
-            public void addSchemaRule( SchemaRule schemaRule )
-            {
-            }
-            
-            @Override
-            public void addRelationshipTypeToken( Token type )
-            {
-            }
-
-            @Override
-            public void addLabelToken( Token labelId )
-            {
-            }
-
-            @Override
-            public void addPropertyKeyToken( Token index )
-            {
-            }
-
-            @Override
-            public void patchDeletedRelationshipNodes( long relId, long firstNodeId, long firstNodeNextRelId,
-                    long secondNodeId, long secondNodeNextRelId )
-            {
+                return (T) config;
             }
         };
     }
@@ -497,7 +427,7 @@ public class TestXa
                 node1, index( "prop1" ),
                 new long[]{1 << 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} );
-        PropertyData n1prop2 = xaCon.getWriteTransaction().nodeAddProperty(
+        xaCon.getWriteTransaction().nodeAddProperty(
                 node1,
                 index( "prop2" ),
                 new long[]{1 << 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -519,10 +449,8 @@ public class TestXa
         xaRes.start( xid, XAResource.TMNOFLAGS );
         xaCon.getWriteTransaction().nodeRemoveProperty( node1, n1prop1 );
         xaCon.getWriteTransaction().nodeAddProperty(
-                node1,
-                index( "prop3" ),
-                new long[]{1 << 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} );
+                node1, index( "prop3" ), new long[]{1 << 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} );
         xaRes.end( xid, XAResource.TMSUCCESS );
         xaRes.prepare( xid );
         ds.rotateLogicalLog();
@@ -559,15 +487,15 @@ public class TestXa
         long node1 = ds.nextId( Node.class );
         xaCon.getWriteTransaction().nodeCreate( node1 );
         xaCon.getWriteTransaction().nodeAddProperty( node1, index( "prop1" ),
-                new long[]{1 << 63, 1, 1} );
+                new long[]{1l << 63, 1, 1} );
         xaCon.getWriteTransaction().nodeAddProperty( node1, index( "prop2" ),
-                new long[]{1 << 63, 1, 1} );
+                new long[]{1l << 63, 1, 1} );
         PropertyData toRead = xaCon.getWriteTransaction().nodeAddProperty(
                 node1, index( "prop3" ),
-                new long[]{1 << 63, 1, 1} );
+                new long[]{1l << 63, 1, 1} );
         PropertyData toDelete = xaCon.getWriteTransaction().nodeAddProperty(
                 node1, index( "prop4" ),
-                new long[]{1 << 63, 1, 1} );
+                new long[]{1l << 63, 1, 1} );
         xaRes.end( xid, XAResource.TMSUCCESS );
         // xaRes.prepare( xid );
         xaRes.commit( xid, true );
@@ -832,13 +760,11 @@ public class TestXa
     private boolean logicalLogExists( long version ) throws IOException
     {
         ReadableByteChannel log = ds.getLogicalLog( version );
-        try
-        {
-            return log != null;
-        }
-        finally
+        if ( log != null )
         {
             log.close();
+            return true;
         }
+        return false;
     }
 }

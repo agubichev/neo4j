@@ -19,25 +19,29 @@
  */
 package org.neo4j.graphdb;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterables.count;
-import static org.neo4j.helpers.collection.Iterables.single;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-import static org.neo4j.helpers.collection.IteratorUtil.asUniqueSet;
-import static org.neo4j.helpers.collection.MapUtil.map;
-
 import java.util.Map;
 import java.util.Set;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Rule;
 import org.junit.Test;
+
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.test.ImpermanentDatabaseRule;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
+import static org.neo4j.helpers.collection.Iterables.count;
+import static org.neo4j.helpers.collection.Iterables.single;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.helpers.collection.IteratorUtil.asUniqueSet;
+import static org.neo4j.helpers.collection.IteratorUtil.emptySetOf;
+import static org.neo4j.helpers.collection.MapUtil.map;
 
 public class IndexingAcceptanceTest
 {
@@ -55,7 +59,7 @@ public class IndexingAcceptanceTest
             {
                 Node node = beansAPI.createNode( label );
                 node.setProperty( key, "value" );
-                index = beansAPI.schema().indexCreator( label ).on( key ).create();
+                index = beansAPI.schema().indexFor( label ).on( key ).create();
                 tx.success();
             }
             finally
@@ -80,7 +84,7 @@ public class IndexingAcceptanceTest
         }
 
         // THEN
-        assertEquals( asSet(), asSet( beansAPI.schema().getIndexes( label ) ) );
+        assertEquals( emptySetOf( IndexDefinition.class ), asSet( beansAPI.schema().getIndexes( label ) ) );
         try
         {
             beansAPI.schema().getIndexState( index );
@@ -122,7 +126,7 @@ public class IndexingAcceptanceTest
                 // Use a small long here which will only occupy one property block
                 myNode.setProperty( "key", smallValue );
 
-                indexDefinition = beansAPI.schema().indexCreator( Labels.MY_LABEL ).on( "key" ).create();
+                indexDefinition = beansAPI.schema().indexFor( Labels.MY_LABEL ).on( "key" ).create();
                 tx.success();
             }
             finally
@@ -148,7 +152,7 @@ public class IndexingAcceptanceTest
         // THEN
         assertEquals( asSet( myNode ),
                       asUniqueSet( beansAPI.findNodesByLabelAndProperty( Labels.MY_LABEL, "key", bigValue ) ) );
-        assertEquals( asSet(),
+        assertEquals( emptySetOf( Node.class ),
                       asUniqueSet( beansAPI.findNodesByLabelAndProperty( Labels.MY_LABEL, "key", smallValue ) ) );
     }
     
@@ -170,7 +174,7 @@ public class IndexingAcceptanceTest
                 myNode.setProperty( "key0", true );
                 myNode.setProperty( "key1", true );
 
-                indexDefinition = beansAPI.schema().indexCreator( Labels.MY_LABEL ).on( "key2" ).create();
+                indexDefinition = beansAPI.schema().indexFor( Labels.MY_LABEL ).on( "key2" ).create();
                 tx.success();
             }
             finally
@@ -241,7 +245,7 @@ public class IndexingAcceptanceTest
 
         // When/Then
         Iterable<Node> result = beansAPI.findNodesByLabelAndProperty( Labels.MY_LABEL, "name", "Hawking" );
-        assertEquals( asSet(), asSet( result ) );
+        assertEquals( emptySetOf( Node.class ), asSet( result ) );
     }
     
     @Test
@@ -361,7 +365,7 @@ public class IndexingAcceptanceTest
         IndexDefinition indexDef;
         try
         {
-            indexDef = beansAPI.schema().indexCreator( label ).on( property ).create();
+            indexDef = beansAPI.schema().indexFor( label ).on( property ).create();
             tx.success();
         }
         finally

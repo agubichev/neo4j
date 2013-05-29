@@ -19,14 +19,16 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-
 import java.util.Iterator;
 
 import org.junit.Test;
+
 import org.neo4j.helpers.collection.IteratorUtil;
-import org.neo4j.kernel.impl.core.LabelToken;
+import org.neo4j.kernel.impl.core.Token;
+
+import static java.util.Arrays.asList;
+
+import static org.junit.Assert.assertEquals;
 
 public class LabelIT extends KernelIntegrationTest
 {
@@ -35,23 +37,23 @@ public class LabelIT extends KernelIntegrationTest
     {
         // given
         newTransaction();
-        long label1Id = statement.getOrCreateLabelId( "label1" );
-        long label2Id = statement.getOrCreateLabelId( "label2" );
+        long label1Id = statement.labelGetOrCreateForName( "label1" );
+        long label2Id = statement.labelGetOrCreateForName( "label2" );
 
         // when
-        Iterator<LabelToken> labelIdsBeforeCommit = statement.listLabels();
+        Iterator<Token> labelIdsBeforeCommit = statement.labelsGetAllTokens();
 
         // then
-        assertEquals( asList( new LabelToken( "label1", (int) label1Id ), new LabelToken( "label2", (int) label2Id ) ),
+        assertEquals( asList( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id ) ),
                 IteratorUtil.asCollection( labelIdsBeforeCommit ) );
 
         // when
         commit();
         newTransaction();
-        Iterator<LabelToken> labelIdsAfterCommit = statement.listLabels();
+        Iterator<Token> labelIdsAfterCommit = statement.labelsGetAllTokens();
 
         // then
-        assertEquals( asList( new LabelToken( "label1", (int) label1Id ), new LabelToken( "label2", (int) label2Id ) ),
+        assertEquals( asList( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id ) ),
                 IteratorUtil.asCollection( labelIdsAfterCommit ) );
     }
 }

@@ -20,6 +20,7 @@
 package org.neo4j.qa.tooling;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,35 +29,73 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.rules.ExternalResource;
 import org.neo4j.helpers.Pair;
+import org.neo4j.helpers.Predicate;
 
-public class DumpProcessInformationRule extends ExternalResource implements Callable<Void>
+public class DumpProcessInformationRule extends ExternalResource
 {
+    public interface Dump
+    {
+        void dump() throws Exception;
+    }
+    
+    public static Dump localVm( final PrintStream out )
+    {
+        return new Dump()
+        {
+            @Override
+            public void dump()
+            {
+                DumpVmInformation.dumpVmInfo( out );
+            }
+        };
+    }
+    
+    public static Dump otherVm( final Predicate<String> processFilter, final File baseDir )
+    {
+        return new Dump()
+        {
+            @Override
+            public void dump() throws Exception
+            {
+                for ( Pair<Long, String> pair : DumpProcessInformation.getJPids( processFilter ) )
+                {
+                    DumpProcessInformation.doThreadDump( pair, baseDir );
+                }
+            }
+        };
+    }
+    
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool( 2 );
-
-    private final String containing;
-    private final File baseDir;
     private final long duration;
     private final TimeUnit timeUnit;
-
     private volatile ScheduledFuture<?> thunk = null;
+    private final Dump[] dumps;
 
-    public DumpProcessInformationRule( String containing, File baseDir, long duration, TimeUnit timeUnit )
+    /**
+     * Dumps process information about processes on the local machine, filtered by processFilter
+     */
+    public DumpProcessInformationRule( long duration, TimeUnit timeUnit, Dump... dumps )
     {
-        super();
-
-        this.containing = containing;
-        this.baseDir = baseDir;
         this.duration = duration;
         this.timeUnit = timeUnit;
+        this.dumps = dumps;
     }
-
+    
     @Override
     protected synchronized void before() throws Throwable
     {
         if ( null == thunk )
         {
             super.before();
-            thunk = executor.schedule( this, duration, timeUnit );
+            thunk = executor.schedule( new Callable<Void>()
+            {
+                @Override
+                public Void call() throws Exception
+                {
+                    dump();
+                    return null;
+                }
+            }, duration, timeUnit );
         }
         else
             throw new IllegalStateException( "process dumping thunk already started" );
@@ -71,13 +110,11 @@ public class DumpProcessInformationRule extends ExternalResource implements Call
         super.after();
     }
 
-    @Override
-    public Void call() throws Exception
+    public void dump() throws Exception
     {
-        for ( Pair<Long, String> pair : DumpProcessInformation.getJPids( containing ) )
+        for ( Dump dump : dumps )
         {
-            DumpProcessInformation.doThreadDump( pair, baseDir );
+            dump.dump();
         }
-        return null;
     }
 }

@@ -27,12 +27,12 @@ import org.junit.Test;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.helpers.Function;
 import org.neo4j.kernel.GraphDatabaseAPI;
-import org.neo4j.kernel.api.DataIntegrityKernelException;
 import org.neo4j.kernel.api.StatementContext;
 import org.neo4j.kernel.api.TransactionContext;
-import org.neo4j.kernel.api.TransactionFailureException;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
-import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
@@ -130,13 +130,12 @@ public class KernelSchemaStateFlushingTest
         assertEquals( "after", after );
     }
 
-    private UniquenessConstraint createConstraint()
-            throws ConstraintCreationKernelException, DataIntegrityKernelException
+    private UniquenessConstraint createConstraint() throws SchemaKernelException
     {
         Transaction tx = db.beginTx();
         TransactionContext txc = txManager.getTransactionContext();
         StatementContext ctx = txc.newStatementContext();
-        UniquenessConstraint descriptor = ctx.addUniquenessConstraint( 1, 1 );
+        UniquenessConstraint descriptor = ctx.uniquenessConstraintCreate( 1, 1 );
         ctx.close();
         tx.success();
         tx.finish();
@@ -148,30 +147,30 @@ public class KernelSchemaStateFlushingTest
         Transaction tx = db.beginTx();
         TransactionContext txc = txManager.getTransactionContext();
         StatementContext ctx = txc.newStatementContext();
-        ctx.dropConstraint( descriptor );
+        ctx.constraintDrop( descriptor );
         ctx.close();
         tx.success();
         tx.finish();
     }
 
-    private IndexDescriptor createIndex() throws DataIntegrityKernelException
+    private IndexDescriptor createIndex() throws SchemaKernelException
     {
         Transaction tx = db.beginTx();
         TransactionContext txc = txManager.getTransactionContext();
         StatementContext ctx = txc.newStatementContext();
-        IndexDescriptor descriptor = ctx.addIndex( 1, 1 );
+        IndexDescriptor descriptor = ctx.indexCreate( 1, 1 );
         ctx.close();
         tx.success();
         tx.finish();
         return descriptor;
     }
 
-    private void dropIndex( IndexDescriptor descriptor ) throws DataIntegrityKernelException
+    private void dropIndex( IndexDescriptor descriptor ) throws SchemaKernelException
     {
         Transaction tx = db.beginTx();
         TransactionContext txc = txManager.getTransactionContext();
         StatementContext ctx = txc.newStatementContext();
-        ctx.dropIndex( descriptor );
+        ctx.indexDrop( descriptor );
         ctx.close();
         tx.success();
         tx.finish();
@@ -210,14 +209,14 @@ public class KernelSchemaStateFlushingTest
         StatementContext ctx = tx.newStatementContext();
         try 
         {
-            String result = ctx.getOrCreateFromSchemaState( key, new Function<String, String>() {
+            return ctx.schemaStateGetOrCreate( key, new Function<String, String>()
+            {
                 @Override
                 public String apply( String from )
                 {
                     return value;
                 }
-            }); 
-            return result;
+            } );
         }
         finally 
         {

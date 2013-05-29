@@ -26,18 +26,19 @@ package org.neo4j.server.rest.transactional.error;
  */
 public abstract class TransactionLifecycleException extends Exception
 {
-    protected TransactionLifecycleException()
+    protected TransactionLifecycleException( String message )
     {
+        super( message );
     }
 
-    protected TransactionLifecycleException( Throwable cause )
+    protected TransactionLifecycleException( String message, Throwable cause )
     {
-        super( cause );
+        super( message, cause );
     }
 
     public Neo4jError toNeo4jError()
     {
-        return new Neo4jError( getStatusCode(), getMessage(), this );
+        return new Neo4jError( getStatusCode(), this );
     }
 
     protected abstract StatusCode getStatusCode();

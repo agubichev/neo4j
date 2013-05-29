@@ -21,63 +21,114 @@ package org.neo4j.cypher
 
 import org.neo4j.cypher.internal.helpers.CollectionSupport
 import org.scalatest.Assertions
-import org.junit.{Ignore, Test}
+import org.junit.Test
 import org.junit.Assert._
 import collection.JavaConverters._
 
 
-class UniqueConstraintAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker with Assertions with CollectionSupport {
+class UniqueConstraintAcceptanceTest
+  extends ExecutionEngineHelper with StatisticsChecker with Assertions with CollectionSupport {
+
   @Test
-  def should_add_constraint() {
+  def should_add_constraint_with_no_existing_data() {
     //GIVEN
 
     //WHEN
-    parseAndExecute("create constraint on (identifier:Label) assert identifier.propertyKey is unique")
+    parseAndExecute("create constraint on (node:Label) assert node.propertyKey is unique")
 
     //THEN
     val statementCtx = graph.statementContextForReading
 
-    val prop = statementCtx.getPropertyKeyId("propertyKey")
-    val label = statementCtx.getLabelId("Label")
+    val prop = statementCtx.propertyKeyGetForName("propertyKey")
+    val label = statementCtx.labelGetForName("Label")
 
-    val constraints = statementCtx.getConstraints(label, prop).asScala
+    val constraints = statementCtx.constraintsGetForLabelAndPropertyKey(label, prop).asScala
 
     assert(constraints.size === 1)
   }
+
+  @Test
+  def should_add_constraint_when_existing_data_is_unique() {
+    // GIVEN
+    parseAndExecute("create (a:Person{name:\"Alistair\"}), (b:Person{name:\"Stefan\"})")
+
+    // WHEN
+    parseAndExecute("create constraint on (n:Person) assert n.name is unique")
+
+    // THEN
+    val statementCtx = graph.statementContextForReading
+
+    val prop = statementCtx.propertyKeyGetForName("name")
+    val label = statementCtx.labelGetForName("Person")
+
+    val constraints = statementCtx.constraintsGetForLabelAndPropertyKey(label, prop).asScala
+
+    assertTrue("Constraint should exist", constraints.size == 1)
+  }
+
+  @Test
+  def should_add_constraint_using_recreated_unique_data() {
+    // GIVEN
+    parseAndExecute("create (a:Person{name:\"Alistair\"}), (b:Person{name:\"Stefan\"})")
+    parseAndExecute("match n:Person delete n")
+    parseAndExecute("create (a:Person{name:\"Alistair\"}), (b:Person{name:\"Stefan\"})")
+
+    // WHEN
+    parseAndExecute("create constraint on (n:Person) assert n.name is unique")
+
+    // THEN
+    val statementCtx = graph.statementContextForReading
+
+    val prop = statementCtx.propertyKeyGetForName("name")
+    val label = statementCtx.labelGetForName("Person")
+
+    val constraints = statementCtx.constraintsGetForLabelAndPropertyKey(label, prop).asScala
+
+    assertTrue("Constraint should exist", constraints.size == 1)
+  }
+
   @Test
   def should_drop_constraint() {
     //GIVEN
-    parseAndExecute("create constraint on (identifier:Label) assert identifier.propertyKey is unique")
+    parseAndExecute("create constraint on (node:Label) assert node.propertyKey is unique")
 
     //WHEN
-    parseAndExecute("drop constraint on (identifier:Label) assert identifier.propertyKey is unique")
+    parseAndExecute("drop constraint on (node:Label) assert node.propertyKey is unique")
 
     //THEN
     val statementCtx = graph.statementContextForReading
 
-    val prop = statementCtx.getPropertyKeyId("propertyKey")
-    val label = statementCtx.getLabelId("Label")
+    val prop = statementCtx.propertyKeyGetForName("propertyKey")
+    val label = statementCtx.labelGetForName("Label")
 
-    val constraints = statementCtx.getConstraints(label, prop).asScala
+    val constraints = statementCtx.constraintsGetForLabelAndPropertyKey(label, prop).asScala
 
     assertTrue("No constraints should exist", constraints.isEmpty)
   }
-  @Ignore("2013-05-15 Lucene indexes don't support verifying constraints on index population yet.")
   @Test
   def should_fail_to_add_constraint_when_existing_data_conflicts() {
     // GIVEN
     parseAndExecute("create (a:Person{id:1}), (b:Person{id:1})")
 
     // WHEN
-    parseAndExecute("create constraint on (n:Person) assert n.id is unique")
+    try
+    {
+      parseAndExecute("create constraint on (n:Person) assert n.id is unique")
 
+      fail("expected exception")
+    }
     // THEN
+    catch
+    {
+      case ex: CouldNotCreateConstraintException =>
+    }
+
     val statementCtx = graph.statementContextForReading
 
-    val prop = statementCtx.getPropertyKeyId("id")
-    val label = statementCtx.getLabelId("Person")
+    val prop = statementCtx.propertyKeyGetForName("id")
+    val label = statementCtx.labelGetForName("Person")
 
-    val constraints = statementCtx.getConstraints(label, prop).asScala
+    val constraints = statementCtx.constraintsGetForLabelAndPropertyKey(label, prop).asScala
 
     assertTrue("No constraints should exist", constraints.isEmpty)
   }

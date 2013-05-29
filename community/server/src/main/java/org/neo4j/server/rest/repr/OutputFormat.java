@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-
+import javax.management.relation.RelationNotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
@@ -31,6 +31,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+
+import org.neo4j.server.rest.web.NodeNotFoundException;
 
 public class OutputFormat
 {
@@ -145,6 +147,10 @@ public class OutputFormat
                 }
                 catch ( Exception e )
                 {
+                    if ( e instanceof NodeNotFoundException || e instanceof RelationNotFoundException )
+                    {
+                        new WebApplicationException( notFound( e ) );
+                    }
                     if ( e instanceof BadInputException )
                     {
                         throw new WebApplicationException( badRequest( e ) );

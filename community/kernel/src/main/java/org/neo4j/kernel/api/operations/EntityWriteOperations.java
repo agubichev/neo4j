@@ -19,39 +19,47 @@
  */
 package org.neo4j.kernel.api.operations;
 
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.properties.Property;
 
 public interface EntityWriteOperations
 {
     // Currently, of course, most relevant operations here are still in the old core API implementation.
 
-    void deleteNode( long nodeId );
+    void nodeDelete( long nodeId );
+
+    void relationshipDelete( long relationshipId );
 
     /**
      * Labels a node with the label corresponding to the given label id.
      * If the node already had that label nothing will happen. Label ids
-     * are retrieved from {@link KeyWriteOperations#getOrCreateLabelId(String)} or {@link
-     * KeyReadOperations#getLabelId(String)}.
+     * are retrieved from {@link KeyWriteOperations#labelGetOrCreateForName(String)} or {@link
+     * KeyReadOperations#labelGetForName(String)}.
      */
-    boolean addLabelToNode( long labelId, long nodeId ) throws EntityNotFoundException;
+    boolean nodeAddLabel( long nodeId, long labelId ) throws EntityNotFoundException;
 
     /**
      * Removes a label with the corresponding id from a node.
      * If the node doesn't have that label nothing will happen. Label ids
-     * are retrieved from {@link KeyWriteOperations#getOrCreateLabelId(String)} or {@link
-     * KeyReadOperations#getLabelId(String)}.
+     * are retrieved from {@link KeyWriteOperations#labelGetOrCreateForName(String)} or {@link
+     * KeyReadOperations#labelGetForName(String)}.
      */
-    boolean removeLabelFromNode( long labelId, long nodeId ) throws EntityNotFoundException;
+    boolean nodeRemoveLabel( long nodeId, long labelId ) throws EntityNotFoundException;
 
-    /** Set a node's property given the node's id, the property key id, and the value */
-    void nodeSetPropertyValue( long nodeId, long propertyId, Object value )
+    Property nodeSetProperty( long nodeId, Property property )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException;
+
+    Property relationshipSetProperty( long relationshipId, Property property )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
     /**
      * Remove a node's property given the node's id and the property key id and return the value to which
      * it was set or null if it was not set on the node
      */
-    Object nodeRemoveProperty( long nodeId, long propertyId )
+    Property nodeRemoveProperty( long nodeId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException;
+
+    Property relationshipRemoveProperty( long relationshipId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 }

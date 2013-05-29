@@ -123,6 +123,8 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
         case x   => Seq(x)
       }
 
+    case union: Union => getQueryResultColumns(union.queries.head, currentSymbols)
+
     case _ => List.empty
   }
 
@@ -147,15 +149,13 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
   }
 
   private def prepareStateAndResult(queryContext: QueryContext, params: Map[String, Any], pipe: Pipe, profile:Boolean):
-    (QueryState, Iterator[ExecutionContext], () => PlanDescription) = {
-
-    val decorator = if (profile) new Profiler() else NullDecorator
-    val state = new QueryState(graph, queryContext, params, decorator)
-    val results = pipe.createResults(state)
-
+    (QueryState, ClosingIterator[collection.Map[String, Any]], () => PlanDescription) = {
 
     try {
-      val closingIterator = new ClosingIterator[ExecutionContext](results, queryContext)
+      val decorator = if (profile) new Profiler() else NullDecorator
+      val state = new QueryState(graph, queryContext, params, decorator)
+      val results: Iterator[collection.Map[String, Any]] = pipe.createResults(state)
+      val closingIterator = new ClosingIterator(results, queryContext)
       val descriptor = () => decorator.decorate(pipe.executionPlanDescription, closingIterator.isEmpty)
       (state, closingIterator, descriptor)
     }

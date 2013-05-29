@@ -25,14 +25,10 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Ignore;
 import org.junit.Test;
+
 import org.neo4j.cluster.InstanceId;
 
-/**
- * TODO
- */
-@Ignore("Ignored in 2.0, team working on 1.9 is fixing, unignore ASAP once fix is in 1.9.")
 public class ClusterHeartbeatTest
         extends ClusterMockTest
 {
@@ -109,7 +105,7 @@ public class ClusterHeartbeatTest
                 join( 100, 2, 1 ).
                 join( 100, 3, 1 ).
                 message( 3000, "*** All nodes up and ok" ).
-                getRoles( 0, roles ).
+                getRoles( roles ).
                 down( 800, 1 ).
                 message( 2000, "*** Should have seen failure by now" ).
                 verifyCoordinatorRoleSwitched( roles ).

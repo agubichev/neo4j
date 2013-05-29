@@ -19,42 +19,45 @@
  */
 package org.neo4j.shell;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.graphdb.Direction.OUTGOING;
-import static org.neo4j.graphdb.DynamicLabel.label;
-import static org.neo4j.graphdb.DynamicRelationshipType.withName;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.junit.Ignore;
 import org.junit.Test;
+
 import org.neo4j.cypher.NodeStillHasRelationshipsException;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema.IndexState;
 import org.neo4j.helpers.Function;
 import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.shell.impl.CollectingOutput;
 import org.neo4j.shell.impl.SameJvmClient;
 import org.neo4j.shell.kernel.GraphDatabaseShellServer;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import static org.neo4j.graphdb.Direction.OUTGOING;
+import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.graphdb.DynamicRelationshipType.withName;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.helpers.collection.IteratorUtil.emptySetOf;
+import static org.neo4j.helpers.collection.MapUtil.genericMap;
 
 public class TestApps extends AbstractShellTest
 {
@@ -363,23 +366,23 @@ public class TestApps extends AbstractShellTest
     @Test
     public void createNodeWithLabel() throws Exception
     {
-        executeCommand( "mknode --cd -l PERSON" );
-        assertEquals( asSet( "PERSON" ), asSet( names( getCurrentNode().getLabels() ) ) );
+        executeCommand( "mknode --cd -l Person" );
+        assertEquals( asSet( "Person" ), asSet( names( getCurrentNode().getLabels() ) ) );
     }
     
     @Test
     public void createNodeWithColonPrefixedLabel() throws Exception
     {
-        executeCommand( "mknode --cd -l :PERSON" );
-        assertEquals( asSet( "PERSON" ), asSet( names( getCurrentNode().getLabels() ) ) );
+        executeCommand( "mknode --cd -l :Person" );
+        assertEquals( asSet( "Person" ), asSet( names( getCurrentNode().getLabels() ) ) );
     }
     
     @Test
     public void createNodeWithPropertiesAndLabels() throws Exception
     {
-        executeCommand( "mknode --cd --np \"{'name': 'Test'}\" -l \"['PERSON', ':THING']\"" );
+        executeCommand( "mknode --cd --np \"{'name': 'Test'}\" -l \"['Person', ':Thing']\"" );
         assertEquals( "Test", getCurrentNode().getProperty( "name" ) );
-        assertEquals( asSet( "PERSON", "THING" ), asSet( names( getCurrentNode().getLabels() ) ) );
+        assertEquals( asSet( "Person", "Thing" ), asSet( names( getCurrentNode().getLabels() ) ) );
     }
     
     @Test
@@ -395,8 +398,8 @@ public class TestApps extends AbstractShellTest
     public void createRelationshipToNewNodeWithLabels() throws Exception
     {
         String type = "TEST";
-        executeCommand( "mkrel -ctl " + type + " PERSON" );
-        assertEquals( asSet( "PERSON" ), asSet( names( getCurrentNode().getSingleRelationship(
+        executeCommand( "mkrel -ctl " + type + " Person" );
+        assertEquals( asSet( "Person" ), asSet( names( getCurrentNode().getSingleRelationship(
                 withName( type ), OUTGOING ).getEndNode().getLabels() ) ) );
     }
     
@@ -486,26 +489,24 @@ public class TestApps extends AbstractShellTest
         }
     }
 
-    @Ignore
     @Test
-    public void run_query_with_planrebuilding() throws Exception
+    public void use_cypher_merge() throws Exception
     {
-        executeCommand( "create (:Person {name:'Andres'});" );
-        executeCommand( "create (:Person {name:'Stefan'});" );
-        executeCommand( "profile match n:Person-[?]-() where n.name = 'Andres' return n;" );
-        Transaction tx = db.beginTx();
-        IndexDefinition index = db.schema().indexCreator( DynamicLabel.label( "Person" ) ).on( "name" ).create();
-        tx.success();
-        tx.finish();
-        db.schema().awaitIndexOnline( index, 10, SECONDS );
-        executeCommand( "profile match n:Person-[?]-() where n.name = 'Andres' return n;" );
+        executeCommand( "merge (n:Person {name:'Andres'});" );
+        ResourceIterable<Node> iter = db.findNodesByLabelAndProperty( label( "Person" ), "name", "Andres" );
+        ResourceIterator<Node> iterator = iter.iterator();
+
+
+        assertTrue("Did not find expected node", iterator.hasNext());
+        iterator.next();
+        assertFalse("MERGE seems to have created multiple nodes", iterator.hasNext());
     }
-    
+
     @Test
     public void canSetInitialSessionVariables() throws Exception
     {
-        Map<String, Serializable> values = MapUtil.<String,Serializable>genericMap( "mykey", "myvalue",
-                "my_other_key", "My other value" );
+        Map<String, Serializable> values = genericMap( "mykey", "myvalue",
+                                                       "my_other_key", "My other value" );
         ShellClient client = newShellClient( shellServer, values );
         String[] allStrings = new String[values.size()*2];
         int i = 0;
@@ -520,7 +521,7 @@ public class TestApps extends AbstractShellTest
     @Test
     public void canDisableWelcomeMessage() throws Exception
     {
-        Map<String, Serializable> values = MapUtil.<String, Serializable>genericMap( "quiet", "true" );
+        Map<String, Serializable> values = genericMap( "quiet", "true" );
         final CollectingOutput out = new CollectingOutput();
         ShellClient client = new SameJvmClient( values, shellServer, out );
         client.shutdown();
@@ -531,7 +532,7 @@ public class TestApps extends AbstractShellTest
     @Test
     public void doesShowWelcomeMessage() throws Exception
     {
-        Map<String, Serializable> values = MapUtil.<String, Serializable>genericMap();
+        Map<String, Serializable> values = genericMap();
         final CollectingOutput out = new CollectingOutput();
         ShellClient client = new SameJvmClient( values, shellServer, out );
         client.shutdown();
@@ -542,7 +543,7 @@ public class TestApps extends AbstractShellTest
     @Test
     public void canExecuteCypherWithShellVariables() throws Exception
     {
-        Map<String, Serializable> variables = MapUtil.<String, Serializable>genericMap( "id", 0 );
+        Map<String, Serializable> variables = genericMap( "id", 0 );
         ShellClient client = newShellClient( shellServer, variables );
         executeCommand( client, "start n=node({id}) return n;", "1 row" );
     }
@@ -599,10 +600,10 @@ public class TestApps extends AbstractShellTest
         executeCommand( "cd -a " + node.getId() );
         
         // WHEN
-        executeCommand( "set -l PERSON" );
+        executeCommand( "set -l Person" );
         
         // THEN
-        assertEquals( asSet( "PERSON" ), asSet( names( node.getLabels() ) ) );
+        assertEquals( asSet( "Person" ), asSet( names( node.getLabels() ) ) );
     }
     
     @Test
@@ -614,10 +615,10 @@ public class TestApps extends AbstractShellTest
         executeCommand( "cd -a " + node.getId() );
         
         // WHEN
-        executeCommand( "set -l ['PERSON','THING']" );
+        executeCommand( "set -l ['Person','Thing']" );
         
         // THEN
-        assertEquals( asSet( "PERSON", "THING" ), asSet( names( node.getLabels() ) ) );
+        assertEquals( asSet( "Person", "Thing" ), asSet( names( node.getLabels() ) ) );
     }
     
     @Test
@@ -627,15 +628,15 @@ public class TestApps extends AbstractShellTest
         beginTx();
         Relationship[] chain = createRelationshipChain( 1 );
         Node node = chain[0].getEndNode();
-        node.addLabel( label( "PERSON" ) );
+        node.addLabel( label( "Person" ) );
         finishTx();
         executeCommand( "cd -a " + node.getId() );
 
         // WHEN
-        executeCommand( "rm -l PERSON" );
+        executeCommand( "rm -l Person" );
 
         // THEN
-        assertEquals( asSet(), asSet( names( node.getLabels() ) ) );
+        assertEquals( emptySetOf( String.class ), asSet( names( node.getLabels() ) ) );
     }
     
     @Test
@@ -645,17 +646,17 @@ public class TestApps extends AbstractShellTest
         beginTx();
         Relationship[] chain = createRelationshipChain( 1 );
         Node node = chain[0].getEndNode();
-        node.addLabel( label( "PERSON" ) );
-        node.addLabel( label( "THING" ) );
-        node.addLabel( label( "OBJECT" ) );
+        node.addLabel( label( "Person" ) );
+        node.addLabel( label( "Thing" ) );
+        node.addLabel( label( "Object" ) );
         finishTx();
         executeCommand( "cd -a " + node.getId() );
 
         // WHEN
-        executeCommand( "rm -l ['PERSON','OBJECT']" );
+        executeCommand( "rm -l ['Person','Object']" );
 
         // THEN
-        assertEquals( asSet( "THING" ), asSet( names( node.getLabels() ) ) );
+        assertEquals( asSet( "Thing" ), asSet( names( node.getLabels() ) ) );
     }
     
     @Test
@@ -665,13 +666,13 @@ public class TestApps extends AbstractShellTest
         beginTx();
         Relationship[] chain = createRelationshipChain( 1 );
         Node node = chain[0].getEndNode();
-        node.addLabel( label( "PERSON" ) );
-        node.addLabel( label( "FATHER" ) );
+        node.addLabel( label( "Person" ) );
+        node.addLabel( label( "Father" ) );
         finishTx();
         executeCommand( "cd -a " + node.getId() );
 
         // WHEN/THEN
-        executeCommand( "ls", ":PERSON", ":FATHER" );
+        executeCommand( "ls", ":Person", ":Father" );
     }
     
     @Test
@@ -681,38 +682,38 @@ public class TestApps extends AbstractShellTest
         beginTx();
         Relationship[] chain = createRelationshipChain( 1 );
         Node node = chain[0].getEndNode();
-        node.addLabel( label( "PERSON" ) );
-        node.addLabel( label( "FATHER" ) );
+        node.addLabel( label( "Person" ) );
+        node.addLabel( label( "Father" ) );
         finishTx();
         executeCommand( "cd -a " + node.getId() );
 
         // WHEN/THEN
-        executeCommand( "ls -f PER.*", ":PERSON", "!:FATHER" );
+        executeCommand( "ls -f Per.*", ":Person", "!:Father" );
     }
     
     @Test
     public void canListIndexes() throws Exception
     {
         // GIVEN
-        Label label = label( "PERSON" );
+        Label label = label( "Person" );
         beginTx();
-        IndexDefinition index = db.schema().indexCreator( label ).on( "name" ).create();
+        IndexDefinition index = db.schema().indexFor( label ).on( "name" ).create();
         finishTx();
         db.schema().awaitIndexOnline( index, 10, SECONDS );
 
         // WHEN / THEN
-        executeCommand( "schema ls", ":PERSON", IndexState.ONLINE.name() );
+        executeCommand( "schema ls", ":Person", IndexState.ONLINE.name() );
     }
 
     @Test
     public void canListIndexesForGivenLabel() throws Exception
     {
         // GIVEN
-        Label label1 = label( "PERSON" );
-        Label label2 = label( "BUILDING" );
+        Label label1 = label( "Person" );
+        Label label2 = label( "Building" );
         beginTx();
-        IndexDefinition index1 = db.schema().indexCreator( label1 ).on( "name" ).create();
-        IndexDefinition index2 = db.schema().indexCreator( label2 ).on( "name" ).create();
+        IndexDefinition index1 = db.schema().indexFor( label1 ).on( "name" ).create();
+        IndexDefinition index2 = db.schema().indexFor( label2 ).on( "name" ).create();
         finishTx();
         db.schema().awaitIndexOnline( index1, 10, SECONDS );
         db.schema().awaitIndexOnline( index2, 10, SECONDS );
@@ -726,15 +727,15 @@ public class TestApps extends AbstractShellTest
     public void canListIndexesForGivenPropertyAndLabel() throws Exception
     {
         // GIVEN
-        Label label1 = label( "PERSON" );
-        Label label2 = label( "THING" );
+        Label label1 = label( "Person" );
+        Label label2 = label( "Thing" );
         String property1 = "name";
         String property2 = "age";
         beginTx();
-        IndexDefinition index1 = db.schema().indexCreator( label1 ).on( property1 ).create();
-        IndexDefinition index2 = db.schema().indexCreator( label1 ).on( property2 ).create();
-        IndexDefinition index3 = db.schema().indexCreator( label2 ).on( property1 ).create();
-        IndexDefinition index4 = db.schema().indexCreator( label2 ).on( property2 ).create();
+        IndexDefinition index1 = db.schema().indexFor( label1 ).on( property1 ).create();
+        IndexDefinition index2 = db.schema().indexFor( label1 ).on( property2 ).create();
+        IndexDefinition index3 = db.schema().indexFor( label2 ).on( property1 ).create();
+        IndexDefinition index4 = db.schema().indexFor( label2 ).on( property2 ).create();
         finishTx();
         db.schema().awaitIndexOnline( index1, 10, SECONDS );
         db.schema().awaitIndexOnline( index2, 10, SECONDS );
@@ -753,9 +754,9 @@ public class TestApps extends AbstractShellTest
     public void canAwaitIndexesToComeOnline() throws Exception
     {
         // GIVEN
-        Label label = label( "PERSON" );
+        Label label = label( "Person" );
         beginTx();
-        IndexDefinition index = db.schema().indexCreator( label ).on( "name" ).create();
+        IndexDefinition index = db.schema().indexFor( label ).on( "name" ).create();
         finishTx();
 
         // WHEN / THEN
@@ -767,10 +768,10 @@ public class TestApps extends AbstractShellTest
     public void canListIndexesWhenNoOptionGiven() throws Exception
     {
         // GIVEN
-        Label label = label( "PERSON" );
+        Label label = label( "Person" );
         String property = "name";
         beginTx();
-        IndexDefinition index = db.schema().indexCreator( label ).on( property ).create();
+        IndexDefinition index = db.schema().indexFor( label ).on( property ).create();
         finishTx();
         db.schema().awaitIndexOnline( index, 10, SECONDS );
 
@@ -782,42 +783,39 @@ public class TestApps extends AbstractShellTest
     public void canListConstraints() throws Exception
     {
         // GIVEN
-        Label label = label( "PERSON" );
+        Label label = label( "Person" );
         beginTx();
-        ConstraintDefinition constraint1 = db.schema().constraintCreator( label ).unique().on( "name" ).create();
+        db.schema().constraintFor( label ).unique().on( "name" ).create();
         finishTx();
 
         // WHEN / THEN
-        executeCommand( "schema ls", constraint1.getLabel().name(), constraint1.getConstraintType().name(),
-                constraint1.toString() );
+        executeCommand( "schema ls", "ON \\(person:Person\\) ASSERT person.name IS UNIQUE" );
     }
 
     @Test
     public void canListConstraintsByLabel() throws Exception
     {
         // GIVEN
-        Label label1 = label( "PERSON" );
+        Label label1 = label( "Person" );
         beginTx();
-        ConstraintDefinition constraint1 = db.schema().constraintCreator( label1 ).unique().on( "name" ).create();
+        db.schema().constraintFor( label1 ).unique().on( "name" ).create();
         finishTx();
 
         // WHEN / THEN
-        executeCommand( "schema ls -l :PERSON", constraint1.getLabel().name(), constraint1.getConstraintType().name(),
-                constraint1.toString() );
+        executeCommand( "schema ls -l :Person", "ON \\(person:Person\\) ASSERT person.name IS UNIQUE");
     }
 
     @Test
     public void canListConstraintsByLabelAndProperty() throws Exception
     {
         // GIVEN
-        Label label1 = label( "PERSON" );
+        Label label1 = label( "Person" );
         beginTx();
-        ConstraintDefinition constraint1 = db.schema().constraintCreator( label1 ).unique().on( "name" ).create();
+        db.schema().constraintFor( label1 ).unique().on( "name" ).create();
         finishTx();
 
         // WHEN / THEN
-        executeCommand( "schema ls -l :PERSON -p name", constraint1.getLabel().name(), constraint1.getConstraintType()
-                .name(), constraint1.toString() );
+        executeCommand( "schema ls -l :Person -p name", "ON \\(person:Person\\) ASSERT person.name IS UNIQUE" );
     }
 
     private Iterable<String> names( Iterable<Label> labels )

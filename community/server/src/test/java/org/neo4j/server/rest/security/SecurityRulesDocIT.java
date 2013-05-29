@@ -40,6 +40,7 @@ import org.neo4j.test.server.ExclusiveServerTestBase;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class SecurityRulesDocIT extends ExclusiveServerTestBase
 {
@@ -49,7 +50,7 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
 
     public
     @Rule
-    TestData<RESTDocsGenerator> gen = TestData.producedThrough(RESTDocsGenerator.PRODUCER);
+    TestData<RESTDocsGenerator> gen = TestData.producedThrough( RESTDocsGenerator.PRODUCER );
 
     @After
     public void stopServer()
@@ -84,23 +85,23 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
             throws Exception
     {
         server = ServerBuilder.server().withDefaultDatabaseTuning().withSecurityRules(
-                PermanentlyFailingSecurityRule.class.getCanonicalName())
+                PermanentlyFailingSecurityRule.class.getCanonicalName() )
                 .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
                 .build();
         server.start();
         gen.get().addSnippet(
                 "config",
-                "\n[source]\n----\norg.neo4j.server.rest.security_rules=my.rules.PermanentlyFailingSecurityRule\n----\n");
-        gen.get().addTestSourceSnippets(PermanentlyFailingSecurityRule.class,
-                                        "failingRule");
-        functionalTestHelper = new FunctionalTestHelper(server);
-        gen.get().setSection("ops");
-        JaxRsResponse response = gen.get().expectedStatus(401).expectedHeader(
-                "WWW-Authenticate").post(functionalTestHelper.nodeUri()).response();
+                "\n[source]\n----\norg.neo4j.server.rest.security_rules=my.rules.PermanentlyFailingSecurityRule\n----\n" );
+        gen.get().addTestSourceSnippets( PermanentlyFailingSecurityRule.class,
+                "failingRule" );
+        functionalTestHelper = new FunctionalTestHelper( server );
+        gen.get().setSection( "ops" );
+        JaxRsResponse response = gen.get().expectedStatus( 401 ).expectedHeader(
+                "WWW-Authenticate" ).post( functionalTestHelper.nodeUri() ).response();
 
-        assertThat(response.getHeaders().getFirst("WWW-Authenticate"),
-                   containsString("Basic realm=\""
-                                          + PermanentlyFailingSecurityRule.REALM + "\""));
+        assertThat( response.getHeaders().getFirst( "WWW-Authenticate" ),
+                containsString( "Basic realm=\""
+                        + PermanentlyFailingSecurityRule.REALM + "\"" ) );
     }
 
     @Test
@@ -108,19 +109,41 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
             throws Exception
     {
         server = ServerBuilder.server().withDefaultDatabaseTuning().withSecurityRules(
-                PermanentlyPassingSecurityRule.class.getCanonicalName(),
-                PermanentlyFailingSecurityRule.class.getCanonicalName())
+                PermanentlyFailingSecurityRule.class.getCanonicalName(),
+                PermanentlyPassingSecurityRule.class.getCanonicalName() )
                 .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
                 .build();
         server.start();
-        functionalTestHelper = new FunctionalTestHelper(server);
+        functionalTestHelper = new FunctionalTestHelper( server );
 
-        JaxRsResponse response = gen.get().expectedStatus(401).expectedHeader(
-                "WWW-Authenticate").post(functionalTestHelper.nodeUri()).response();
+        JaxRsResponse response = gen.get().expectedStatus( 401 ).expectedHeader(
+                "WWW-Authenticate" ).post( functionalTestHelper.nodeUri() ).response();
 
-        assertThat(response.getHeaders().getFirst("WWW-Authenticate"),
-                   containsString("Basic realm=\""
-                                          + PermanentlyFailingSecurityRule.REALM + "\""));
+        assertThat( response.getHeaders().getFirst( "WWW-Authenticate" ),
+                containsString( "Basic realm=\""
+                        + PermanentlyFailingSecurityRule.REALM + "\"" ) );
+    }
+
+    @Test
+    public void shouldInvokeAllSecurityRules() throws Exception
+    {
+        // given
+        server = ServerBuilder.server().withDefaultDatabaseTuning().withSecurityRules(
+                NoAccessToDatabaseSecurityRule.class.getCanonicalName(),
+                NoAccessToWebAdminSecurityRule.class.getCanonicalName() )
+                .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
+                .build();
+        server.start();
+        functionalTestHelper = new FunctionalTestHelper( server );
+
+        // when
+        gen.get().expectedStatus( 401 ).get( functionalTestHelper.dataUri() ).response();
+        gen.get().expectedStatus( 401 ).expectedType( MediaType.TEXT_HTML_TYPE )
+                .get( functionalTestHelper.webAdminUri() ).response();
+
+        // then
+        assertTrue( NoAccessToDatabaseSecurityRule.wasInvoked() );
+        assertTrue( NoAccessToWebAdminSecurityRule.wasInvoked() );
     }
 
     @Test
@@ -128,14 +151,14 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
             throws Exception
     {
         server = ServerBuilder.server().withDefaultDatabaseTuning().withSecurityRules(
-                PermanentlyPassingSecurityRule.class.getCanonicalName())
+                PermanentlyPassingSecurityRule.class.getCanonicalName() )
                 .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
                 .build();
         server.start();
-        functionalTestHelper = new FunctionalTestHelper(server);
+        functionalTestHelper = new FunctionalTestHelper( server );
 
-        gen.get().expectedStatus(201).expectedHeader("Location").post(
-                functionalTestHelper.nodeUri()).response();
+        gen.get().expectedStatus( 201 ).expectedHeader( "Location" ).post(
+                functionalTestHelper.nodeUri() ).response();
     }
 
     /**
@@ -168,12 +191,12 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
     {
         String mountPoint = "/protected/tree/starts/here" + DummyThirdPartyWebService.DUMMY_WEB_SERVICE_MOUNT_POINT;
         server = ServerBuilder.server().withDefaultDatabaseTuning()
-                              .withThirdPartyJaxRsPackage("org.dummy.web.service",
-                                                          mountPoint)
-                              .withSecurityRules(
-                                      PermanentlyFailingSecurityRuleWithWildcardPath.class.getCanonicalName())
-                              .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
-                              .build();
+                .withThirdPartyJaxRsPackage( "org.dummy.web.service",
+                        mountPoint )
+                .withSecurityRules(
+                        PermanentlyFailingSecurityRuleWithWildcardPath.class.getCanonicalName() )
+                .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
+                .build();
         server.start();
 
         gen.get()
@@ -181,19 +204,19 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
                         "config",
                         "\n[source]\n----\norg.neo4j.server.rest.security_rules=my.rules.PermanentlyFailingSecurityRuleWithWildcardPath\n----\n" );
 
-        gen.get().addTestSourceSnippets(PermanentlyFailingSecurityRuleWithWildcardPath.class,
-                        "failingRuleWithWildcardPath" );
+        gen.get().addTestSourceSnippets( PermanentlyFailingSecurityRuleWithWildcardPath.class,
+                "failingRuleWithWildcardPath" );
 
-        gen.get().setSection("ops");
+        gen.get().setSection( "ops" );
 
-        functionalTestHelper = new FunctionalTestHelper(server);
+        functionalTestHelper = new FunctionalTestHelper( server );
 
         JaxRsResponse clientResponse = gen.get()
                 .expectedStatus( 401 )
                 .expectedType( MediaType.APPLICATION_JSON_TYPE )
                 .expectedHeader( "WWW-Authenticate" )
                 .get( trimTrailingSlash( functionalTestHelper.baseUri() )
-                      + mountPoint + "/more/stuff" )
+                        + mountPoint + "/more/stuff" )
                 .response();
 
         assertEquals( 401, clientResponse.getStatus() );
@@ -218,39 +241,39 @@ public class SecurityRulesDocIT extends ExclusiveServerTestBase
     {
         String mountPoint = "/protected/wildcard_replacement/x/y/z/something/else/more_wildcard_replacement/a/b/c/final/bit";
         server = ServerBuilder.server().withDefaultDatabaseTuning()
-                              .withThirdPartyJaxRsPackage("org.dummy.web.service",
-                                                          mountPoint)
-                              .withSecurityRules(
-                                      PermanentlyFailingSecurityRuleWithComplexWildcardPath.class.getCanonicalName())
-                              .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
-                              .build();
+                .withThirdPartyJaxRsPackage( "org.dummy.web.service",
+                        mountPoint )
+                .withSecurityRules(
+                        PermanentlyFailingSecurityRuleWithComplexWildcardPath.class.getCanonicalName() )
+                .usingDatabaseDir( folder.getRoot().getAbsolutePath() )
+                .build();
         server.start();
         gen.get().addSnippet(
                 "config",
-                "\n[source]\n----\norg.neo4j.server.rest.security_rules=my.rules.PermanentlyFailingSecurityRuleWithComplexWildcardPath\n----\n");
-        gen.get().addTestSourceSnippets(PermanentlyFailingSecurityRuleWithComplexWildcardPath.class,
-                                        "failingRuleWithComplexWildcardPath");
-        gen.get().setSection("ops");
+                "\n[source]\n----\norg.neo4j.server.rest.security_rules=my.rules.PermanentlyFailingSecurityRuleWithComplexWildcardPath\n----\n" );
+        gen.get().addTestSourceSnippets( PermanentlyFailingSecurityRuleWithComplexWildcardPath.class,
+                "failingRuleWithComplexWildcardPath" );
+        gen.get().setSection( "ops" );
 
-        functionalTestHelper = new FunctionalTestHelper(server);
+        functionalTestHelper = new FunctionalTestHelper( server );
 
         JaxRsResponse clientResponse = gen.get()
                 .expectedStatus( 401 )
                 .expectedType( MediaType.APPLICATION_JSON_TYPE )
                 .expectedHeader( "WWW-Authenticate" )
                 .get( trimTrailingSlash( functionalTestHelper.baseUri() )
-                      + mountPoint + "/more/stuff" )
+                        + mountPoint + "/more/stuff" )
                 .response();
 
-        assertEquals(401, clientResponse.getStatus());
+        assertEquals( 401, clientResponse.getStatus() );
     }
 
-    private String trimTrailingSlash(URI uri)
+    private String trimTrailingSlash( URI uri )
     {
         String result = uri.toString();
-        if (result.endsWith("/"))
+        if ( result.endsWith( "/" ) )
         {
-            return result.substring(0, result.length() - 1);
+            return result.substring( 0, result.length() - 1 );
         }
         else
         {

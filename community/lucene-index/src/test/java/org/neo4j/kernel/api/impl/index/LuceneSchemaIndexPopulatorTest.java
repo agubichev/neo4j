@@ -33,7 +33,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.neo4j.kernel.api.impl.index.LuceneSchemaIndexProvider.DocumentLogic;
 import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
@@ -42,7 +41,9 @@ import org.neo4j.kernel.configuration.Config;
 
 import static java.lang.Long.parseLong;
 import static java.util.Arrays.asList;
+
 import static org.junit.Assert.assertEquals;
+
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_dir;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
@@ -221,15 +222,15 @@ public class LuceneSchemaIndexPopulatorTest
     private IndexPopulator index;
     private IndexReader reader;
     private IndexSearcher searcher;
-    private DirectoryFactory directoryFactory;
     private final long indexId = 0;
-    private final DocumentLogic documentLogic = new LuceneSchemaIndexProvider.DocumentLogic();
+    private final LuceneDocumentStructure documentLogic = new LuceneDocumentStructure();
     
     @Before
     public void before() throws Exception
     {
         directory = new RAMDirectory();
-        directoryFactory = new DirectoryFactory.Single( new DirectoryFactory.UncloseableDirectory(directory) );
+        DirectoryFactory directoryFactory = new DirectoryFactory.Single(
+                new DirectoryFactory.UncloseableDirectory( directory ) );
         provider = new LuceneSchemaIndexProvider( directoryFactory,
                 new Config( stringMap( store_dir.name(), "whatever" ) ) );
         index = provider.getPopulator( indexId, new IndexConfiguration( false ) );

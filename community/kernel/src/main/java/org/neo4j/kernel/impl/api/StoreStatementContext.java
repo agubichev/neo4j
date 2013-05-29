@@ -19,9 +19,12 @@
  */
 package org.neo4j.kernel.impl.api;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
-import org.neo4j.graphdb.NotFoundException;
+import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.helpers.Function;
 import org.neo4j.helpers.Predicate;
@@ -29,30 +32,40 @@ import org.neo4j.helpers.Predicates;
 import org.neo4j.helpers.ThisShouldNotHappenError;
 import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.kernel.api.DataIntegrityKernelException;
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
-import org.neo4j.kernel.api.SchemaRuleNotFoundException;
+import org.neo4j.kernel.api.EntityType;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
-import org.neo4j.kernel.api.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyNotFoundException;
+import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaKernelException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaRuleNotFoundException;
+import org.neo4j.kernel.api.exceptions.schema.TooManyLabelsException;
 import org.neo4j.kernel.api.index.InternalIndexState;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexingService;
-import org.neo4j.kernel.impl.core.LabelToken;
 import org.neo4j.kernel.impl.core.LabelTokenHolder;
 import org.neo4j.kernel.impl.core.NodeImpl;
 import org.neo4j.kernel.impl.core.NodeManager;
 import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.impl.core.PropertyKeyTokenHolder;
+import org.neo4j.kernel.impl.core.RelationshipImpl;
+import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.kernel.impl.core.Token;
 import org.neo4j.kernel.impl.core.TokenNotFoundException;
 import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 import org.neo4j.kernel.impl.nioneo.store.InvalidRecordException;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
 import org.neo4j.kernel.impl.nioneo.store.NodeStore;
+import org.neo4j.kernel.impl.nioneo.store.PrimitiveRecord;
+import org.neo4j.kernel.impl.nioneo.store.PropertyBlock;
+import org.neo4j.kernel.impl.nioneo.store.PropertyRecord;
+import org.neo4j.kernel.impl.nioneo.store.PropertyStore;
+import org.neo4j.kernel.impl.nioneo.store.RelationshipStore;
 import org.neo4j.kernel.impl.nioneo.store.SchemaRule;
 import org.neo4j.kernel.impl.nioneo.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.nioneo.store.UniquenessConstraintRule;
@@ -74,7 +87,7 @@ import static org.neo4j.helpers.collection.IteratorUtil.contains;
  * Cache reading and invalidation is not the concern of this part of the system, that is an optimization on top of the
  * committed data in the database, and should as such live under that abstraction.
  */
-public class StoreStatementContext extends CompositeStatementContext
+public class StoreStatementContext extends  StoreOperationTranslatingStatementContext
 {
     private final PropertyKeyTokenHolder propertyKeyTokenHolder;
     private final LabelTokenHolder labelTokenHolder;
@@ -83,6 +96,8 @@ public class StoreStatementContext extends CompositeStatementContext
     private final IndexingService indexService;
     private final IndexReaderFactory indexReaderFactory;
     private final NodeStore nodeStore;
+    private final RelationshipStore relationshipStore;
+    private final PropertyStore propertyStore;
     private final Function<String, Long> propertyStringToId = new Function<String, Long>()
     {
         @Override
@@ -90,7 +105,7 @@ public class StoreStatementContext extends CompositeStatementContext
         {
             try
             {
-                return getPropertyKeyId( s );
+                return propertyKeyGetForName( s );
             }
             catch ( PropertyKeyNotFoundException e )
             {
@@ -126,6 +141,8 @@ public class StoreStatementContext extends CompositeStatementContext
         this.nodeManager = nodeManager;
         this.neoStore = neoStore;
         this.nodeStore = neoStore.getNodeStore();
+        this.relationshipStore = neoStore.getRelationshipStore();
+        this.propertyStore = neoStore.getPropertyStore();
     }
 
     @Override
@@ -142,7 +159,7 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public long getOrCreateLabelId( String label ) throws DataIntegrityKernelException
+    public long labelGetOrCreateForName( String label ) throws SchemaKernelException
     {
         try
         {
@@ -157,8 +174,7 @@ public class StoreStatementContext extends CompositeStatementContext
             if ( e.getCause() != null && e.getCause() instanceof UnderlyingStorageException
                  && e.getCause().getMessage().equals( "Id capacity exceeded" ) )
             {
-                throw new DataIntegrityKernelException(
-                        "The maximum number of labels available has been reached, cannot create more labels.", e );
+                throw new TooManyLabelsException( e );
             }
             else
             {
@@ -168,7 +184,7 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public long getLabelId( String label ) throws LabelNotFoundKernelException
+    public long labelGetForName( String label ) throws LabelNotFoundKernelException
     {
         try
         {
@@ -181,11 +197,11 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public boolean isLabelSetOnNode( long labelId, long nodeId )
+    public boolean nodeHasLabel( long nodeId, long labelId )
     {
         try
         {
-            return contains( getLabelsForNode( nodeId ), labelId );
+            return contains( nodeGetLabels( nodeId ), labelId );
         }
         catch ( InvalidRecordException e )
         {
@@ -194,7 +210,7 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<Long> getLabelsForNode( long nodeId )
+    public Iterator<Long> nodeGetLabels( long nodeId )
     {
         try
         {
@@ -208,11 +224,11 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public String getLabelName( long labelId ) throws LabelNotFoundKernelException
+    public String labelGetName( long labelId ) throws LabelNotFoundKernelException
     {
         try
         {
-            return labelTokenHolder.getTokenById( (int) labelId ).getName();
+            return labelTokenHolder.getTokenById( (int) labelId ).name();
         }
         catch ( TokenNotFoundException e )
         {
@@ -221,7 +237,7 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<Long> getNodesWithLabel( final long labelId )
+    public Iterator<Long> nodesGetForLabel( final long labelId )
     {
         final NodeStore nodeStore = neoStore.getNodeStore();
         final long highestId = nodeStore.getHighestPossibleIdInUse();
@@ -252,13 +268,14 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<LabelToken> listLabels()
+    public Iterator<Token> labelsGetAllTokens()
     {
         return labelTokenHolder.getAllTokens().iterator();
     }
 
     @Override
-    public IndexDescriptor getIndex( final long labelId, final long propertyKey ) throws SchemaRuleNotFoundException
+    public IndexDescriptor indexesGetForLabelAndPropertyKey( final long labelId, final long propertyKey )
+            throws SchemaRuleNotFoundException
     {
         return descriptor( schemaStorage.indexRule( labelId, propertyKey ) );
     }
@@ -269,25 +286,25 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes( final long labelId )
+    public Iterator<IndexDescriptor> indexesGetForLabel( final long labelId )
     {
         return getIndexDescriptorsFor( indexRules( labelId ) );
     }
 
     @Override
-    public Iterator<IndexDescriptor> getIndexes()
+    public Iterator<IndexDescriptor> indexesGetAll()
     {
         return getIndexDescriptorsFor( INDEX_RULES );
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes( final long labelId )
+    public Iterator<IndexDescriptor> uniqueIndexesGetForLabel( final long labelId )
     {
         return getIndexDescriptorsFor( constraintIndexRules( labelId ) );
     }
 
     @Override
-    public Iterator<IndexDescriptor> getConstraintIndexes()
+    public Iterator<IndexDescriptor> uniqueIndexesGetAll()
     {
         return getIndexDescriptorsFor( CONSTRAINT_INDEX_RULES );
     }
@@ -347,19 +364,19 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Long getOwningConstraint( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    public Long indexGetOwningUniquenessConstraintId( IndexDescriptor index ) throws SchemaRuleNotFoundException
     {
         return schemaStorage.indexRule( index.getLabelId(), index.getPropertyKeyId() ).getOwningConstraint();
     }
 
     @Override
-    public long getCommittedIndexId( IndexDescriptor index ) throws SchemaRuleNotFoundException
+    public long indexGetCommittedId( IndexDescriptor index ) throws SchemaRuleNotFoundException
     {
         return schemaStorage.indexRule( index.getLabelId(), index.getPropertyKeyId() ).getId();
     }
 
     @Override
-    public InternalIndexState getIndexState( IndexDescriptor descriptor ) throws IndexNotFoundKernelException
+    public InternalIndexState indexGetState( IndexDescriptor descriptor ) throws IndexNotFoundKernelException
     {
         return indexService.getProxyForRule( indexId( descriptor ) ).getState();
     }
@@ -377,10 +394,10 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId, final long propertyKeyId )
+    public Iterator<UniquenessConstraint> constraintsGetForLabelAndPropertyKey( long labelId, final long propertyKeyId )
     {
         return schemaStorage.schemaRules( UNIQUENESS_CONSTRAINT_TO_RULE, UniquenessConstraintRule.class,
-                                          labelId, new Predicate<UniquenessConstraintRule>()
+                labelId, new Predicate<UniquenessConstraintRule>()
         {
             @Override
             public boolean accept( UniquenessConstraintRule rule )
@@ -392,27 +409,27 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints( long labelId )
+    public Iterator<UniquenessConstraint> constraintsGetForLabel( long labelId )
     {
         return schemaStorage.schemaRules( UNIQUENESS_CONSTRAINT_TO_RULE, UniquenessConstraintRule.class,
-                                          labelId, Predicates.<UniquenessConstraintRule>TRUE() );
+                labelId, Predicates.<UniquenessConstraintRule>TRUE() );
     }
 
     @Override
-    public Iterator<UniquenessConstraint> getConstraints()
+    public Iterator<UniquenessConstraint> constraintsGetAll()
     {
         return schemaStorage.schemaRules( UNIQUENESS_CONSTRAINT_TO_RULE, SchemaRule.Kind.UNIQUENESS_CONSTRAINT,
-                                          Predicates.<UniquenessConstraintRule>TRUE() );
+                Predicates.<UniquenessConstraintRule>TRUE() );
     }
 
     @Override
-    public long getOrCreatePropertyKeyId( String propertyKey )
+    public long propertyKeyGetOrCreateForName( String propertyKey )
     {
         return propertyKeyTokenHolder.getOrCreateId( propertyKey );
     }
 
     @Override
-    public long getPropertyKeyId( String propertyKey ) throws PropertyKeyNotFoundException
+    public long propertyKeyGetForName( String propertyKey ) throws PropertyKeyNotFoundException
     {
         try
         {
@@ -425,11 +442,11 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public String getPropertyKeyName( long propertyKeyId ) throws PropertyKeyIdNotFoundException
+    public String propertyKeyGetName( long propertyKeyId ) throws PropertyKeyIdNotFoundException
     {
         try
         {
-            return propertyKeyTokenHolder.getTokenById( (int) propertyKeyId ).getKey();
+            return propertyKeyTokenHolder.getTokenById( (int) propertyKeyId ).name();
         }
         catch ( TokenNotFoundException e )
         {
@@ -438,7 +455,7 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<Long> listNodePropertyKeys( long nodeId )
+    public Iterator<Long> nodeGetPropertyKeys( long nodeId )
     {
         // TODO: This is temporary, it should be split up to handle tx state up in the correct layers, this is just
         // a first step to move it into the kernel.
@@ -447,92 +464,151 @@ public class StoreStatementContext extends CompositeStatementContext
     }
 
     @Override
-    public Iterator<Long> listRelationshipPropertyKeys( long relId )
+    public Iterator<Long> relationshipGetPropertyKeys( long relId )
     {
         // TODO: This is temporary, it should be split up to handle tx state up in the correct layers, this is just
         // a first step to move it into the kernel.
         return map( propertyStringToId,
-                    nodeManager.getRelationshipForProxy( relId, null ).getPropertyKeys( nodeManager ).iterator() );
+                nodeManager.getRelationshipForProxy( relId, null ).getPropertyKeys( nodeManager ).iterator() );
     }
 
     @Override
-    public Object getNodePropertyValue( long nodeId, long propertyKeyId )
-            throws PropertyKeyIdNotFoundException, PropertyNotFoundException, EntityNotFoundException
+    public Iterator<Property> nodeGetAllProperties( long nodeId ) throws EntityNotFoundException
     {
         try
         {
-            return nodeManager.getNodeForProxy( nodeId, null ).getProperty( nodeManager, (int) propertyKeyId );
+            return loadAllPropertiesOf( nodeStore.getRecord( nodeId ) );
         }
-        catch ( IllegalStateException e )
+        catch ( InvalidRecordException e )
         {
-            throw new EntityNotFoundException( "Unable to load node " + nodeId + ".", e );
-        }
-        catch ( NotFoundException e )
-        {
-            throw new PropertyNotFoundException(
-                    "No property with id " + propertyKeyId + " on node with id " + nodeId, e );
+            throw new EntityNotFoundException( EntityType.NODE, nodeId, e );
         }
     }
 
     @Override
-    public boolean nodeHasProperty( long nodeId, long propertyKeyId )
-            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    public Iterator<Property> relationshipGetAllProperties( long relationshipId ) throws EntityNotFoundException
     {
         try
         {
-            String propertyKey = getPropertyKeyName( propertyKeyId );
-            return nodeManager.getNodeForProxy( nodeId, null ).hasProperty( nodeManager, propertyKey );
+            return loadAllPropertiesOf( relationshipStore.getRecord( relationshipId ) );
         }
-        catch ( IllegalStateException e )
+        catch ( InvalidRecordException e )
         {
-            throw new EntityNotFoundException( "Unable to load node " + nodeId + ".", e );
+            throw new EntityNotFoundException( EntityType.RELATIONSHIP, relationshipId, e );
         }
     }
 
-    @Override
-    public void nodeSetPropertyValue( long nodeId, long propertyKeyId, Object value )
-            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    private Iterator<Property> loadAllPropertiesOf( PrimitiveRecord primitiveRecord )
     {
-        try
+        Collection<PropertyRecord> records = propertyStore.getPropertyRecordChain( primitiveRecord.getNextProp() );
+        if ( null == records )
         {
-            // TODO: Move locking to LockingStatementContext et cetera, don't create a new node proxy for every call!
-            String propertyKey = getPropertyKeyName( propertyKeyId );
-            NodeImpl nodeImpl = nodeManager.getNodeForProxy( nodeId, LockType.WRITE );
-            NodeProxy nodeProxy = nodeManager.newNodeProxyById( nodeId );
-            nodeImpl.setProperty( nodeManager, nodeProxy, propertyKey, value );
+            return IteratorUtil.emptyIterator();
         }
-        catch ( IllegalStateException e )
+        List<Property> properties = new ArrayList<Property>();
+        for ( PropertyRecord record : records )
         {
-            throw new EntityNotFoundException( "Unable to load node " + nodeId + ".", e );
+            for ( PropertyBlock block : record.getPropertyBlocks() )
+            {
+                properties.add( block.getType().readProperty( block.getKeyIndexId(), block, propertyStore ) );
+            }
         }
+        return properties.iterator();
     }
 
     @Override
-    public Object nodeRemoveProperty( long nodeId, long propertyKeyId )
+    public Property nodeSetProperty( long nodeId, Property property )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException
     {
         try
         {
             // TODO: Move locking to LockingStatementContext et cetera, don't create a new node proxy for every call!
-            String propertyKey = getPropertyKeyName( propertyKeyId );
+            String propertyKey = propertyKeyGetName( property.propertyKeyId() );
             NodeImpl nodeImpl = nodeManager.getNodeForProxy( nodeId, LockType.WRITE );
             NodeProxy nodeProxy = nodeManager.newNodeProxyById( nodeId );
-            return nodeImpl.removeProperty( nodeManager, nodeProxy, propertyKey );
+            Object oldValue = nodeImpl.setProperty( nodeManager, nodeProxy, propertyKey, property.value() );
+            return Property.propertyFromNode( nodeId, property.propertyKeyId(), oldValue );
         }
         catch ( IllegalStateException e )
         {
-            throw new EntityNotFoundException( "Unable to load node " + nodeId + ".", e );
+            throw new EntityNotFoundException( EntityType.NODE, nodeId, e );
+        }
+        catch ( PropertyNotFoundException e )
+        {
+            throw new IllegalArgumentException( "Property used for setting should not be NoProperty", e );
         }
     }
 
     @Override
-    public Iterator<Long> exactIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException
+    public Property relationshipSetProperty( long relationshipId, Property property )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    {
+        try
+        {
+            // TODO: Move locking to LockingStatementContext et cetera, don't create a new node proxy for every call!
+            String propertyKey = propertyKeyGetName( property.propertyKeyId() );
+            RelationshipImpl relImpl = nodeManager.getRelationshipForProxy( relationshipId, LockType.WRITE );
+            RelationshipProxy relProxy = nodeManager.newRelationshipProxyById( relationshipId );
+            Object oldValue = relImpl.setProperty( nodeManager, relProxy, propertyKey, property.value() );
+            return Property.propertyFromRelationship( relationshipId, property.propertyKeyId(), oldValue );
+        }
+        catch ( IllegalStateException e )
+        {
+            throw new EntityNotFoundException( EntityType.RELATIONSHIP, relationshipId, e );
+        }
+        catch ( PropertyNotFoundException e )
+        {
+            throw new IllegalArgumentException( "Property used for setting should not be NoProperty", e );
+        }
+    }
+
+    @Override
+    public Property nodeRemoveProperty( long nodeId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    {
+        try
+        {
+            // TODO: Move locking to LockingStatementContext et cetera, don't create a new node proxy for every call!
+            String propertyKey = propertyKeyGetName( propertyKeyId );
+            NodeImpl nodeImpl = nodeManager.getNodeForProxy( nodeId, LockType.WRITE );
+            NodeProxy nodeProxy = nodeManager.newNodeProxyById( nodeId );
+            Object oldValue = nodeImpl.removeProperty( nodeManager, nodeProxy, propertyKey );
+            return Property.propertyFromNode( nodeId, propertyKeyId, oldValue );
+        }
+        catch ( IllegalStateException e )
+        {
+            throw new EntityNotFoundException( EntityType.NODE, nodeId, e );
+        }
+    }
+
+    @Override
+    public Property relationshipRemoveProperty( long relationshipId, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException, EntityNotFoundException
+    {
+        try
+        {
+            // TODO: Move locking to LockingStatementContext et cetera, don't create a new node proxy for every call!
+            String propertyKey = propertyKeyGetName( propertyKeyId );
+            Relationship relProxy = nodeManager.getRelationshipById( relationshipId );
+            Object oldValue = nodeManager.getRelationshipForProxy( relationshipId, LockType.WRITE ).removeProperty(
+                    nodeManager, relProxy, propertyKey );
+            return Property.propertyFromRelationship( relationshipId, propertyKeyId, oldValue );
+        }
+        catch ( IllegalStateException e )
+        {
+            throw new EntityNotFoundException( EntityType.RELATIONSHIP, relationshipId, e );
+        }
+    }
+
+    @Override
+    public Iterator<Long> nodesGetFromIndexLookup( IndexDescriptor index, Object value )
+            throws IndexNotFoundKernelException
     {
         return indexReaderFactory.newReader( indexId( index ) ).lookup( value );
     }
 
     @Override
-    public <K, V> V getOrCreateFromSchemaState( K key, Function<K, V> creator )
+    public <K, V> V schemaStateGetOrCreate( K key, Function<K, V> creator )
     {
         throw new UnsupportedOperationException( "Schema state is not handled by the stores" );
     }

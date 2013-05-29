@@ -38,13 +38,14 @@ import org.neo4j.graphdb.Traverser.Order;
 import org.neo4j.helpers.Function;
 import org.neo4j.helpers.ThisShouldNotHappenError;
 import org.neo4j.kernel.ThreadToStatementContextBridge;
-import org.neo4j.kernel.api.DataIntegrityKernelException;
-import org.neo4j.kernel.api.EntityNotFoundException;
-import org.neo4j.kernel.api.LabelNotFoundKernelException;
-import org.neo4j.kernel.api.PropertyKeyIdNotFoundException;
-import org.neo4j.kernel.api.PropertyKeyNotFoundException;
-import org.neo4j.kernel.api.PropertyNotFoundException;
 import org.neo4j.kernel.api.StatementContext;
+import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyKeyNotFoundException;
+import org.neo4j.kernel.api.exceptions.PropertyNotFoundException;
+import org.neo4j.kernel.api.exceptions.schema.SchemaKernelException;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.cleanup.CleanupService;
 import org.neo4j.kernel.impl.transaction.LockType;
 import org.neo4j.kernel.impl.traversal.OldTraverserWrapper;
@@ -97,7 +98,7 @@ public class NodeProxy implements Node
         StatementContext ctxForWriting = statementCtxProvider.getCtxForWriting();
         try
         {
-            ctxForWriting.deleteNode( getId() );
+            ctxForWriting.nodeDelete( getId() );
         }
         finally
         {
@@ -177,10 +178,12 @@ public class NodeProxy implements Node
     public void setProperty( String key, Object value )
     {
         StatementContext ctxForWriting = statementCtxProvider.getCtxForWriting();
+        boolean success = false;
         try
         {
-            long propertyId = ctxForWriting.getOrCreatePropertyKeyId( key );
-            ctxForWriting.nodeSetPropertyValue( nodeId, propertyId, value );
+            long propertyKeyId = ctxForWriting.propertyKeyGetOrCreateForName( key );
+            ctxForWriting.nodeSetProperty( nodeId, Property.property( propertyKeyId, value ) );
+            success = true;
         }
         catch ( PropertyKeyIdNotFoundException e )
         {
@@ -190,7 +193,7 @@ public class NodeProxy implements Node
         {
             throw new IllegalStateException( e );
         }
-        catch ( DataIntegrityKernelException e )
+        catch ( SchemaKernelException e )
         {
             // TODO: Maybe throw more context-specific error than just IllegalArgument
             throw new IllegalArgumentException( e );
@@ -198,6 +201,10 @@ public class NodeProxy implements Node
         finally
         {
             ctxForWriting.close();
+            if ( !success )
+            {
+                nodeLookup.getNodeManager().setRollbackOnly();
+            }
         }
     }
 
@@ -207,8 +214,8 @@ public class NodeProxy implements Node
         StatementContext ctxForWriting = statementCtxProvider.getCtxForWriting();
         try
         {
-            long propertyId = ctxForWriting.getOrCreatePropertyKeyId( key );
-            return ctxForWriting.nodeRemoveProperty( nodeId, propertyId );
+            long propertyId = ctxForWriting.propertyKeyGetOrCreateForName( key );
+            return ctxForWriting.nodeRemoveProperty( nodeId, propertyId ).value( null );
         }
         catch ( PropertyKeyIdNotFoundException e )
         {
@@ -218,7 +225,7 @@ public class NodeProxy implements Node
         {
             throw new IllegalStateException( e );
         }
-        catch ( DataIntegrityKernelException e )
+        catch ( SchemaKernelException e )
         {
             // TODO: Maybe throw more context-specific error than just IllegalArgument
             throw new IllegalArgumentException( e );
@@ -232,13 +239,65 @@ public class NodeProxy implements Node
     @Override
     public Object getProperty( String key, Object defaultValue )
     {
-        return nodeLookup.lookup( nodeId ).getProperty( nodeLookup.getNodeManager(), key, defaultValue );
+        // TODO: Push this check to getPropertyKeyId
+        // ^^^^^ actually, if the key is null, we could fail before getting the statement context...
+        if ( null == key )
+            throw new IllegalArgumentException( "(null) property key is not allowed" );
+
+        StatementContext ctxForReading = statementCtxProvider.getCtxForReading();
+        try
+        {
+            long propertyId = ctxForReading.propertyKeyGetForName( key );
+            return ctxForReading.nodeGetProperty( nodeId, propertyId ).value(defaultValue);
+        }
+        catch ( EntityNotFoundException e )
+        {
+            throw new IllegalStateException( e );
+        }
+        catch ( PropertyKeyIdNotFoundException e )
+        {
+            return defaultValue;
+        }
+        catch ( PropertyKeyNotFoundException e )
+        {
+            return defaultValue;
+        }
+        finally
+        {
+            ctxForReading.close();
+        }
     }
 
     @Override
     public Iterable<Object> getPropertyValues()
     {
-        return nodeLookup.lookup( nodeId ).getPropertyValues( nodeLookup.getNodeManager() );
+        final StatementContext context = statementCtxProvider.getCtxForReading();
+        try
+        {
+            return asSet( map( new Function<Property,Object>() {
+                @Override
+                public Object apply( Property prop )
+                {
+                    try
+                    {
+                        return prop.value();
+                    }
+                    catch ( PropertyNotFoundException e )
+                    {
+                        throw new ThisShouldNotHappenError( "Jake",
+                                "Property key retrieved through kernel API should exist." );
+                    }
+                }
+            }, context.nodeGetAllProperties( getId() )));
+        }
+        catch ( EntityNotFoundException e )
+        {
+            throw new NotFoundException( "Node not found", e );
+        }
+        finally
+        {
+            context.close();
+        }
     }
 
     @Override
@@ -253,7 +312,7 @@ public class NodeProxy implements Node
                 {
                     try
                     {
-                        return context.getPropertyKeyName( aLong );
+                        return context.propertyKeyGetName( aLong );
                     }
                     catch ( PropertyKeyIdNotFoundException e )
                     {
@@ -261,7 +320,11 @@ public class NodeProxy implements Node
                                 "Property key retrieved through kernel API should exist." );
                     }
                 }
-            }, context.listNodePropertyKeys( getId())));
+            }, context.nodeGetPropertyKeys( getId() )));
+        }
+        catch ( EntityNotFoundException e )
+        {
+            throw new NotFoundException( "Node not found", e );
         }
         finally
         {
@@ -273,14 +336,15 @@ public class NodeProxy implements Node
     public Object getProperty( String key ) throws NotFoundException
     {
         // TODO: Push this check to getPropertyKeyId
+        // ^^^^^ actually, if the key is null, we could fail before getting the statement context...
         if ( null == key )
             throw new IllegalArgumentException( "(null) property key is not allowed" );
 
         StatementContext ctxForReading = statementCtxProvider.getCtxForReading();
         try
         {
-            long propertyId = ctxForReading.getPropertyKeyId( key );
-            return ctxForReading.getNodePropertyValue( nodeId, propertyId );
+            long propertyId = ctxForReading.propertyKeyGetForName( key );
+            return ctxForReading.nodeGetProperty( nodeId, propertyId ).value();
         }
         catch ( EntityNotFoundException e )
         {
@@ -313,7 +377,7 @@ public class NodeProxy implements Node
         StatementContext ctxForReading = statementCtxProvider.getCtxForReading();
         try
         {
-            long propertyId = ctxForReading.getPropertyKeyId( key );
+            long propertyId = ctxForReading.propertyKeyGetForName( key );
             return ctxForReading.nodeHasProperty( nodeId, propertyId );
         }
         catch ( EntityNotFoundException e )
@@ -417,9 +481,9 @@ public class NodeProxy implements Node
         StatementContext ctx = statementCtxProvider.getCtxForWriting();
         try
         {
-            ctx.addLabelToNode( ctx.getOrCreateLabelId( label.name() ), getId() );
+            ctx.nodeAddLabel( getId(), ctx.labelGetOrCreateForName( label.name() ) );
         }
-        catch ( DataIntegrityKernelException e )
+        catch ( SchemaKernelException e )
         {
             throw new ConstraintViolationException( "Unable to add label.", e );
         }
@@ -437,17 +501,24 @@ public class NodeProxy implements Node
     public void removeLabel( Label label )
     {
         StatementContext ctx = statementCtxProvider.getCtxForWriting();
-        try
-        {
-            ctx.removeLabelFromNode( ctx.getLabelId( label.name() ), getId() );
-        }
-        catch ( LabelNotFoundKernelException e )
-        {
-            return;
-        }
-        catch ( EntityNotFoundException e )
-        {
-            throw new NotFoundException( "No node with id " + getId() + " found.", e );
+        try {
+            long labelId;
+            try
+            {
+                labelId = ctx.labelGetForName( label.name() );
+            }
+            catch ( LabelNotFoundKernelException e )
+            {
+                return;
+            }
+            try
+            {
+                ctx.nodeRemoveLabel( getId(), labelId );
+            }
+            catch ( EntityNotFoundException e )
+            {
+                throw new NotFoundException( "No node with id " + getId() + " found.", e );
+            }
         }
         finally
         {
@@ -461,7 +532,7 @@ public class NodeProxy implements Node
         StatementContext ctx = statementCtxProvider.getCtxForReading();
         try
         {
-            return ctx.isLabelSetOnNode( ctx.getLabelId( label.name() ), getId() );
+            return ctx.nodeHasLabel( getId(), ctx.labelGetForName( label.name() ) );
         }
         catch ( LabelNotFoundKernelException e )
         {
@@ -491,7 +562,7 @@ public class NodeProxy implements Node
 
                 try
                 {
-                    labels = ctx.getLabelsForNode( getId() );
+                    labels = ctx.nodeGetLabels( getId() );
                 }
                 catch ( EntityNotFoundException e )
                 {
@@ -506,7 +577,7 @@ public class NodeProxy implements Node
                     {
                         try
                         {
-                            return label( ctx.getLabelName( labelId ) );
+                            return label( ctx.labelGetName( labelId ) );
                         }
                         catch ( LabelNotFoundKernelException e )
                         {

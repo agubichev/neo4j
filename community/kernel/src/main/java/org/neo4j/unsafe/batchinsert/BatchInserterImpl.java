@@ -19,14 +19,6 @@
  */
 package org.neo4j.unsafe.batchinsert;
 
-import static java.lang.Boolean.parseBoolean;
-import static org.neo4j.graphdb.DynamicLabel.label;
-import static org.neo4j.helpers.collection.Iterables.map;
-import static org.neo4j.helpers.collection.IteratorUtil.asIterable;
-import static org.neo4j.helpers.collection.IteratorUtil.first;
-import static org.neo4j.kernel.api.index.SchemaIndexProvider.HIGHEST_PRIORITIZED_OR_NONE;
-import static org.neo4j.kernel.impl.nioneo.store.PropertyStore.encodeString;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,6 +54,7 @@ import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.InternalSchemaActions;
 import org.neo4j.kernel.PropertyUniqueConstraintDefinition;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
+import org.neo4j.kernel.api.exceptions.KernelException;
 import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexPopulator;
@@ -76,6 +69,7 @@ import org.neo4j.kernel.impl.api.SchemaCache;
 import org.neo4j.kernel.impl.api.index.IndexStoreView;
 import org.neo4j.kernel.impl.api.index.SchemaIndexProviderMap;
 import org.neo4j.kernel.impl.api.index.StoreScan;
+import org.neo4j.kernel.impl.core.Token;
 import org.neo4j.kernel.impl.index.IndexStore;
 import org.neo4j.kernel.impl.nioneo.store.DefaultWindowPoolFactory;
 import org.neo4j.kernel.impl.nioneo.store.DynamicRecord;
@@ -104,7 +98,6 @@ import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenStore;
 import org.neo4j.kernel.impl.nioneo.store.SchemaRule;
 import org.neo4j.kernel.impl.nioneo.store.SchemaStore;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
-import org.neo4j.kernel.impl.nioneo.store.Token;
 import org.neo4j.kernel.impl.nioneo.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.nioneo.store.UniquenessConstraintRule;
 import org.neo4j.kernel.impl.nioneo.xa.DefaultSchemaIndexProviderMap;
@@ -114,6 +107,14 @@ import org.neo4j.kernel.impl.util.FileUtils;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 
+import static java.lang.Boolean.parseBoolean;
+import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.helpers.collection.Iterables.map;
+import static org.neo4j.helpers.collection.IteratorUtil.asIterable;
+import static org.neo4j.helpers.collection.IteratorUtil.first;
+import static org.neo4j.kernel.api.index.SchemaIndexProvider.HIGHEST_PRIORITIZED_OR_NONE;
+import static org.neo4j.kernel.impl.nioneo.store.PropertyStore.encodeString;
+
 public class BatchInserterImpl implements BatchInserter
 {
     private static final long MAX_NODE_ID = IdType.NODE.getMaxValue();
@@ -122,9 +123,9 @@ public class BatchInserterImpl implements BatchInserter
     private final NeoStore neoStore;
     private final IndexStore indexStore;
     private final File storeDir;
-    private final PropertyKeyTokenHolder propertyKeyTokens;
-    private final RelationshipTypeTokenHolder relationshipTypeTokens;
-    private final LabelTokenHolder labelTokens;
+    private final BatchTokenHolder propertyKeyTokens;
+    private final BatchTokenHolder relationshipTypeTokens;
+    private final BatchTokenHolder labelTokens;
     private final IdGeneratorFactory idGeneratorFactory;
     private final SchemaIndexProviderMap schemaIndexProviders;
     // TODO use Logging instead
@@ -139,7 +140,7 @@ public class BatchInserterImpl implements BatchInserter
         @Override
         public Label apply( Long from )
         {
-            return label( labelTokens.nameOf( from ) );
+            return label( labelTokens.nameOf( from.intValue() ) );
         }
     };
 
@@ -179,11 +180,11 @@ public class BatchInserterImpl implements BatchInserter
             throw new IllegalStateException( storeDir + " store is not cleanly shutdown." );
         }
         neoStore.makeStoreOk();
-        Token[] indexes = getPropertyKeyTokenStore().getNames( 10000 );
-        propertyKeyTokens = new PropertyKeyTokenHolder( indexes );
-        labelTokens = new LabelTokenHolder( neoStore.getLabelTokenStore().getNames( Integer.MAX_VALUE ) );
-        Token[] types = getRelationshipTypeStore().getNames( Integer.MAX_VALUE );
-        relationshipTypeTokens = new RelationshipTypeTokenHolder( types );
+        Token[] indexes = getPropertyKeyTokenStore().getTokens( 10000 );
+        propertyKeyTokens = new BatchTokenHolder( indexes );
+        labelTokens = new BatchTokenHolder( neoStore.getLabelTokenStore().getTokens( Integer.MAX_VALUE ) );
+        Token[] types = getRelationshipTypeStore().getTokens( Integer.MAX_VALUE );
+        relationshipTypeTokens = new BatchTokenHolder( types );
         indexStore = life.add( new IndexStore( this.storeDir, fileSystem ) );
         schemaCache = new SchemaCache( neoStore.getSchemaStore() );
 
@@ -1101,10 +1102,7 @@ public class BatchInserterImpl implements BatchInserter
         Collection<DynamicRecord> keyRecords =
                 idxStore.allocateNameRecords( encodeString( stringKey ) );
         record.setNameId( (int) first( keyRecords ).getId() );
-        for ( DynamicRecord keyRecord : keyRecords )
-        {
-            record.addNameRecord( keyRecord );
-        }
+        record.addNameRecords( keyRecords );
         idxStore.updateRecord( record );
         propertyKeyTokens.addToken( stringKey, keyId );
         return keyId;
@@ -1120,10 +1118,7 @@ public class BatchInserterImpl implements BatchInserter
         Collection<DynamicRecord> keyRecords =
                 labelTokenStore.allocateNameRecords( encodeString( stringKey ) );
         record.setNameId( (int) first( keyRecords ).getId() );
-        for ( DynamicRecord keyRecord : keyRecords )
-        {
-            record.addNameRecord( keyRecord );
-        }
+        record.addNameRecords( keyRecords );
         labelTokenStore.updateRecord( record );
         labelTokens.addToken( stringKey, keyId );
         return keyId;
@@ -1138,10 +1133,7 @@ public class BatchInserterImpl implements BatchInserter
         record.setCreated();
         Collection<DynamicRecord> nameRecords = typeStore.allocateNameRecords( encodeString( name ) );
         record.setNameId( (int) first( nameRecords ).getId() );
-        for ( DynamicRecord typeRecord : nameRecords )
-        {
-            record.addNameRecord( typeRecord );
-        }
+        record.addNameRecords( nameRecords );
         typeStore.updateRecord( record );
         relationshipTypeTokens.addToken( name, id );
         return id;
@@ -1266,7 +1258,7 @@ public class BatchInserterImpl implements BatchInserter
         @Override
         public void dropIndexDefinitions( Label label, String propertyKey )
         {
-            throw new UnsupportedOperationException( "Dropping schema indexes is not supported in batch mode" );
+            throw unsupportedException();
         }
 
         @Override
@@ -1281,7 +1273,18 @@ public class BatchInserterImpl implements BatchInserter
         @Override
         public void dropPropertyUniquenessConstraint( Label label, String propertyKey )
         {
-            throw new UnsupportedOperationException( "Batch inserter doesn't support this" );
+            throw unsupportedException();
+        }
+
+        @Override
+        public String getUserMessage( KernelException e )
+        {
+            throw unsupportedException();
+        }
+
+        private UnsupportedOperationException unsupportedException()
+        {
+            return new UnsupportedOperationException( "Batch inserter doesn't support this" );
         }
     }
 
