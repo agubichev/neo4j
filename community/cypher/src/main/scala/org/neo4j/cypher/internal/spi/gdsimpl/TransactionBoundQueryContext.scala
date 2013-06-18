@@ -231,7 +231,7 @@ class TransactionBoundQueryContext(graph: GraphDatabaseAPI, tx: Transaction, ctx
 
   abstract class BaseOperations[T <: PropertyContainer] extends Operations[T] {
     def propertyKeys(obj: T) = obj.getPropertyKeys.asScala
-    
+
     def primitiveLongIteratorToScalaIterator( primitiveIterator: PrimitiveLongIterator ): Iterator[Long] = {
       new Iterator[Long]
       {
