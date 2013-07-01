@@ -38,6 +38,21 @@
     <pluginManagement>
       <plugins>
         <plugin>
+          <groupId>com.googlecode.maven-java-formatter-plugin</groupId>
+          <artifactId>maven-java-formatter-plugin</artifactId>
+          <version>0.4.0.e371sr1</version>
+          <configuration>
+            <configFile>eclipse-codestyle.xml</configFile>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>format</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
           <version>2.1.4</version>
@@ -427,5 +442,13 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>maven-java-formatter-plugin</id>
+      <name>Maven2 Java Formatter Plugin repository</name>
+      <url>https://raw.github.com/benalexau/maven-java-formatter-plugin/master/releases/</url>
+    </pluginRepository>
+  </pluginRepositories>
 
 </project>
