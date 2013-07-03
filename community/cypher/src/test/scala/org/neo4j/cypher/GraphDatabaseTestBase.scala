@@ -44,6 +44,12 @@ class GraphDatabaseTestBase extends GraphIcing with Assertions {
     refNode = graph.getReferenceNode
   }
 
+  def assertInTx(f: => Unit) {
+    graph.inTx {
+      f
+    }
+  }
+
   @After
   def cleanUp() {
     if (graph != null) graph.shutdown()
