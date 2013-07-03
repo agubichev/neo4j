@@ -181,7 +181,7 @@ class GraphDatabaseTestBase extends GraphIcing with Assertions {
   def readOnlyStatementContext:StatementContext=
     graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).getCtxForReading
 
-  def planContext:PlanContext= new TransactionBoundPlanContext(readOnlyStatementContext, graph)
+  def planContext:PlanContext= new TransactionBoundPlanContext(statementContext, graph)
 }
 
 trait Snitch extends GraphDatabaseAPI {
