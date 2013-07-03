@@ -44,9 +44,9 @@ class GraphDatabaseTestBase extends GraphIcing with Assertions {
     refNode = graph.getReferenceNode
   }
 
-  def assertInTx(f: => Unit) {
+  def assertInTx(f: => Option[String]) {
     graph.inTx {
-      f
+      assert(f)
     }
   }
 
@@ -142,7 +142,9 @@ class GraphDatabaseTestBase extends GraphIcing with Assertions {
     }
   }
 
-  def node(name: String): Node = nodes.find(_.getProperty("name") == name).get
+  def node(name: String): Node = graph.inTx {
+    nodes.find(_.getProperty("name") == name).get
+  }
 
   def relType(name: String): RelationshipType = graph.getRelationshipTypes.asScala.find(_.name() == name).get
 
