@@ -33,6 +33,8 @@ abstract sealed class AbstractPattern extends AstNode[AbstractPattern] {
 
   def parsedEntities: Seq[ParsedEntity]
 
+  def name: String
+
   def parsedLabelPredicates: Seq[Predicate] =
     parsedEntities.flatMap {
       (entity: ParsedEntity) =>
@@ -54,6 +56,7 @@ object PatternWithEnds {
 
 abstract class PatternWithPathName(val pathName: String) extends AbstractPattern {
   def rename(newName: String): PatternWithPathName
+  def start: AbstractPattern
 }
 
 
@@ -180,4 +183,6 @@ case class ParsedNamedPath(name: String, pieces: Seq[AbstractPattern]) extends P
   def children: Seq[AstNode[_]] = pieces
 
   def rewrite(f: (Expression) => Expression): AbstractPattern = copy(pieces = pieces.map(_.rewrite(f)))
+
+  def start: AbstractPattern = pieces.head
 }

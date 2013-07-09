@@ -21,10 +21,11 @@ package org.neo4j.cypher.internal.parser.v1_9
 
 import org.neo4j.cypher.internal.commands._
 import expressions._
-import expressions.Literal
-import expressions.ParameterExpression
 import org.neo4j.graphdb.Direction
 import org.neo4j.helpers.ThisShouldNotHappenError
+import org.neo4j.cypher.internal.parser._
+import org.neo4j.cypher.internal.parser.ParsedEntity
+import org.neo4j.cypher.internal.commands.expressions.ParameterExpression
 import org.neo4j.cypher.internal.commands.AllNodes
 import org.neo4j.cypher.internal.commands.NodeByIndex
 import org.neo4j.cypher.internal.mutation.CreateNode
@@ -36,8 +37,10 @@ import org.neo4j.cypher.internal.commands.NamedPath
 import org.neo4j.cypher.internal.commands.CreateRelationshipStartItem
 import org.neo4j.cypher.internal.mutation.RelationshipEndpoint
 import org.neo4j.cypher.internal.commands.CreateNodeStartItem
+import org.neo4j.cypher.internal.commands.expressions.Literal
 import org.neo4j.cypher.internal.commands.RelationshipByIndex
-import org.neo4j.cypher.internal.parser.{ParsedNamedPath, ParsedRelation, ParsedEntity, AbstractPattern}
+import org.neo4j.cypher.internal.parser.ParsedNamedPath
+import org.neo4j.cypher.internal.parser.ParsedRelation
 
 
 trait StartClause extends Base with Expressions with CreateUnique {

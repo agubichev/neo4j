@@ -24,9 +24,10 @@ import org.neo4j.graphdb.{Path, PropertyContainer}
 import org.neo4j.cypher.PathImpl
 import scala.collection.JavaConverters._
 import collection.Map
+import org.neo4j.cypher.internal.parser.{PatternWithPathName, ParsedRelation, ParsedEntity, AbstractPattern}
 
-case class NamedPath(pathName: String, pathPattern: Pattern*) extends Traversable[Pattern] with PathExtractor {
-  def foreach[U](f: (Pattern) => U) {
+case class NamedPath(pathName: String, pathPattern: AbstractPattern*) extends Traversable[AbstractPattern] with PathExtractor {
+  def foreach[U](f: (AbstractPattern) => U) {
     pathPattern.foreach(f)
   }
 
@@ -36,26 +37,25 @@ case class NamedPath(pathName: String, pathPattern: Pattern*) extends Traversabl
 }
 
 trait PathExtractor {
-  def pathPattern:Seq[Pattern]
+  def pathPattern:Seq[AbstractPattern]
   def getPath(ctx: Map[String, Any]): Path = {
     def get(x: String): PropertyContainer = ctx(x).asInstanceOf[PropertyContainer]
 
     val firstNode: String = getFirstNode
 
     val p: Seq[PropertyContainer] = pathPattern.foldLeft(get(firstNode) :: Nil)((soFar, p) => p match {
-      case SingleNode(name)                      => get(name) :: Nil
-      case RelatedTo(_, right, relName, _, _, _) => soFar :+ get(relName) :+ get(right)
-      case path: PathPattern                     => getPath(ctx, path.pathName, soFar)
+      case entity: ParsedEntity                          => get(entity.name) :: Nil
+      case ParsedRelation(relName, _, _, right, _, _, _) => soFar :+ get(relName) :+ get(right.name)
+      case path: PatternWithPathName                     => getPath(ctx, path.pathName, soFar)
     })
 
     buildPath(p)
   }
 
-  private def getFirstNode[U]: String =
-    pathPattern.head match {
-      case RelatedTo(left, _, _, _, _, _) => left
-      case SingleNode(name)               => name
-      case path: PathPattern              => path.start
+  private def getFirstNode[U]: String = pathPattern.head match {
+      case entity: ParsedEntity                    => entity.name
+      case ParsedRelation(_, _, start, _, _, _, _) => start.name
+      case path: PatternWithPathName               => path.start.name
     }
 
   private def buildPath(pieces: Seq[PropertyContainer]): Path =
@@ -69,7 +69,7 @@ trait PathExtractor {
     val m1 = m(key)
 
     if (m1 == null)
-      return null::Nil
+      return Nil
 
     val path = m1.asInstanceOf[Path].iterator().asScala.toList
     val pathTail = if (path.head == soFar.last) {

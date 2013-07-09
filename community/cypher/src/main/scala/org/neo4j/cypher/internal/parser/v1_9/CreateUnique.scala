@@ -22,11 +22,16 @@ package org.neo4j.cypher.internal.parser.v1_9
 import org.neo4j.cypher.internal.commands._
 import expressions.Expression
 import org.neo4j.cypher.internal.mutation.UniqueLink
-import org.neo4j.cypher.internal.commands.NamedPath
-import org.neo4j.cypher.internal.mutation.CreateUniqueAction
 import org.neo4j.cypher.internal.mutation.NamedExpectation
 import collection.Map
-import org.neo4j.cypher.internal.parser.{ParsedRelation, ParsedNamedPath, AbstractPattern, ParsedEntity}
+import org.neo4j.cypher.internal.parser._
+import org.neo4j.cypher.internal.commands.NamedPath
+import org.neo4j.cypher.internal.parser.ParsedEntity
+import org.neo4j.cypher.internal.mutation.CreateUniqueAction
+import org.neo4j.cypher.internal.commands.CreateUniqueStartItem
+import scala.Some
+import org.neo4j.cypher.internal.parser.ParsedNamedPath
+import org.neo4j.cypher.internal.parser.ParsedRelation
 
 trait CreateUnique extends Base with ParserPattern {
   case class PathAndRelateLink(path:Option[NamedPath], links:Seq[UniqueLink])

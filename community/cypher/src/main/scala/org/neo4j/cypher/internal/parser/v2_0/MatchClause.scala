@@ -33,6 +33,7 @@ import org.neo4j.cypher.internal.parser.ParsedRelation
 import org.neo4j.cypher.internal.commands.ShortestPath
 import org.neo4j.cypher.internal.commands.True
 import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.SyntaxException
 
 trait MatchClause extends Base with ParserPattern {
   def matching: Parser[(Seq[Pattern], Seq[NamedPath], Predicate)] = MATCH ~> usePattern(labelTranslator) ^^ {
@@ -40,9 +41,21 @@ trait MatchClause extends Base with ParserPattern {
       val matches = results.map(_._1)
       val predicates = results.map(_._2)
       val namedPaths = sift[NamedPath](matches)
-      val patterns = sift[List[Pattern]](matches).flatten ++ sift[Pattern](matches) ++ namedPaths.flatMap(_.pathPattern)
 
-      (patterns.distinct, namedPaths, True().andWith(predicates:_*))
+      val (pathPatterns, pathPredicates) = {
+        val pathAbstractPatterns: Seq[AbstractPattern] = namedPaths.flatMap(_.pathPattern)
+        val maybeResult: Maybe[(Any, Predicate)] = pathAbstractPatterns.map(labelTranslator).reduce(_ ++ _)
+        val result: Seq[(Any, Predicate)] = maybeResult.getValuesOr(throw new SyntaxException("wut wut wut!"))
+        val namedPathMatches = result.map(_._1)
+        val namedPathPatterns = sift[List[Pattern]](namedPathMatches).flatten ++ sift[Pattern](namedPathMatches)
+        val predicates: Seq[Predicate] = result.map(_._2)
+
+        (namedPathPatterns, predicates)
+      }
+
+      val patterns = sift[List[Pattern]](matches).flatten ++ sift[Pattern](matches) ++ pathPatterns
+
+      (patterns.distinct, namedPaths, True().andWith(predicates: _*).andWith(pathPredicates: _*)  )
   }
 
   type TransformType = (ParsedEntity, ParsedEntity, Map[String, Expression], (String, String) => Pattern) => Maybe[Pattern]
@@ -125,6 +138,6 @@ trait MatchClause extends Base with ParserPattern {
   private def parsedPath(name: String, patterns: Seq[AbstractPattern], transform: TransformType): Maybe[NamedPath] = {
     val namedPathPatterns = patterns.map(matchTranslator(transform, _))
     val result = namedPathPatterns.reduce(_ ++ _)
-    result.seqMap(p => Seq(NamedPath(name, p.map(_.asInstanceOf[Pattern]): _*)))
+    result.seqMap(p => Seq(NamedPath(name, patterns: _*)))
   }
 }
