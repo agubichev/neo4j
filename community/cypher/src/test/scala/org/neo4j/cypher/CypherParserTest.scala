@@ -2800,6 +2800,23 @@ class CypherParserTest extends JUnitSuite with Assertions {
         ReturnItem(Property(Identifier("Unusual identifier"), PropertyKey("propertyName")), "`Unusual identifier`.propertyName")))
   }
 
+  @Test def foreach_on_path_with_multiple_updates() {
+    val secondQ = Query.
+      updates(ForeachAction(Collection(Literal(1), Literal(2), Literal(3)), "n", Seq(
+      CreateRelationship("r", RelationshipEndpoint("x"), RelationshipEndpoint("z"), "HAS", Map.empty),
+      PropertySetAction(Property(Identifier("r"), PropertyKey("touched")), True())
+    ))).
+      returns()
+
+    val q = Query.
+      matches(SingleNode("n")).
+      tail(secondQ).
+      returns(AllIdentifiers())
+
+    test(vExperimental, "match n foreach(n in [1,2,3] | create (x)-[r:HAS]->(z) create (x)-[r:HAS]->(z2) ) ", q)
+  }
+
+
   private def run(f: () => Unit) =
     new Runnable() {
       var error: Option[Throwable] = None
