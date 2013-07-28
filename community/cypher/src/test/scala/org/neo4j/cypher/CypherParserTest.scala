@@ -119,14 +119,6 @@ class CypherParserTest extends JUnitSuite with Assertions {
         returns(ReturnItem(Identifier("a"), "a")))
   }
 
-  @Test def escapedNamesShouldNotContainEscapeChars() {
-    test(
-      """start `a a` = rel:`index a`(`key s` = "value") return `a a`""",
-      Query.
-        start(RelationshipByIndex("a a", "index a", Literal("key s"), Literal("value"))).
-        returns(ReturnItem(Identifier("a a"), "a a")))
-  }
-
   @Test def keywordsShouldBeCaseInsensitive() {
     test(
       "START s = NODE(1) RETURN s",
@@ -2765,6 +2757,14 @@ class CypherParserTest extends JUnitSuite with Assertions {
         returns(ReturnItem(Identifier("p"), "p")))
   }
 
+
+  @Test def escaped_identifier() {
+    test(vFrom2_0, "match `Unusual identifier` return `Unusual identifier`.propertyName",
+      Query.
+        matches(SingleNode("Unusual identifier")).
+        returns(
+        ReturnItem(Property(Identifier("Unusual identifier"), PropertyKey("propertyName")), "`Unusual identifier`.propertyName")))
+  }
 
   private def run(f: () => Unit) =
     new Runnable() {
