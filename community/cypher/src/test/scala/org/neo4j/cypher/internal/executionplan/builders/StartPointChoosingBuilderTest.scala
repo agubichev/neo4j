@@ -27,7 +27,6 @@ import org.neo4j.cypher.internal.commands.expressions._
 import org.neo4j.cypher.internal.commands.values.{KeyToken, TokenType}
 import org.neo4j.cypher.internal.executionplan.PartiallySolvedQuery
 import org.neo4j.cypher.internal.mutation.UpdateAction
-import org.neo4j.cypher.internal.parser.v2_0.DefaultFalse
 import org.neo4j.cypher.internal.pipes.FakePipe
 import org.neo4j.cypher.internal.spi.PlanContext
 import org.neo4j.cypher.internal.symbols.NodeType
@@ -216,7 +215,7 @@ class StartPointChoosingBuilderTest extends BuilderTest with MockitoSugar {
     // Given
     val query = q(where = Seq(
       HasLabel(Identifier(identifier), KeyToken.Unresolved(label, TokenType.Label)),
-      Equals(new Nullable(Property(Identifier(identifier), propertyKey)) with DefaultFalse, expression)
+      Equals(new Nullable(Property(Identifier(identifier), propertyKey)) , expression)
     ), patterns = Seq(
       SingleNode(identifier)
     ))
@@ -236,7 +235,7 @@ class StartPointChoosingBuilderTest extends BuilderTest with MockitoSugar {
     // Given
     val query = q(where = Seq(
       HasLabel(Identifier(identifier), KeyToken.Unresolved(label, TokenType.Label)),
-      Equals(expression, new Nullable(Property(Identifier(identifier), propertyKey)) with DefaultFalse)
+      Equals(expression, new Nullable(Property(Identifier(identifier), propertyKey)) )
     ), patterns = Seq(
       SingleNode(identifier)
     ))
@@ -256,7 +255,7 @@ class StartPointChoosingBuilderTest extends BuilderTest with MockitoSugar {
     // Given
     val query = q(where = Seq(
       HasLabel(Identifier(identifier), KeyToken.Unresolved(label, TokenType.Label)),
-      Equals(new Nullable(Property(Identifier(identifier), propertyKey)) with DefaultFalse, expression)
+      Equals(new Nullable(Property(Identifier(identifier), propertyKey)) , expression)
     ), patterns = Seq(
       SingleNode(identifier)
     ))

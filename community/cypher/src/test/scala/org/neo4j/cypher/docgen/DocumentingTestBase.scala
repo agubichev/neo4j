@@ -37,7 +37,6 @@ import org.neo4j.kernel.{GraphDatabaseAPI, AbstractGraphDatabase}
 import org.neo4j.cypher.internal.helpers.GraphIcing
 import org.neo4j.cypher.export.{SubGraphExporter, DatabaseSubGraph}
 import org.neo4j.helpers.Settings
-import org.neo4j.cypher.internal.parser.prettifier.Prettifier
 
 trait DocumentationHelper extends GraphIcing {
   def generateConsole:Boolean
@@ -273,7 +272,8 @@ abstract class DocumentingTestBase extends Assertions with DocumentationHelper w
   }
 
   private def createCypherSnippet(query: String) = {
-    val prettifiedQuery = Prettifier(query)
+    val prettifiedQuery = query //TODO: Move to new parser Prettifier(query)
+
     val result = AsciidocHelper.createAsciiDocSnippet("cypher", prettifiedQuery)
     result
   }

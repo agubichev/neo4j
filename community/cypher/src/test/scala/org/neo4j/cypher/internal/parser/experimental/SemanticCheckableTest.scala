@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.parser.experimental
+package org.neo4j.cypher.internal.parser.v2_0
 
 import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.Assertions
-import org.neo4j.cypher.internal.parser.experimental.ast.Identifier
+import org.neo4j.cypher.internal.parser.v2_0.ast.Identifier
 import org.neo4j.cypher.internal.symbols.NodeType
 
 class SemanticCheckableTest extends Assertions with SemanticChecking {

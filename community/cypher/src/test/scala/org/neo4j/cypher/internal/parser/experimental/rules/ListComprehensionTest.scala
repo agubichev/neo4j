@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.parser.experimental.rules
+package org.neo4j.cypher.internal.parser.v2_0.rules
 
 import org.junit.Test
 import org.parboiled.scala._
 import org.neo4j.cypher.internal.parser.ParserExperimentalTest
-import org.neo4j.cypher.internal.parser.experimental.ast
+import org.neo4j.cypher.internal.parser.v2_0.ast
 import org.neo4j.cypher.internal.commands
 import org.neo4j.cypher.internal.commands.{expressions => legacy}
 import org.neo4j.cypher.internal.commands.values.TokenType.PropertyKey

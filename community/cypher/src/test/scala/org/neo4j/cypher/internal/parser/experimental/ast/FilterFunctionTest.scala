@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.parser.experimental.ast
+package org.neo4j.cypher.internal.parser.v2_0.ast
 
 import org.neo4j.cypher.internal.symbols._
 import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.Assertions
-import org.neo4j.cypher.internal.parser.experimental._
+import org.neo4j.cypher.internal.parser.v2_0._
 
 class FilterFunctionTest extends Assertions {
 
