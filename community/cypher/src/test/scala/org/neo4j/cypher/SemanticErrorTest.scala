@@ -109,6 +109,12 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
     )
   }
 
+  @Test def shouldFailTypeCheckWhenDeleting() {
+    test("start a=node(0) delete 1 + 1",
+      "Type mismatch: expected Node, Relationship or Collection<Map> but was Long (line 1, column 26)"
+    )
+  }
+
   private def test(query: String, message: String) {
     val errorMessage = s"Did not get the expected syntax error, expected: ${message}"
 

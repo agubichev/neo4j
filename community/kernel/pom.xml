@@ -46,6 +46,7 @@
     <license-text.header>GPL-3-header.txt</license-text.header>
     <docs.url>http://docs.neo4j.org/chunked/${project.version}/</docs.url>
     <licensing.prepend.text>notice-gpl-prefix.txt</licensing.prepend.text>
+    <git.directory>${project.build.directory}../../.git</git.directory>
   </properties>
 
   <packaging>jar</packaging>
@@ -75,6 +76,15 @@ the relevant Commercial Agreement.
   </licenses>
 
   <profiles>
+    <profile>
+      <id>neo4j-root</id>
+      <activation>
+        <property><name>neo4j-root</name></property>
+      </activation>
+      <properties>
+        <git.directory>${project.basedir}/../../../.git/modules/neo4j-public</git.directory>
+      </properties>
+    </profile>
     <profile>
       <id>git-windows</id>
       <activation>
@@ -159,7 +169,7 @@ the relevant Commercial Agreement.
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
         <configuration>
-          <dotGitDirectory>${project.build.directory}../../.git</dotGitDirectory>
+          <dotGitDirectory>${git.directory}</dotGitDirectory>
         </configuration>
       </plugin>
       <plugin>
@@ -238,8 +248,8 @@ public class ComponentVersion extends Version
             <groupId>org.apache.ant</groupId>
             <artifactId>ant-launcher</artifactId>
             <version>1.8.4</version>
-        </dependency>
-      </dependencies>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -267,15 +277,17 @@ public class ComponentVersion extends Version
                   <additionnalDependency>
                     <groupId>ch.qos.logback</groupId>
                     <artifactId>logback-classic</artifactId>
+                    <version>${logback-classic.version}</version>
                   </additionnalDependency>
                   <additionnalDependency>
                     <groupId>ch.qos.logback</groupId>
                     <artifactId>logback-core</artifactId>
+                    <version>${logback-classic.version}</version>
                   </additionnalDependency>
                   <additionnalDependency>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
-                    <version>1.6.4</version>
+                    <version>${slf4j-api.version}</version>
                   </additionnalDependency>
                 </additionnalDependencies>
                 <detectJavaApiLink>true</detectJavaApiLink>
@@ -320,15 +332,17 @@ public class ComponentVersion extends Version
             <additionnalDependency>
               <groupId>ch.qos.logback</groupId>
               <artifactId>logback-classic</artifactId>
+              <version>${logback-classic.version}</version>
             </additionnalDependency>
             <additionnalDependency>
               <groupId>ch.qos.logback</groupId>
               <artifactId>logback-core</artifactId>
+              <version>${logback-classic.version}</version>
             </additionnalDependency>
             <additionnalDependency>
               <groupId>org.slf4j</groupId>
               <artifactId>slf4j-api</artifactId>
-              <version>1.6.4</version>
+              <version>${slf4j-api.version}</version>
             </additionnalDependency>
           </additionnalDependencies>
           <groups>
@@ -350,7 +364,6 @@ public class ComponentVersion extends Version
       <plugin>
         <groupId>org.neo4j.build.plugins</groupId>
         <artifactId>clirr-maven-plugin</artifactId>
-        <version>1.0</version>
         <executions>
           <execution>
             <id>default</id>
@@ -423,7 +436,6 @@ public class ComponentVersion extends Version
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-      <version>2.2.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -444,13 +456,11 @@ public class ComponentVersion extends Version
     <dependency>
       <groupId>org.ow2.jotm</groupId>
       <artifactId>jotm-core</artifactId>
-      <version>2.2.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>geronimo-spec</groupId>
       <artifactId>geronimo-spec-j2ee</artifactId>
-      <version>1.4-rc4</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -460,7 +470,6 @@ public class ComponentVersion extends Version
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>clirr-maven-plugin</artifactId>
-        <version>2.4</version>
         <configuration>
           <includes>
             <include>org/neo4j/graphdb/**</include>
@@ -474,17 +483,17 @@ public class ComponentVersion extends Version
             <additionnalDependency>
               <groupId>ch.qos.logback</groupId>
               <artifactId>logback-classic</artifactId>
-              <version>1.0.0</version>
+              <version>${logback-classic.version}</version>
             </additionnalDependency>
             <additionnalDependency>
               <groupId>ch.qos.logback</groupId>
               <artifactId>logback-core</artifactId>
-              <version>1.0.0</version>
+              <version>${logback-classic.version}</version>
             </additionnalDependency>
             <additionnalDependency>
               <groupId>org.slf4j</groupId>
               <artifactId>slf4j-api</artifactId>
-              <version>1.6.4</version>
+              <version>${slf4j-api.version}</version>
             </additionnalDependency>
           </additionnalDependencies>
           <detectJavaApiLink>true</detectJavaApiLink>

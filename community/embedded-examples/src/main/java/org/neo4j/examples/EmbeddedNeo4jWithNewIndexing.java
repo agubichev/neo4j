@@ -18,6 +18,7 @@
  */
 package org.neo4j.examples;
 
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.DynamicLabel;
@@ -32,7 +33,7 @@ import org.neo4j.graphdb.schema.Schema;
 
 public class EmbeddedNeo4jWithNewIndexing
 {
-    private static final String DB_PATH = "target/neo4j-store";
+    private static final String DB_PATH = "target/neo4j-store-with-new-indexing";
 
     public static void main( final String[] args )
     {
@@ -107,18 +108,47 @@ public class EmbeddedNeo4jWithNewIndexing
             {
                 ResourceIterator<Node> users = graphDb.findNodesByLabelAndProperty( label, "username", nameToFind )
                         .iterator();
+                ArrayList<Node> userNodes = new ArrayList<>();
                 while ( users.hasNext() )
                 {
-                    Node node = users.next();
+                    userNodes.add( users.next() );
+                }
+
+                for ( Node node : userNodes )
+                {
                     System.out.println( "The username of user " + idToFind + " is " + node.getProperty( "username" ) );
                 }
             }
             finally
             {
-                // alternatively use a transaction
                 transaction.finish();
             }
             // END SNIPPET: findUsers
+        }
+
+        {
+            // START SNIPPET: resourceIterator
+            Label label = DynamicLabel.label( "User" );
+            int idToFind = 45;
+            String nameToFind = "user" + idToFind + "@neo4j.org";
+            Transaction transaction = graphDb.beginTx();
+            try
+            {
+                ResourceIterator<Node> users = graphDb
+                        .findNodesByLabelAndProperty( label, "username", nameToFind )
+                        .iterator();
+                Node firstUserNode;
+                if ( users.hasNext() )
+                {
+                    firstUserNode = users.next();
+                }
+                users.close();
+            }
+            finally
+            {
+                transaction.finish();
+            }
+            // END SNIPPET: resourceIterator
         }
 
         {
@@ -192,4 +222,5 @@ public class EmbeddedNeo4jWithNewIndexing
         graphDb.shutdown();
         // END SNIPPET: shutdownDb
     }
+
 }

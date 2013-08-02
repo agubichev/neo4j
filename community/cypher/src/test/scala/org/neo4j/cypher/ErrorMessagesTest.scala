@@ -309,6 +309,6 @@ class ErrorMessagesTest extends ExecutionEngineHelper with Assertions with Strin
   private def expectSyntaxError(query: String, expectedError:String, expectedOffset:Int) {
     val error = intercept[SyntaxException](executeQuery(query))
     assertThat(error.getMessage(), containsString(expectedError))
-    assertThat(error.offset, equalTo(Some(expectedOffset): Option[Int]))
+    assertThat(error.offset, equalTo(Some(expectedOffset) : Option[Int]))
   }
 }
