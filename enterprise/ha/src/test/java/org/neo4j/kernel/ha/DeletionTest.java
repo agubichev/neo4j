@@ -79,6 +79,7 @@ public class DeletionTest
         clusterManager.start();
         ClusterManager.ManagedCluster cluster = clusterManager.getDefaultCluster();
 
+        cluster.await( ClusterManager.allSeesAllAsAvailable() );
         HighlyAvailableGraphDatabase master = cluster.getMaster();
         HighlyAvailableGraphDatabase slave = cluster.getAnySlave();
 
@@ -95,7 +96,15 @@ public class DeletionTest
             tx.finish();
         }
 
-        assertNotNull( master.getRelationshipById( rel.getId() ) );
+        Transaction transaction = master.beginTx();
+        try
+        {
+            assertNotNull( master.getRelationshipById( rel.getId() ) );
+        }
+        finally
+        {
+            transaction.finish();
+        }
 
         // when
         tx = slave.beginTx();

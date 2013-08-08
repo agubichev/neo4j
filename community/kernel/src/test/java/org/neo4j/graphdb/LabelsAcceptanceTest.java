@@ -20,15 +20,13 @@
 package org.neo4j.graphdb;
 
 import java.io.File;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.Rule;
 import org.junit.Test;
-
 import org.neo4j.helpers.Function;
-import org.neo4j.helpers.collection.IterableWrapper;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
@@ -39,11 +37,16 @@ import org.neo4j.test.ImpermanentGraphDatabase;
 import org.neo4j.test.impl.EphemeralIdGenerator;
 import org.neo4j.tooling.GlobalGraphOperations;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.*;
 import static org.neo4j.graphdb.DynamicLabel.label;
+import static org.neo4j.graphdb.Neo4jMatchers.hasLabel;
+import static org.neo4j.graphdb.Neo4jMatchers.hasLabels;
+import static org.neo4j.graphdb.Neo4jMatchers.hasNoLabels;
+import static org.neo4j.graphdb.Neo4jMatchers.hasNoNodes;
+import static org.neo4j.graphdb.Neo4jMatchers.hasNodes;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
 import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.helpers.collection.Iterables.toList;
 import static org.neo4j.helpers.collection.IteratorUtil.asEnumNameSet;
@@ -82,7 +85,7 @@ public class LabelsAcceptanceTest
         }
 
         // Then
-        assertTrue( "Label should have been added to node", myNode.hasLabel( Labels.MY_LABEL ) );
+        assertThat( "Label should have been added to node", myNode, inTx( beansAPI, hasLabel( Labels.MY_LABEL ) ) );
     }
 
     @Test
@@ -95,10 +98,10 @@ public class LabelsAcceptanceTest
         Transaction tx = beansAPI.beginTx();
         try
         {
-            beansAPI.createNode().addLabel( label( "" ));
+            beansAPI.createNode().addLabel( label( "" ) );
             fail( "Should have thrown exception" );
         }
-        catch( ConstraintViolationException ex )
+        catch ( ConstraintViolationException ex )
         {   // Happy
         }
         finally
@@ -110,10 +113,10 @@ public class LabelsAcceptanceTest
         Transaction tx2 = beansAPI.beginTx();
         try
         {
-            beansAPI.createNode().addLabel( label( null ));
+            beansAPI.createNode().addLabel( label( null ) );
             fail( "Should have thrown exception" );
         }
-        catch( ConstraintViolationException ex )
+        catch ( ConstraintViolationException ex )
         {   // Happy
         }
         finally
@@ -134,19 +137,21 @@ public class LabelsAcceptanceTest
         try
         {
             myNode = beansAPI.createNode();
-            myNode.addLabel(Labels.MY_LABEL);
-            myNode.addLabel(Labels.MY_LABEL);
+            myNode.addLabel( Labels.MY_LABEL );
+            myNode.addLabel( Labels.MY_LABEL );
 
             tx.success();
-        } finally
+        }
+        finally
         {
             tx.finish();
         }
 
         // Then
-        assertTrue( "Label should have been added to node", myNode.hasLabel( Labels.MY_LABEL ) );
-        // TODO: When support for reading labels has been introduced, assert that MY_LABEL occurs only once
+        assertThat( "Label should have been added to node", myNode, inTx( beansAPI, hasLabel( Labels.MY_LABEL ) ) );
     }
+
+
 
     @Test
     public void oversteppingMaxNumberOfLabelsShouldFailGracefully() throws Exception
@@ -192,7 +197,7 @@ public class LabelsAcceptanceTest
         }
 
         // Then
-        assertFalse( "Label should have been removed from node", myNode.hasLabel( label ) );
+        assertThat( myNode, not( inTx( beansAPI, hasLabel( label ) ) ) );
     }
 
     @Test
@@ -215,7 +220,7 @@ public class LabelsAcceptanceTest
         }
 
         // THEN
-        assertEquals( asEnumNameSet( Labels.class ), asLabelNameSet( node.getLabels() ));
+        assertThat( node, inTx( db, hasLabels( asEnumNameSet( Labels.class ) ) ));
     }
 
     @Test
@@ -240,7 +245,7 @@ public class LabelsAcceptanceTest
         }
 
         // THEN
-        assertFalse( myNode.hasLabel( label ) );
+        assertThat( myNode, not( inTx( beansAPI, hasLabel( label ) ) ) );
     }
 
     @Test
@@ -265,7 +270,7 @@ public class LabelsAcceptanceTest
         }
 
         // THEN
-        assertFalse( myNode.hasLabel( label ) );
+        assertThat( myNode, not( inTx( beansAPI, hasLabel( label ) ) ) ) ;
     }
 
     @Test
@@ -307,7 +312,9 @@ public class LabelsAcceptanceTest
         {
             node = beansAPI.createNode();
             for ( String label : expected )
+            {
                 node.addLabel( label( label ) );
+            }
             tx.success();
         }
         finally
@@ -315,13 +322,9 @@ public class LabelsAcceptanceTest
             tx.finish();
         }
 
-        // WHEN
-        Set<String> labels = asSet( asStrings( node.getLabels() ) );
-
-        // THEN
-        assertEquals( "Node didn't have all labels", expected, labels );
+        assertThat(node, inTx( beansAPI, hasLabels( expected ) ));
     }
-    
+
     @Test
     public void shouldReturnEmptyListIfNoLabels() throws Exception
     {
@@ -329,11 +332,8 @@ public class LabelsAcceptanceTest
         GraphDatabaseService beansAPI = dbRule.getGraphDatabaseService();
         Node node = createNode( beansAPI );
 
-        // WHEN
-        Iterable<Label> labels = node.getLabels();
-
-        // THEN
-        assertEquals( 0, count( labels ) );
+        // WHEN THEN
+        assertThat(node, inTx( beansAPI, hasNoLabels() ));
     }
 
     @Test
@@ -345,18 +345,16 @@ public class LabelsAcceptanceTest
 
         // When
         Transaction tx = beansAPI.beginTx();
-        Node node = beansAPI.createNode( );
+        Node node = beansAPI.createNode();
         node.addLabel( Labels.MY_LABEL );
         tx.success();
         tx.finish();
 
         // THEN
-        Iterator<Node> labelIter = glops.getAllNodesWithLabel( Labels.MY_LABEL ).iterator();
-        assertEquals( labelIter.next(), node );
-        assertFalse( labelIter.hasNext() );
-        assertFalse( glops.getAllNodesWithLabel( Labels.MY_OTHER_LABEL ).iterator().hasNext() );
+        assertThat(glops, inTx( beansAPI, hasNodes( Labels.MY_LABEL, node )));
+        assertThat(glops, inTx( beansAPI, hasNoNodes( Labels.MY_OTHER_LABEL )));
     }
-    
+
     @Test
     public void getNodesWithLabelsWithTxAddsAndRemoves() throws Exception
     {
@@ -403,27 +401,115 @@ public class LabelsAcceptanceTest
         try
         {
             labels = toList( globalOps.getAllLabels() );
-        } finally
+        }
+        finally
         {
             tx.finish();
         }
 
         // Then
         assertEquals( 2, labels.size() );
-        assertEquals( Labels.MY_LABEL.name(),       labels.get( 0 ).name());
-        assertEquals( Labels.MY_OTHER_LABEL.name(), labels.get( 1 ).name());
-    }
-
-    private Iterable<String> asStrings( Iterable<Label> labels )
-    {
-        return new IterableWrapper<String, Label>( labels )
-        {
+        assertThat( map( new Function<Label,String>(){
             @Override
-            protected String underlyingObjectToObject( Label label )
+            public String apply( Label label )
             {
                 return label.name();
             }
-        };
+        }, labels), hasItems( Labels.MY_LABEL.name(), Labels.MY_OTHER_LABEL.name() ) );
+    }
+
+    @Test
+    public void deleteAllNodesAndTheirLabels() throws Exception
+    {
+        // GIVEN
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        final Label label = DynamicLabel.label( "A" );
+        {
+            final Transaction tx = db.beginTx();
+            final Node node = db.createNode();
+            node.addLabel( label );
+            node.setProperty( "name", "bla" );
+            tx.success();
+            tx.finish();
+        }
+
+        // WHEN
+        {
+            final Transaction tx = db.beginTx();
+            for ( final Node node : GlobalGraphOperations.at( db ).getAllNodes() )
+            {
+                node.removeLabel( label ); // remove Label ...
+                node.delete(); // ... and afterwards the node
+            }
+            tx.success();
+            tx.finish(); // here comes the exception
+        }
+
+        // THEN
+        Transaction transaction = db.beginTx();
+        assertEquals( 0, count( GlobalGraphOperations.at( db ).getAllNodes() ) );
+        transaction.finish();
+    }
+
+    @Test
+    public void shouldCreateNodeWithLotsOfLabelsAndThenRemoveMostOfThem() throws Exception
+    {
+        // given
+        final int TOTAL_NUMBER_OF_LABELS = 200, NUMBER_OF_PRESERVED_LABELS = 20;
+        GraphDatabaseService db = dbRule.getGraphDatabaseService();
+        Node node;
+        {
+            Transaction tx = db.beginTx();
+            try
+            {
+                node = db.createNode();
+                for ( int i = 0; i < TOTAL_NUMBER_OF_LABELS; i++ )
+                {
+                    node.addLabel( DynamicLabel.label( "label:" + i ) );
+                }
+
+                tx.success();
+            }
+            finally
+            {
+                tx.finish();
+            }
+        }
+
+        // when
+        {
+            Transaction tx = db.beginTx();
+            try
+            {
+                for ( int i = NUMBER_OF_PRESERVED_LABELS; i < TOTAL_NUMBER_OF_LABELS; i++ )
+                {
+                    node.removeLabel( DynamicLabel.label( "label:" + i ) );
+                }
+
+                tx.success();
+            }
+            finally
+            {
+                tx.finish();
+            }
+        }
+        dbRule.clearCache();
+
+        // then
+        Transaction transaction = db.beginTx();
+        try
+        {
+            List<String> labels = new ArrayList<>();
+            for ( Label label : node.getLabels() )
+            {
+                labels.add( label.name() );
+            }
+            assertEquals( "labels on node: " + labels, NUMBER_OF_PRESERVED_LABELS, labels.size() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -440,12 +526,13 @@ public class LabelsAcceptanceTest
                     public IdGenerator open( FileSystemAbstraction fs, File fileName, int grabSize, IdType idType,
                                              long highId )
                     {
-                        switch(idType)
+                        switch ( idType )
                         {
                             case LABEL_TOKEN:
                                 return new EphemeralIdGenerator( idType )
                                 {
-                                    @Override public long nextId()
+                                    @Override
+                                    public long nextId()
                                     {
                                         // Same exception as the one thrown by IdGeneratorImpl
                                         throw new UnderlyingStorageException( "Id capacity exceeded" );
@@ -458,18 +545,6 @@ public class LabelsAcceptanceTest
                 };
             }
         };
-    }
-
-    public static Set<String> asLabelNameSet( Iterable<Label> enums )
-    {
-        return asSet( map( new Function<Label, String>()
-        {
-            @Override
-            public String apply( Label from )
-            {
-                return from.name();
-            }
-        }, enums ) );
     }
 
     private Node createNode( GraphDatabaseService db, Label... labels )

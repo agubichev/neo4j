@@ -22,6 +22,8 @@ package org.neo4j.cypher.docgen.cookbook
 import org.junit.Test
 import org.junit.Assert._
 import org.neo4j.cypher.docgen.DocumentingTestBase
+import org.neo4j.visualization.graphviz.GraphStyle
+import org.neo4j.visualization.graphviz.AsciiDocSimpleStyle
 
 class PrettyGraphsCompleteGraphTest extends DocumentingTestBase {
   def graphDescription = List()
@@ -29,6 +31,9 @@ class PrettyGraphsCompleteGraphTest extends DocumentingTestBase {
   generateInitialGraphForConsole = false
   override val graphvizOptions = "graph [layout=circo]"
   override val graphvizExecutedAfter = true
+
+  override protected def getGraphvizStyle: GraphStyle = 
+    AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors()
 
   @Test def completeGraph() {
     testQuery(
@@ -40,7 +45,7 @@ class PrettyGraphsCompleteGraphTest extends DocumentingTestBase {
         self relationships. Using said match, relationships between all these nodes are created. Lastly, 
         the center node and all relationships connected to it are removed.""",
       queryText = """create center
-foreach( x in range(1,6) : 
+foreach( x in range(1,6) |
    create (leaf {count : x}), center-[:X]->leaf
 )
 WITH center

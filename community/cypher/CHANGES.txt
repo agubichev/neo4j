@@ -1,7 +1,21 @@
+2.0.0-M04
+---------
+o Fixes #844 - Label predicate do not work on optional nodes that are null
+o Fixes #897 - Cypher start doesnt allow combining multiple starting points with start node sets
+o BREAKING CHANGE: Removes "?", "!" syntax for accessing properties. Missing properties are now treated as null.
+o Introduced a new experimental PEG parser
+o BREAKING CHANGE: Escaped identifiers in the RETURN clause are kept as the user entered them.
+o BREAKING CHANGE: No longer possible to use expressions and params to identify nodes in patterns.
+o BREAKING CHANGE: Use "|" in favor of ":" in FOREACH, EXTRACT and REDUCE to avoid disambiguity with label syntax
+
 2.0.0-M03
 ---------
 o Added startNode()/endNode()
 o Fixes #780 - Queries with literal collections fail against schema indexes
+o Make Cypher execution results closable 
+o Adds Cypher label scan hint
+o Removes alternative WITH syntax in Cypher
+o Fixes bug with UNION text output
 
 2.0.0-M02
 ---------
@@ -21,6 +35,15 @@ o Added index hints ("USING INDEX")
 o START now is optional when using index hints or there is exactly one useable index
 o Cypher now uses the label-based indexes to perform lookups
 o Profiler now shows which entity producers have been chosen
+
+1.9.2 (2013-07-16)
+-----------------
+o Fixes problem where Cypher would see changes while the query was running
+
+1.9.1 (2013-06-24)
+------------------
+o Cypher execution results are now closeable
+o Allow | to be used as a separator in foreach and extract+reduce
 
 1.9.RC2 (2013-04-30)
 --------------------

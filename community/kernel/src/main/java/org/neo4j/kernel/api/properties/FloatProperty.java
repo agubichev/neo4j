@@ -19,6 +19,9 @@
  */
 package org.neo4j.kernel.api.properties;
 
+import org.neo4j.kernel.impl.nioneo.store.PropertyData;
+import org.neo4j.kernel.impl.nioneo.store.PropertyDatas;
+
 import static java.lang.Float.floatToIntBits;
 
 final class FloatProperty extends NumberPropertyWithin4Bytes
@@ -39,6 +42,18 @@ final class FloatProperty extends NumberPropertyWithin4Bytes
     }
 
     @Override
+    public boolean valueEquals( Object other )
+    {
+        if ( other instanceof Float )
+        {
+            boolean b = value == (float)other;
+            return b;
+        }
+
+        return valueCompare( value, other );
+    }
+
+    @Override
     boolean hasEqualValue( NumberPropertyWithin4Bytes that )
     {
         return value == ((FloatProperty) that).value;
@@ -54,5 +69,12 @@ final class FloatProperty extends NumberPropertyWithin4Bytes
     public Number value()
     {
         return value;
+    }
+
+    @Override
+    @Deprecated
+    public PropertyData asPropertyDataJustForIntegration()
+    {
+        return PropertyDatas.forFloat( (int) propertyKeyId, -1, value );
     }
 }

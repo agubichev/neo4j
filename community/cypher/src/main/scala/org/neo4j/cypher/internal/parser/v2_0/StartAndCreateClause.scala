@@ -19,28 +19,37 @@
  */
 package org.neo4j.cypher.internal.parser.v2_0
 
-import org.neo4j.cypher.internal.commands._
-import expressions.{Literal, Expression, ParameterExpression, Identifier}
 import org.neo4j.graphdb.Direction
 import org.neo4j.helpers.ThisShouldNotHappenError
-import org.neo4j.cypher.internal.mutation.{RelationshipEndpoint, CreateNode, CreateRelationship}
-import org.neo4j.cypher.internal.parser.{ParsedEntity, ParsedRelation, ParsedNamedPath, AbstractPattern}
+import org.neo4j.cypher.internal.parser._
+import org.neo4j.cypher.internal.commands._
+import org.neo4j.cypher.internal.commands.expressions._
+import org.neo4j.cypher.internal.mutation._
+
+case class StartAst(startItems: Seq[StartItem]=Seq.empty,
+                    namedPaths: Seq[NamedPath]=Seq.empty,
+                    merge: Seq[MergeAst]=Seq.empty) {
+  def isEmpty: Boolean = startItems.isEmpty && namedPaths.isEmpty && merge.isEmpty
+  def nonEmpty: Boolean = !isEmpty
+
+  def updateActions: Seq[MergeNodeAction] = merge.flatMap(_.nextStep())
+}
 
 trait StartAndCreateClause extends Base with Expressions with CreateUnique with Merge {
-  def start: Parser[(Seq[StartItem], Seq[NamedPath])] = createStart | readStart
+  def start: Parser[StartAst] = createStart | readStart
 
-  def readStart: Parser[(Seq[StartItem], Seq[NamedPath])] = START ~> commaList(startBit) ^^ (x => (x, Seq()))
+  def readStart: Parser[StartAst] = START ~> commaList(startBit) ^^ (x => StartAst(startItems = x))
 
-  def createStart: Parser[(Seq[StartItem], Seq[NamedPath])] = merge | createUnique | create
+  def createStart: Parser[StartAst] = merge | createUnique | create
 
-  def create = CREATE ~> commaList(usePattern(translate)) ^^ {
+  def create : Parser[StartAst] = CREATE ~> commaList(usePattern(translate)) ^^ {
     case matching =>
       val pathsAndItems = matching.flatten.filter(_.isInstanceOf[NamedPathWStartItems]).map(_.asInstanceOf[NamedPathWStartItems])
       val startItems = matching.flatten.filter(_.isInstanceOf[StartItem]).map(_.asInstanceOf[StartItem])
       val namedPaths = pathsAndItems.map(_.path)
       val pathItems = pathsAndItems.flatMap(_.items)
 
-      ((startItems ++ pathItems), namedPaths)
+      StartAst(startItems = (startItems ++ pathItems), namedPaths = namedPaths)
   }
 
   case class NamedPathWStartItems(path:NamedPath, items:Seq[StartItem])
@@ -59,19 +68,22 @@ trait StartAndCreateClause extends Base with Expressions with CreateUnique with 
   private def translate(abstractPattern: AbstractPattern): Maybe[Any] = abstractPattern match {
     case ParsedNamedPath(name, patterns) =>
       val namedPathPatterns: Maybe[Any] = patterns.
-                                          map(removeProperties).
-                                          map(matchTranslator).
-                                          reduce(_ ++ _)
+        map(removeProperties).
+        map(matchTranslator).
+        reduce(_ ++ _)
 
       val startItems = patterns.map(p => translate(p.makeOutgoing)).reduce(_ ++ _)
 
       startItems match {
         case No(msg)    => No(msg)
         case Yes(stuff) => namedPathPatterns.seqMap(p => {
-          val namedPath: NamedPath = NamedPath(name, p.map(_.asInstanceOf[Pattern]): _*)
+          val namedPath: NamedPath = NamedPath(name, patterns: _*)
           Seq(NamedPathWStartItems(namedPath, stuff.map(_.asInstanceOf[StartItem])))
         })
       }
+
+    case ParsedRelation(_, _, _, _, _, dir, _) if dir == Direction.BOTH            =>
+      No(Seq("Relationships need to have a direction."))
 
     case ParsedRelation(name, props, a, b, relType, dir, map) if relType.size == 1 =>
 

@@ -53,6 +53,7 @@ import org.neo4j.kernel.IndexDefinitionImpl;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.InternalSchemaActions;
 import org.neo4j.kernel.PropertyUniqueConstraintDefinition;
+import org.neo4j.kernel.StoreLocker;
 import org.neo4j.kernel.api.constraints.UniquenessConstraint;
 import org.neo4j.kernel.api.exceptions.KernelException;
 import org.neo4j.kernel.api.index.IndexConfiguration;
@@ -100,20 +101,22 @@ import org.neo4j.kernel.impl.nioneo.store.SchemaStore;
 import org.neo4j.kernel.impl.nioneo.store.StoreFactory;
 import org.neo4j.kernel.impl.nioneo.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.nioneo.store.UniquenessConstraintRule;
+import org.neo4j.kernel.impl.nioneo.store.labels.NodeLabels;
 import org.neo4j.kernel.impl.nioneo.xa.DefaultSchemaIndexProviderMap;
 import org.neo4j.kernel.impl.nioneo.xa.NeoStoreIndexStoreView;
-import org.neo4j.kernel.impl.nioneo.xa.NodeLabelRecordLogic;
 import org.neo4j.kernel.impl.util.FileUtils;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 
 import static java.lang.Boolean.parseBoolean;
+
 import static org.neo4j.graphdb.DynamicLabel.label;
 import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.helpers.collection.IteratorUtil.asIterable;
 import static org.neo4j.helpers.collection.IteratorUtil.first;
 import static org.neo4j.kernel.api.index.SchemaIndexProvider.HIGHEST_PRIORITIZED_OR_NONE;
 import static org.neo4j.kernel.impl.nioneo.store.PropertyStore.encodeString;
+import static org.neo4j.kernel.impl.nioneo.store.labels.NodeLabelsField.parseLabelsField;
 
 public class BatchInserterImpl implements BatchInserter
 {
@@ -145,6 +148,7 @@ public class BatchInserterImpl implements BatchInserter
     };
 
     private final BatchInserterImpl.BatchSchemaActions actions;
+    private final StoreLocker storeLocker;
 
     BatchInserterImpl( String storeDir, FileSystemAbstraction fileSystem,
                        Map<String, String> stringParams, Iterable<KernelExtensionFactory<?>> kernelExtensions )
@@ -159,6 +163,9 @@ public class BatchInserterImpl implements BatchInserter
         params.put( GraphDatabaseSettings.use_memory_mapped_buffers.name(), Settings.FALSE );
         params.put( InternalAbstractGraphDatabase.Configuration.store_dir.name(), storeDir );
         params.putAll( stringParams );
+
+        storeLocker = new StoreLocker( fileSystem );
+        storeLocker.checkLock( this.storeDir );
 
         config = new Config( params, GraphDatabaseSettings.class );
         boolean dump = config.get( GraphDatabaseSettings.dump_configuration );
@@ -202,7 +209,7 @@ public class BatchInserterImpl implements BatchInserter
 
     private Map<String, String> getDefaultParams()
     {
-        Map<String, String> params = new HashMap<String, String>();
+        Map<String, String> params = new HashMap<>();
         params.put( "neostore.nodestore.db.mapped_memory", "20M" );
         params.put( "neostore.propertystore.db.mapped_memory", "90M" );
         params.put( "neostore.propertystore.db.index.mapped_memory", "1M" );
@@ -364,7 +371,7 @@ public class BatchInserterImpl implements BatchInserter
 
     private IndexRule[] getIndexesNeedingPopulation()
     {
-        List<IndexRule> indexesNeedingPopulation = new ArrayList<IndexRule>();
+        List<IndexRule> indexesNeedingPopulation = new ArrayList<>();
         for ( SchemaRule rule : schemaCache.getSchemaRules() )
         {
             if ( rule.getKind().isIndex() )
@@ -664,9 +671,8 @@ public class BatchInserterImpl implements BatchInserter
 
     private void setNodeLabels( NodeRecord nodeRecord, Label... labels )
     {
-        NodeLabelRecordLogic manipulator = new NodeLabelRecordLogic( nodeRecord, getNodeStore() );
-        Iterable<DynamicRecord> changedDynamicLabelRecords = manipulator.set( getOrCreateLabelIds( labels ) );
-        getNodeStore().updateDynamicLabelRecords( changedDynamicLabelRecords );
+        NodeLabels nodeLabels = parseLabelsField( nodeRecord );
+        getNodeStore().updateDynamicLabelRecords( nodeLabels.put( getOrCreateLabelIds( labels ), getNodeStore() ) );
     }
 
     private long[] getOrCreateLabelIds( Label[] labels )
@@ -716,7 +722,7 @@ public class BatchInserterImpl implements BatchInserter
     {
         NodeStore nodeStore = neoStore.getNodeStore();
         return map( labelIdToLabelFunction,
-                    asIterable( getNodeStore().getLabelsForNode( nodeStore.getRecord( node ) ) ) );
+                    asIterable( parseLabelsField( nodeStore.getRecord( node ) ).get( getNodeStore() ) ) );
     }
 
     @Override
@@ -729,7 +735,7 @@ public class BatchInserterImpl implements BatchInserter
     private boolean nodeHasLabel( long node, long labelId )
     {
         NodeStore nodeStore = neoStore.getNodeStore();
-        long[] labels = getNodeStore().getLabelsForNode( nodeStore.getRecord( node ) );
+        long[] labels = parseLabelsField( nodeStore.getRecord( node ) ).get( getNodeStore() );
         for ( long label : labels )
         {
             if ( label == labelId )
@@ -864,7 +870,7 @@ public class BatchInserterImpl implements BatchInserter
     {
         NodeRecord nodeRecord = getNodeRecord( nodeId );
         long nextRel = nodeRecord.getNextRel();
-        List<Long> ids = new ArrayList<Long>();
+        List<Long> ids = new ArrayList<>();
         while ( nextRel != Record.NO_NEXT_RELATIONSHIP.intValue() )
         {
             RelationshipRecord relRecord = getRelationshipRecord( nextRel );
@@ -961,6 +967,16 @@ public class BatchInserterImpl implements BatchInserter
             throw new RuntimeException( e );
         }
         neoStore.close();
+
+        try
+        {
+            storeLocker.release();
+        }
+        catch ( IOException e )
+        {
+            throw new UnderlyingStorageException( "Could not release store lock", e );
+        }
+
         msgLog.logMessage( Thread.currentThread() + " Clean shutdown on BatchInserter(" + this + ")", true );
         msgLog.close();
         life.shutdown();
@@ -995,7 +1011,7 @@ public class BatchInserterImpl implements BatchInserter
             return Record.NO_NEXT_PROPERTY.intValue();
         }
         PropertyStore propStore = getPropertyStore();
-        List<PropertyRecord> propRecords = new ArrayList<PropertyRecord>();
+        List<PropertyRecord> propRecords = new ArrayList<>();
         PropertyRecord currentRecord = new PropertyRecord( propStore.nextId() );
         currentRecord.setInUse( true );
         currentRecord.setCreated();
@@ -1074,7 +1090,7 @@ public class BatchInserterImpl implements BatchInserter
     private Map<String, Object> getPropertyChain( long nextProp )
     {
         PropertyStore propStore = getPropertyStore();
-        Map<String, Object> properties = new HashMap<String, Object>();
+        Map<String, Object> properties = new HashMap<>();
 
         while ( nextProp != Record.NO_NEXT_PROPERTY.intValue() )
         {
@@ -1224,6 +1240,7 @@ public class BatchInserterImpl implements BatchInserter
         return -1;
     }
 
+    // needed by lucene-index
     public IndexStore getIndexStore()
     {
         return this.indexStore;
@@ -1280,6 +1297,12 @@ public class BatchInserterImpl implements BatchInserter
         public String getUserMessage( KernelException e )
         {
             throw unsupportedException();
+        }
+
+        @Override
+        public void assertInTransaction()
+        {
+            // BatchInserterImpl always is expected to be running in one big single "transaction"
         }
 
         private UnsupportedOperationException unsupportedException()

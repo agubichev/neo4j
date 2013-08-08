@@ -19,12 +19,15 @@
  */
 package org.neo4j.com;
 
+import static org.neo4j.com.Protocol.readString;
+
 import java.io.IOException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.kernel.logging.DevNullLoggingService;
+import org.neo4j.tooling.RealClock;
 
 public class MadeUpServer extends Server<MadeUpCommunicationInterface, Void>
 {
@@ -61,7 +64,7 @@ public class MadeUpServer extends Server<MadeUpCommunicationInterface, Void>
             {
                 return new HostnamePort( null, port );
             }
-        }, new DevNullLoggingService(), FRAME_LENGTH, applicationProtocolVersion, txVerifier );
+        }, new DevNullLoggingService(), FRAME_LENGTH, applicationProtocolVersion, txVerifier, new RealClock());
         this.internalProtocolVersion = internalProtocolVersion;
     }
 

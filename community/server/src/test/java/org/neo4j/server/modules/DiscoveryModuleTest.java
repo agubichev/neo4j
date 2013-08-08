@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.junit.Rule;
 import org.junit.Test;
+
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.web.WebServer;
@@ -55,6 +56,6 @@ public class DiscoveryModuleTest
 
         module.start(StringLogger.DEV_NULL);
 
-        verify( webServer ).addJAXRSPackages( any( List.class ), anyString(), anyCollection() );
+        verify( webServer ).addJAXRSClasses( any( List.class ), anyString(), anyCollection() );
     }
 }

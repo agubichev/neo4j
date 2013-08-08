@@ -39,7 +39,8 @@ class LabelsAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker 
   }
 
   @Test def Creating_nodes_with_literal_labels() {
-    assertThat("CREATE node :FOO:BAR {name: 'Stefan'}", List("FOO", "BAR"))
+    assertDoesNotWork("CREATE node :FOO:BAR {name: 'Stefan'}")
+    assertThat("CREATE node :FOO:BAR", List("FOO", "BAR"))
     assertThat("CREATE (node:FOO:BAR {name: 'Mattias'})", List("FOO", "BAR"))
     assertThat("CREATE (n:Person)-[:OWNS]->(x:Dog) RETURN n AS node", List("Person"))
   }
@@ -52,7 +53,7 @@ class LabelsAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker 
   }
 
   @Test def Add_labels_to_nodes_in_a_foreach() {
-    assertThat("CREATE a,b,c WITH [a,b,c] as nodes FOREACH(n in nodes : SET n :FOO:BAR)", List("FOO", "BAR"))
+    assertThat("CREATE a,b,c WITH [a,b,c] as nodes FOREACH(n in nodes | SET n :FOO:BAR)", List("FOO", "BAR"))
   }
 
   @Test def Using_labels_in_RETURN_clauses() {
@@ -81,7 +82,7 @@ class LabelsAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker 
       val node = createLabeledNode(labels:_*)
       val result = executeScalar[Node](query, "node"->node)
 
-      assert(result.labels === expected.toList)
+      assertInTx(result.labels === expected.toList)
       this
     }
   }
@@ -154,25 +155,28 @@ class LabelsAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker 
   private def assertThat(q: String, expectedLabels: List[String]) {
     val result = parseAndExecute(q)
 
-    if (result.isEmpty) {
-      val n = graph.getNodeById(1)
-      assert(n.labels === expectedLabels)
-    } else {
-      result.foreach {
-        map => map.get("node") match {
-                  case None =>
-                    assert(makeTraversable(map.head._2).toList === expectedLabels)
+    graph.inTx {
 
-                  case Some(n:Node) =>
-                    assert(n.labels === expectedLabels)
+      if (result.isEmpty) {
+        val n = graph.getNodeById(1)
+        assert(n.labels === expectedLabels)
+      } else {
+        result.foreach {
+          map => map.get("node") match {
+            case None =>
+              assert(makeTraversable(map.head._2).toList === expectedLabels)
 
-                  case _ =>
-                    throw new AssertionError("assertThat used with result that is not a node")
-                }
+            case Some(n: Node) =>
+              assert(n.labels === expectedLabels)
+
+            case _ =>
+              throw new AssertionError("assertThat used with result that is not a node")
+          }
+        }
       }
-    }
 
-    insertNewCleanDatabase()
+      insertNewCleanDatabase()
+    }
   }
 
 
@@ -180,7 +184,7 @@ class LabelsAcceptanceTest extends ExecutionEngineHelper with StatisticsChecker 
     graph.shutdown()
 
     graph = new ImpermanentGraphDatabase() with Snitch
-    refNode = graph.getReferenceNode
+    refNode = graph.inTx(graph.getReferenceNode)
     executionEngineHelperInit()
   }
 

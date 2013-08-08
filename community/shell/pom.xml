@@ -18,7 +18,7 @@
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>
-    <url>https://github.com/neo4j/community/tree/master/shell</url>
+	  <url>https://github.com/neo4j/neo4j/tree/master/community/shell</url>
   </scm>
 
   <properties>
@@ -164,6 +164,11 @@ the relevant Commercial Agreement.
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j-graphviz</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

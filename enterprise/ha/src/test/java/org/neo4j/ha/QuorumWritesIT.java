@@ -23,6 +23,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.neo4j.cluster.ClusterSettings;
@@ -46,8 +47,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import static org.neo4j.test.ha.ClusterManager.clusterOfSize;
 
+@Ignore("To be rewritten")
 public class QuorumWritesIT
 {
     @Test
@@ -119,7 +122,15 @@ public class QuorumWritesIT
 
         Node finalNode = doTx( master );
 
-        slave2.getNodeById( finalNode.getId() );
+        Transaction transaction = slave2.beginTx();
+        try
+        {
+            slave2.getNodeById( finalNode.getId() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
 
         clusterManager.stop();
     }
@@ -201,7 +212,15 @@ public class QuorumWritesIT
 
         Node finalNode = doTx( master );
 
-        replacement.getNodeById( finalNode.getId() );
+        Transaction transaction = replacement.beginTx();
+        try
+        {
+            replacement.getNodeById( finalNode.getId() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
 
         clusterManager.stop();
         replacement.shutdown();

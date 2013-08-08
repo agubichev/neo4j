@@ -22,17 +22,19 @@ package org.neo4j.kernel;
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.kernel.api.KernelAPI;
-import org.neo4j.kernel.api.StatementContext;
+import org.neo4j.kernel.api.StatementOperationParts;
+import org.neo4j.kernel.api.StatementOperations;
+import org.neo4j.kernel.api.operations.StatementState;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 /**
  * This is meant to serve as the bridge that makes the Beans API tie transactions to threads. The Beans API
- * will use this to get the appropriate {@link StatementContext} when it performs operations.
+ * will use this to get the appropriate {@link StatementOperations} when it performs operations.
  */
 public class ThreadToStatementContextBridge extends LifecycleAdapter
 {
-    private final KernelAPI kernelAPI;
+    protected final KernelAPI kernelAPI;
     private final AbstractTransactionManager txManager;
     private boolean isShutdown = false;
 
@@ -42,32 +44,35 @@ public class ThreadToStatementContextBridge extends LifecycleAdapter
         this.txManager = txManager;
     }
     
-    public StatementContext getCtxForReading()
+    public StatementOperationParts getCtxForReading()
     {
-        StatementContext ctx = getStatementContext();
-        if(ctx != null)
-        {
-            return ctx;
-        }
-
-        return kernelAPI.newReadOnlyStatementContext();
+        return kernelAPI.readOnlyStatementOperations();
     }
 
-    public StatementContext getCtxForWriting()
+    public StatementOperationParts getCtxForWriting()
     {
-        StatementContext ctx = getStatementContext();
-        if ( ctx != null )
-        {
-            return ctx;
-        }
-
-        throw new NotInTransactionException( "You have to start a transaction to perform write operations." );
+        return kernelAPI.statementOperations();
     }
 
-    private StatementContext getStatementContext()
+    public StatementState statementForReading()
+    {
+        return statementForReadingAndWriting();
+    }
+
+    public StatementState statementForWriting()
+    {
+        return statementForReadingAndWriting();
+    }
+
+    private StatementState statementForReadingAndWriting()
     {
         checkIfShutdown();
-        return txManager.getStatementContext();
+        StatementState statement = txManager.newStatement();
+        if ( statement != null )
+        {
+            return statement;
+        }
+        throw new NotInTransactionException();
     }
 
     @Override
@@ -84,5 +89,28 @@ public class ThreadToStatementContextBridge extends LifecycleAdapter
         }
     }
 
+    public void assertInTransaction()
+    {
+        txManager.assertInTransaction();
+    }
 
+    public static class ReadOnly extends ThreadToStatementContextBridge
+    {
+        public ReadOnly( KernelAPI kernelAPI, AbstractTransactionManager txManager )
+        {
+            super( kernelAPI, txManager );
+        }
+        
+        @Override
+        public StatementOperationParts getCtxForWriting()
+        {
+            return kernelAPI.readOnlyStatementOperations();
+        }
+
+        @Override
+        public StatementOperationParts getCtxForReading()
+        {
+            return kernelAPI.readOnlyStatementOperations();
+        }
+    }
 }

@@ -25,7 +25,6 @@ import java.util.List;
 
 import org.junit.Rule;
 import org.junit.Test;
-
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -41,7 +40,9 @@ import org.neo4j.test.impl.EphemeralFileSystemAbstraction;
 import org.neo4j.tooling.GlobalGraphOperations;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.neo4j.graphdb.Neo4jMatchers.hasProperty;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
 import static org.neo4j.helpers.collection.IteratorUtil.count;
 
 /**
@@ -73,7 +74,8 @@ public class TestCrashWithRebuildSlow
                 .setConfig( GraphDatabaseSettings.rebuild_idgenerators_fast, Settings.FALSE )
                 .newGraphDatabase();
         assertNumberOfFreeIdsEquals( storeDir, snapshot, 4 );
-        
+
+        Transaction transaction = newDb.beginTx();
         try
         {
             int nameCount = 0;
@@ -83,7 +85,7 @@ public class TestCrashWithRebuildSlow
                 if ( node.equals( newDb.getReferenceNode() ) )
                     continue;
                 nameCount++;
-                assertNotNull( node.getProperty( "name" ) );
+                assertThat( node, inTx( newDb, hasProperty( "name" )  ) );
                 relCount += count( node.getRelationships( Direction.OUTGOING ) );
             }
             
@@ -92,6 +94,7 @@ public class TestCrashWithRebuildSlow
         }
         finally
         {
+            transaction.finish();
             newDb.shutdown();
         }
     }

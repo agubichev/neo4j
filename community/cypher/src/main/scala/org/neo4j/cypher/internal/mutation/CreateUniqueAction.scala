@@ -61,8 +61,6 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
     Iterator(executionContext)
   }
 
-  override def addsToRow(): Seq[String] = Seq()
-
   /**
    * Here we take the incoming links and prepare them to be used, by making sure that
    * no named expectations contradict each other
@@ -177,6 +175,8 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
   def throwIfSymbolsMissing(symbols: SymbolTable) {links.foreach(l=>l.throwIfSymbolsMissing(symbols))}
 
   override def symbolTableDependencies = links.flatMap(_.symbolTableDependencies).toSet
+
+  override def toString: String = links.mkString(",")
 }
 
 sealed abstract class CreateUniqueResult

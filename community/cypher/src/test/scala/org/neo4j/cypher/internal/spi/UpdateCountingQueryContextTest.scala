@@ -55,37 +55,37 @@ class UpdateCountingQueryContextTest extends MockitoSugar with Assertions {
   }
 
   @Test def set_property() {
-    context.nodeOps.setProperty(nodeA, "key", "value")
+    context.nodeOps.setProperty(nodeA, 1, "value")
 
     assert(context.getStatistics === QueryStatistics(propertiesSet = 1))
   }
 
   @Test def remove_property() {
-    context.nodeOps.removeProperty(nodeA, "key")
+    context.nodeOps.removeProperty(nodeA, context.getPropertyKeyId("key"))
 
     assert(context.getStatistics === QueryStatistics(propertiesSet = 1))
   }
 
   @Test def set_property_relationship() {
-    context.relationshipOps.setProperty(rel, "key", "value")
+    context.relationshipOps.setProperty(rel, 1, "value")
 
     assert(context.getStatistics === QueryStatistics(propertiesSet = 1))
   }
 
   @Test def remove_property_relationship() {
-    context.relationshipOps.removeProperty(rel, "key")
+    context.relationshipOps.removeProperty(rel, context.getPropertyKeyId("key"))
 
     assert(context.getStatistics === QueryStatistics(propertiesSet = 1))
   }
 
   @Test def add_label() {
-    context.setLabelsOnNode(0, Seq(1,2,3))
+    context.setLabelsOnNode(0l, Seq(1l, 2l, 3l).iterator)
 
     assert(context.getStatistics === QueryStatistics(labelsAdded = 3))
   }
 
   @Test def remove_label() {
-    context.removeLabelsFromNode(0, Seq(1,2,3))
+    context.removeLabelsFromNode(0l, Seq(1l, 2l, 3l).iterator)
 
     assert(context.getStatistics === QueryStatistics(labelsRemoved = 3))
   }
@@ -131,12 +131,12 @@ class UpdateCountingQueryContextTest extends MockitoSugar with Assertions {
     // We need to have the inner mock return the right counts for added/removed labels.
     when( inner.setLabelsOnNode(Matchers.anyLong(), Matchers.any()) ).thenAnswer( new Answer[Int]() {
       def answer(invocation:InvocationOnMock):Int = {
-        invocation.getArguments()(1).asInstanceOf[Iterable[String]].size
+        invocation.getArguments()(1).asInstanceOf[Iterator[String]].size
       }
     } )
     when( inner.removeLabelsFromNode(Matchers.anyLong(), Matchers.any()) ).thenAnswer( new Answer[Int]() {
       def answer(invocation:InvocationOnMock):Int = {
-        invocation.getArguments()(1).asInstanceOf[Iterable[String]].size
+        invocation.getArguments()(1).asInstanceOf[Iterator[String]].size
       }
     } )
     context = new UpdateCountingQueryContext(inner)

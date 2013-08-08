@@ -26,10 +26,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import org.neo4j.kernel.impl.util.StringLogger;
-import org.neo4j.server.rest.paging.Clock;
 import org.neo4j.server.rest.transactional.error.InvalidConcurrentTransactionAccess;
 import org.neo4j.server.rest.web.TransactionUriScheme;
 import org.neo4j.test.DoubleLatch;
+import org.neo4j.tooling.Clock;
 
 import static javax.xml.bind.DatatypeConverter.parseLong;
 
@@ -46,7 +46,7 @@ public class ConcurrentTransactionAccessTest
         TransactionRegistry registry =
                 new TransactionHandleRegistry( mock( Clock.class), 0, StringLogger.DEV_NULL );
         TransitionalPeriodTransactionMessContainer kernel = mock( TransitionalPeriodTransactionMessContainer.class );
-        when(kernel.newTransactionContext()).thenReturn( mock(TransitionalTxManagementTransactionContext.class) );
+        when(kernel.newTransaction()).thenReturn( mock(TransitionalTxManagementKernelTransaction.class) );
         TransactionFacade actions = new TransactionFacade( kernel, null, registry, null );
 
         final TransactionHandle transactionHandle = actions.newTransactionHandle( new DisgustingUriScheme() );

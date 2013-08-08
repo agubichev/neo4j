@@ -21,14 +21,14 @@ package org.neo4j.cypher.internal.parser.v1_9
 
 import org.neo4j.cypher.internal.mutation._
 import org.neo4j.cypher.internal.commands._
-import expressions.{Property, Identifier}
+import expressions.Property
 import org.neo4j.cypher.SyntaxException
 
 trait Updates extends Base with Expressions with StartClause {
   def updates: Parser[(Seq[UpdateAction], Seq[NamedPath])] = rep(delete | set | foreach) ^^ (cmds => reduce(cmds))
 
-  def foreach: Parser[(Seq[UpdateAction], Seq[NamedPath])] = ignoreCase("foreach") ~> "(" ~> identity ~ ignoreCase("in") ~ expression ~ ":" ~ opt(createStart) ~ opt(updates) <~ ")" ^^ {
-    case id ~ in ~ collection ~ ":" ~ creates ~ innerUpdates => {
+  def foreach: Parser[(Seq[UpdateAction], Seq[NamedPath])] = ignoreCase("foreach") ~> "(" ~> identity ~ ignoreCase("in") ~ expression ~ (":" | "|") ~ opt(createStart) ~ opt(updates) <~ ")" ^^ {
+    case id ~ _ ~ collection ~ _ ~ creates ~ innerUpdates => {
       val createCmds = creates.toSeq.map(_._1.map(_.asInstanceOf[UpdatingStartItem].updateAction)).flatten
       val reducedItems: (Seq[UpdateAction], Seq[NamedPath]) = reduce(innerUpdates.toSeq)
       val updateCmds = reducedItems._1
@@ -40,7 +40,7 @@ trait Updates extends Base with Expressions with StartClause {
 
   def delete: Parser[(Seq[UpdateAction], Seq[NamedPath])] = ignoreCase("delete") ~> commaList(expression) ^^ {
     case expressions => val updateActions: List[UpdateAction with Product] = expressions.map {
-      case Property(entity, property) => DeletePropertyAction(entity, property)
+      case Property(entity, propertyKey) => DeletePropertyAction(entity, propertyKey)
       case x => DeleteEntityAction(x)
     }
       (updateActions, Seq())

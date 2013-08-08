@@ -23,6 +23,8 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.graphdb.Neo4jMatchers.hasProperty;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,7 @@ import java.util.Map;
 import org.json.JSONException;
 import org.junit.Test;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.annotations.Documented;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
@@ -394,8 +397,8 @@ public class BatchOperationDocIT extends AbstractRestFunctionalTestBase
             UniformInterfaceException, JSONException, PropertyValueException {
     	String string = "Jazz";
         Node gnode = getNode( string );
-        assertEquals( gnode.getProperty( "name" ), string );
-        
+        assertThat( gnode, inTx(graphdb(), hasProperty( "name" ).withValue(string)) );
+
         String name = "string\\ and \"test\"";
         
         String jsonString = new PrettyJSON()
@@ -662,11 +665,19 @@ public class BatchOperationDocIT extends AbstractRestFunctionalTestBase
     
     private int countNodes()
     {
-        int count = 0;
-        for(Node node : graphdb().getAllNodes())
+        Transaction transaction = graphdb().beginTx();
+        try
         {
-            count++;
+            int count = 0;
+            for(Node node : graphdb().getAllNodes())
+            {
+                count++;
+            }
+            return count;
         }
-        return count;
+        finally
+        {
+            transaction.finish();
+        }
     }
 }

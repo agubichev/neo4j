@@ -19,12 +19,13 @@
  */
 package org.neo4j.server.rest;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.graphdb.Neo4jMatchers.hasProperty;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
 import static org.neo4j.server.helpers.FunctionalTestHelper.CLIENT;
 
 import java.io.IOException;
@@ -756,9 +757,18 @@ public class IndexNodeDocIT extends AbstractRestFunctionalTestBase
         Map<String, Object> data = assertCast( Map.class, result.get( "data" ) );
         assertEquals( value, data.get( key ) );
         assertEquals(Arrays.asList( 1, 2, 3), data.get( "array" ) );
-        Node node = graphdb().index().forNodes(index).get(key, value).getSingle();
-        assertEquals(value, node.getProperty(key));
-        assertArrayEquals(new int[]{1, 2, 3}, (int[]) node.getProperty("array"));
+        Transaction transaction = graphdb().beginTx();
+        Node node;
+        try
+        {
+            node = graphdb().index().forNodes(index).get(key, value).getSingle();
+        }
+        finally
+        {
+            transaction.finish();
+        }
+        assertThat(node, inTx( graphdb(), hasProperty( key ).withValue( value ) ));
+        assertThat(node, inTx( graphdb(), hasProperty( "array" ).withValue( new int[]{1, 2, 3} ) ));
     }
 
     /**

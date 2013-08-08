@@ -20,7 +20,6 @@
 package org.neo4j.examples;
 
 import static org.junit.Assert.assertTrue;
-import static org.neo4j.visualization.asciidoc.AsciidocHelper.createCypherSnippet;
 import static org.neo4j.visualization.asciidoc.AsciidocHelper.createOutputSnippet;
 import static org.neo4j.visualization.asciidoc.AsciidocHelper.createQueryResultSnippet;
 
@@ -185,7 +184,8 @@ public class RolesDocTest extends AbstractJavaDocTestbase
                 .relationships( RoleRels.MEMBER_OF, Direction.INCOMING );
         Traverser traverser = traversalDescription.traverse( admins );
         // END SNIPPET: get-admins
-        
+
+        graphdb().beginTx();
         gen.get().addSnippet( "o-get-admins", createOutputSnippet( traverserToString( traverser ) ) );
         String query = "start admins=node("
                        + admins.getId()

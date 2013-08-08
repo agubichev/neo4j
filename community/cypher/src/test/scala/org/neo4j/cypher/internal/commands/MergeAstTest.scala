@@ -23,11 +23,13 @@ import org.scalatest.Assertions
 import org.junit.Test
 import org.neo4j.cypher.internal.commands.expressions._
 import org.neo4j.cypher.internal.commands.values.{TokenType, KeyToken}
-import org.neo4j.cypher.internal.commands.values.TokenType.Label
-import org.neo4j.cypher.internal.parser.{On, OnAction, ParsedEntity}
+import org.neo4j.cypher.internal.commands.values.TokenType._
+import org.neo4j.cypher.internal.parser.On
+import org.neo4j.cypher.internal.parser.ParsedEntity
 import org.neo4j.cypher.internal.mutation.PropertySetAction
 import org.neo4j.cypher.internal.mutation.MergeNodeAction
 import org.neo4j.cypher.internal.commands.expressions.TimestampFunction
+import org.neo4j.cypher.internal.parser.OnAction
 import org.neo4j.cypher.internal.commands.expressions.Nullable
 import org.neo4j.cypher.internal.commands.expressions.Property
 
@@ -39,7 +41,7 @@ class MergeAstTest extends Assertions {
     val from = MergeAst(Seq(ParsedEntity(A, Identifier(A), Map.empty, Seq.empty, bare = true)), Seq.empty)
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeStartItem(MergeNodeAction(A, Seq.empty, Seq.empty, Seq.empty, None))))
+    assert(from.nextStep() === Seq(MergeNodeAction(A, Seq.empty, Seq.empty, Seq.empty, None)))
   }
 
   @Test
@@ -49,25 +51,25 @@ class MergeAstTest extends Assertions {
 
     // then
     val a = from.nextStep()
-    val b = Seq(MergeNodeStartItem(MergeNodeAction(A,
+    val b = Seq(MergeNodeAction(A,
       expectations = Seq(nodeHasLabelPredicate(A)),
       onCreate = Seq(setNodeLabels(A)),
       onMatch = Seq.empty,
-      nodeProducerOption = NO_PRODUCER)))
+      nodeProducerOption = NO_PRODUCER))
     assert(a === b)
   }
 
   @Test
   def node_with_properties() {
     // given
-    val from = MergeAst(Seq(ParsedEntity(A, Identifier(A), Map(propertyKey -> expression), Seq.empty, bare = true)), Seq.empty)
+    val from = MergeAst(Seq(ParsedEntity(A, Identifier(A), Map(propertyKey.name -> expression), Seq.empty, bare = true)), Seq.empty)
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeStartItem(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeNodeAction(A,
       expectations = Seq(Equals(Nullable(Property(Identifier(A), propertyKey)), expression)),
       onCreate = Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)),
       onMatch = Seq.empty,
-      nodeProducerOption = NO_PRODUCER))))
+      nodeProducerOption = NO_PRODUCER)))
   }
 
   @Test
@@ -80,11 +82,11 @@ class MergeAstTest extends Assertions {
         OnAction(On.Create, A, Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)))))
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeStartItem(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeNodeAction(A,
       expectations = Seq.empty,
       onCreate = Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)),
       onMatch = Seq.empty,
-      nodeProducerOption = NO_PRODUCER))))
+      nodeProducerOption = NO_PRODUCER)))
   }
 
   @Test
@@ -97,11 +99,11 @@ class MergeAstTest extends Assertions {
         OnAction(On.Match, A, Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)))))
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeStartItem(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeNodeAction(A,
       expectations = Seq.empty,
       onCreate = Seq.empty,
       onMatch = Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)),
-      nodeProducerOption = NO_PRODUCER))))
+      nodeProducerOption = NO_PRODUCER)))
   }
 
   val A = "a"
@@ -109,7 +111,7 @@ class MergeAstTest extends Assertions {
   val NO_PATHS = Seq.empty
   val NO_PRODUCER = None
   val labelName = "Label"
-  val propertyKey = "property"
+  val propertyKey = PropertyKey("property")
   val expression = TimestampFunction()
 
   def nodeHasLabelPredicate(id: String) = HasLabel(Identifier(id), KeyToken.Unresolved(labelName, TokenType.Label))

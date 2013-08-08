@@ -123,16 +123,38 @@ public class TestSizeOf
         
         if ( !properties.isEmpty() )
             loadProperties( node );
-        if ( nrOfRelationships*nrOfTypes > 0 )
-            count( node.getRelationships() );
-        
+        if ( nrOfRelationships*nrOfTypes > 0 ) {
+            countRelationships( node );
+        }
+
         return node;
+    }
+
+    private void countRelationships( Node node )
+    {
+        Transaction transaction = db.beginTx();
+        try
+        {
+            count( node.getRelationships() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 
     private void loadProperties( PropertyContainer entity )
     {
-        for ( String key : entity.getPropertyKeys() )
-            entity.getProperty( key );
+        Transaction transaction = db.beginTx();
+        try
+        {
+            for ( String key : entity.getPropertyKeys() )
+                entity.getProperty( key );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 
     private void setProperties( Map<String, Object> properties, PropertyContainer entity )
@@ -181,20 +203,20 @@ public class TestSizeOf
         assertEquals( 0, nodeCache.size() );
         
         // Fully cache the node and its relationships
-        count( node.getRelationships() );
+        countRelationships( node );
         
         // Now the node cache size should be the same as doing node.size()
-        assertEquals( db.getNodeManager().getNodeForProxy( node.getId(), null ).size(), nodeCache.size() );
+        assertEquals( db.getNodeManager().getNodeForProxy( node.getId(), null ).sizeOfObjectInBytesIncludingOverhead(), nodeCache.size() );
     }
     
     private int sizeOfNode( Node node )
     {
-        return db.getNodeManager().getNodeForProxy( node.getId(), null ).size();
+        return db.getNodeManager().getNodeForProxy( node.getId(), null ).sizeOfObjectInBytesIncludingOverhead();
     }
     
     private int sizeOfRelationship( Relationship relationship )
     {
-        return db.getNodeManager().getRelationshipForProxy( relationship.getId(), null ).size();
+        return db.getNodeManager().getRelationshipForProxy( relationship.getId(), null ).sizeOfObjectInBytesIncludingOverhead();
     }
     
     private int withNodeOverhead( int size )

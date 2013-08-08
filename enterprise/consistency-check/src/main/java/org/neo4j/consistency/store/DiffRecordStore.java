@@ -20,6 +20,8 @@
 package org.neo4j.consistency.store;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -28,6 +30,7 @@ import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.impl.nioneo.store.AbstractBaseRecord;
 import org.neo4j.kernel.impl.nioneo.store.DynamicRecord;
 import org.neo4j.kernel.impl.nioneo.store.InvalidRecordException;
+import org.neo4j.kernel.impl.nioneo.store.LabelTokenRecord;
 import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyRecord;
@@ -48,7 +51,7 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
     public DiffRecordStore( RecordStore<R> actual )
     {
         this.actual = actual;
-        this.diff = new HashMap<Long, R>();
+        this.diff = new HashMap<>();
     }
 
     @Override
@@ -60,11 +63,6 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
     public void markDirty( long id )
     {
         if ( !diff.containsKey( id ) ) diff.put( id, null );
-    }
-
-    public boolean isModified( long id )
-    {
-        return diff.get( id ) != null;
     }
 
     public R forceGetRaw( R record )
@@ -115,11 +113,6 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
         return Math.max( highId, actual.getHighId() );
     }
 
-    public long getRawHighId()
-    {
-        return actual.getHighId();
-    }
-
     @Override
     public R getRecord( long id )
     {
@@ -141,6 +134,24 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
     }
 
     @Override
+    public Collection<R> getRecords( long id )
+    {
+        Collection<R> result = new ArrayList<>();
+        R record;
+        for ( Long nextId = id; nextId != null; nextId = getNextRecordReference( record ) )
+        {
+            result.add( record = forceGetRecord( nextId ) );
+        }
+        return result;
+    }
+
+    @Override
+    public Long getNextRecordReference( R record )
+    {
+        return actual.getNextRecordReference( record );
+    }
+
+    @Override
     public void updateRecord( R record )
     {
         if ( record.getLongId() > highId ) highId = record.getLongId();
@@ -156,7 +167,7 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
     @Override
     public <FAILURE extends Exception> void accept( RecordStore.Processor<FAILURE> processor, R record ) throws FAILURE
     {
-        actual.accept( new DispatchProcessor<FAILURE>( this, processor ), record );
+        actual.accept( new DispatchProcessor<>( this, processor ), record );
     }
 
     @Override
@@ -175,6 +186,11 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
     public R getChangedRecord( long id )
     {
         return diff.get( id );
+    }
+
+    public boolean hasChanges()
+    {
+        return !diff.isEmpty();
     }
 
     @SuppressWarnings( "unchecked" )
@@ -220,15 +236,33 @@ public class DiffRecordStore<R extends AbstractBaseRecord> implements RecordStor
         }
 
         @Override
-        public void processRelationshipType( RecordStore<RelationshipTypeTokenRecord> store, RelationshipTypeTokenRecord record ) throws FAILURE
+        public void processLabelArrayWithOwner( RecordStore<DynamicRecord> store, DynamicRecord array ) throws FAILURE
         {
-            processor.processRelationshipType( (RecordStore<RelationshipTypeTokenRecord>) diffStore, record );
+            processor.processLabelArrayWithOwner( (RecordStore<DynamicRecord>) diffStore, array );
+        }
+
+        @Override
+        public void processSchema( RecordStore<DynamicRecord> store, DynamicRecord schema ) throws FAILURE
+        {
+            processor.processSchema( (RecordStore<DynamicRecord>) diffStore, schema );
+        }
+
+        @Override
+        public void processRelationshipTypeToken( RecordStore<RelationshipTypeTokenRecord> store,
+                                                  RelationshipTypeTokenRecord record ) throws FAILURE
+        {
+            processor.processRelationshipTypeToken( (RecordStore<RelationshipTypeTokenRecord>) diffStore, record );
         }
 
         @Override
         public void processPropertyKeyToken( RecordStore<PropertyKeyTokenRecord> store, PropertyKeyTokenRecord record ) throws FAILURE
         {
             processor.processPropertyKeyToken( (RecordStore<PropertyKeyTokenRecord>) diffStore, record );
+        }
+
+        @Override
+        public void processLabelToken(RecordStore<LabelTokenRecord> store, LabelTokenRecord record) throws FAILURE {
+            processor.processLabelToken((RecordStore<LabelTokenRecord>) diffStore, record);
         }
     }
 }

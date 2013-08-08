@@ -21,18 +21,21 @@ package org.neo4j.cypher
 
 import org.junit.{After, Before}
 import scala.collection.JavaConverters._
-import org.scalatest.junit.JUnitSuite
 import collection.Map
 import org.neo4j.graphdb._
 import org.neo4j.test.ImpermanentGraphDatabase
 import org.neo4j.kernel.ThreadToStatementContextBridge
-import org.neo4j.kernel.api.StatementContext
 import org.neo4j.kernel.GraphDatabaseAPI
 import org.neo4j.cypher.internal.helpers.GraphIcing
 import org.neo4j.cypher.internal.spi.PlanContext
 import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundPlanContext
+import org.scalatest.Assertions
+import org.neo4j.kernel.api.StatementOperations
+import org.neo4j.kernel.api.operations.StatementState
+import org.neo4j.kernel.api.StatementOperationParts
+import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundPlanContext
 
-class GraphDatabaseTestBase extends GraphIcing with JUnitSuite {
+class GraphDatabaseTestBase extends GraphIcing with Assertions {
 
   var graph: GraphDatabaseAPI with Snitch = null
   var refNode: Node = null
@@ -41,7 +44,13 @@ class GraphDatabaseTestBase extends GraphIcing with JUnitSuite {
   @Before
   def baseInit() {
     graph = new ImpermanentGraphDatabase() with Snitch
-    refNode = graph.getReferenceNode
+    refNode = graph.inTx(graph.getReferenceNode)
+  }
+
+  def assertInTx(f: => Option[String]) {
+    graph.inTx {
+      assert(f)
+    }
   }
 
   @After
@@ -90,7 +99,7 @@ class GraphDatabaseTestBase extends GraphIcing with JUnitSuite {
 
   def createNode(values: (String, Any)*): Node = createNode(values.toMap)
 
-  def execStatement[T](f: (StatementContext => T)): T = {
+  def execStatement[T](f: (StatementOperationParts => T)): T = {
     val tx = graph.beginTx
     val ctx = graph
       .getDependencyResolver
@@ -136,7 +145,9 @@ class GraphDatabaseTestBase extends GraphIcing with JUnitSuite {
     }
   }
 
-  def node(name: String): Node = nodes.find(_.getProperty("name") == name).get
+  def node(name: String): Node = graph.inTx {
+    nodes.find(_.getProperty("name") == name).get
+  }
 
   def relType(name: String): RelationshipType = graph.getRelationshipTypes.asScala.find(_.name() == name).get
 
@@ -167,13 +178,20 @@ class GraphDatabaseTestBase extends GraphIcing with JUnitSuite {
     (a, b, c, d)
   }
 
-  def statementContext:StatementContext=
+  def statementContext:StatementOperationParts =
     graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).getCtxForWriting
 
-  def readOnlyStatementContext:StatementContext=
+  def cakeState:StatementState =
+    graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).statementForWriting
+    
+  def readOnlyStatementContext:StatementOperationParts =
     graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).getCtxForReading
 
-  def planContext:PlanContext= new TransactionBoundPlanContext(readOnlyStatementContext, graph)
+  def planContext:PlanContext= new TransactionBoundPlanContext(
+      statementContext.keyReadOperations, statementContext.schemaReadOperations, cakeState, graph)
+
+  def readOnlyCakeState:StatementState =
+    graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).statementForReading
 }
 
 trait Snitch extends GraphDatabaseAPI {

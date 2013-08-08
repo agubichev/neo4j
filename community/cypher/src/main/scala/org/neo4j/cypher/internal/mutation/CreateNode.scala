@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.symbols.{SymbolTable, NodeType}
 import collection.Map
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.CypherTypeException
 
 case class CreateNode(key: String, properties: Map[String, Expression], labels: Seq[KeyToken], bare: Boolean = true)
   extends UpdateAction
@@ -36,7 +37,7 @@ case class CreateNode(key: String, properties: Map[String, Expression], labels: 
 
   def exec(context: ExecutionContext, state: QueryState): Iterator[ExecutionContext] = {
     def fromAnyToLiteral(x: Map[String, Any]): Map[String, Expression] = x.map {
-      case (k, v:Any) => (k -> Literal(v))
+      case (k, v:Any) => k -> Literal(v)
     }
 
     def createNodeWithPropertiesAndLabels(props: Map[String, Expression]): ExecutionContext = {
@@ -44,8 +45,8 @@ case class CreateNode(key: String, properties: Map[String, Expression], labels: 
       setProperties(node, props, context, state)
 
       val queryCtx = state.query
-      val labelIds = labels.map(_.getId(state))
-      queryCtx.setLabelsOnNode(node.getId, labelIds)
+      val labelIds = labels.map(_.getOrCreateId(state.query))
+      queryCtx.setLabelsOnNode(node.getId, labelIds.iterator)
 
       val newContext = context.newWith(key -> node)
       newContext
@@ -75,6 +76,7 @@ case class CreateNode(key: String, properties: Map[String, Expression], labels: 
 
           createNodeWithPropertiesAndLabels(m)
         }
+        case _ => throw new CypherTypeException("Parameter provided for node creation is not a Map")
       }
     } else {
       Iterator(createNodeWithPropertiesAndLabels(properties))

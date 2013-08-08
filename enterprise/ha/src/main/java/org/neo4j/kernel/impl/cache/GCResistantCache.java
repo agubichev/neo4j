@@ -29,7 +29,7 @@ import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.info.DiagnosticsPhase;
 import org.neo4j.kernel.info.DiagnosticsProvider;
 
-public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, DiagnosticsProvider
+public class GCResistantCache<E extends EntityWithSizeObject> implements Cache<E>, DiagnosticsProvider
 {
     public static final long MIN_SIZE = 1;
     private final AtomicReferenceArray<E> cache;
@@ -103,7 +103,7 @@ public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, Dia
         this.purgeHandoffSize = (long)(maxSize * 1.05d);
     }
     
-    private int getPosition( EntityWithSize obj )
+    private int getPosition( EntityWithSizeObject obj )
     {
         return (int) ( obj.getId() % cache.length() );
     }
@@ -128,7 +128,7 @@ public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, Dia
         E oldObj = cache.get( pos );
         if ( oldObj != obj )
         {
-            int objectSize = obj.size();
+            int objectSize = obj.sizeOfObjectInBytesIncludingOverhead();
             if ( cache.compareAndSet( pos, oldObj, obj ) )
             {
                 setHighest( pos );
@@ -227,7 +227,6 @@ public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, Dia
             if ( myCurrentSize < purgeHandoffSize )
             {   // It's safe to just return and let the purger do its thing
                 avertedPurgeWaits.incrementAndGet();
-                return;
             }
             else
             {
@@ -308,11 +307,11 @@ public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, Dia
         long registeredSize = 0;
         for ( int i = 0; i < cache.length(); i++ )
         {
-            EntityWithSize obj = cache.get( i );
+            EntityWithSizeObject obj = cache.get( i );
             if ( obj != null )
             {
                 elementCount++;
-                actualSize += obj.size();
+                actualSize += obj.sizeOfObjectInBytesIncludingOverhead();
                 registeredSize += obj.getRegisteredSize();
             }
         }
@@ -436,7 +435,7 @@ public class GCResistantCache<E extends EntityWithSize> implements Cache<E>, Dia
         {
             return;
         }
-        long size = currentSize.addAndGet( (newSize - existingObj.getRegisteredSize()) );
+        long size = currentSize.addAndGet( newSize - existingObj.getRegisteredSize() );
         obj.setRegisteredSize( newSize );
         if ( size > closeToMaxSize )
         {

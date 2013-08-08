@@ -24,11 +24,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.After;
 import org.junit.Test;
-
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -58,7 +58,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.neo4j.cluster.ClusterSettings.default_timeout;
 import static org.neo4j.graphdb.DynamicLabel.label;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
@@ -137,7 +136,17 @@ public class SchemaIndexHaIT
         
         // THEN
         assertEquals( "Unexpected new master", aSlave, newMaster );
-        awaitIndexOnline( single( newMaster.schema().getIndexes() ), newMaster, data );
+        Transaction transaction = newMaster.beginTx();
+        IndexDefinition index;
+        try
+        {
+            index = single( newMaster.schema().getIndexes() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
+        awaitIndexOnline( index, newMaster, data );
     }
 
     private final File storeDir = TargetDirectory.forTest( getClass() ).graphDbDir( true );
@@ -206,21 +215,43 @@ public class SchemaIndexHaIT
         for ( GraphDatabaseService db : cluster.getAllMembers() )
             awaitIndexOnline( index, db, expectedDdata );
     }
-    
-    private static void awaitIndexOnline( IndexDefinition index, GraphDatabaseService db,
-            Map<Object, Node> expectedData ) throws InterruptedException
+
+    private static IndexDefinition reHomedIndexDefinition( GraphDatabaseService db, IndexDefinition definition )
     {
-        long timeout = System.currentTimeMillis() + SECONDS.toMillis( 60 );
-        while( !indexOnline( index, db ) )
+        for ( IndexDefinition candidate : db.schema().getIndexes() )
         {
-            Thread.sleep( 1 );
-            if ( System.currentTimeMillis() > timeout )
+            if ( candidate.equals( definition ) )
             {
-                fail( "Expected index to come online within a reasonable time." );
+                return candidate;
             }
         }
-        
-        assertIndexContents( index, db, expectedData );
+        throw new NoSuchElementException( "New database doesn't have requested index" );
+    }
+
+    private static void awaitIndexOnline( IndexDefinition requestedIndex, GraphDatabaseService db,
+            Map<Object, Node> expectedData ) throws InterruptedException
+    {
+        Transaction transaction = db.beginTx();
+        try
+        {
+            IndexDefinition index = reHomedIndexDefinition( db, requestedIndex );
+
+            long timeout = System.currentTimeMillis() + SECONDS.toMillis( 60 );
+            while( !indexOnline( index, db ) )
+            {
+                Thread.sleep( 1 );
+                if ( System.currentTimeMillis() > timeout )
+                {
+                    fail( "Expected index to come online within a reasonable time." );
+                }
+            }
+
+            assertIndexContents( index, db, expectedData );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 
     private static void assertIndexContents( IndexDefinition index, GraphDatabaseService db,
@@ -304,6 +335,12 @@ public class SchemaIndexHaIT
         {
             return inMemoryDelegate.getInitialState( indexId );
         }
+
+        @Override
+        public String getPopulationFailure( long indexId ) throws IllegalStateException
+        {
+            return inMemoryDelegate.getPopulationFailure( indexId );
+        }
     }
 
     private static class ControlledGraphDatabaseFactory extends HighlyAvailableGraphDatabaseFactory
@@ -349,4 +386,4 @@ public class SchemaIndexHaIT
             }
         };
     }
-}
+ }

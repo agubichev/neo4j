@@ -47,7 +47,7 @@ import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
 
-public class Dbinfo extends ReadOnlyGraphDatabaseApp
+public class Dbinfo extends NonTransactionProvidingApp
 {
     {
         addOptionDefinition( "l", new OptionDefinition( OptionValueType.MAY,
@@ -97,11 +97,11 @@ public class Dbinfo extends ReadOnlyGraphDatabaseApp
         {
             try
             {
-                kernel = graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class )
-                        .getSingleManagementBean( Kernel.class );
+                kernel = graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class ).getSingleManagementBean( Kernel.class );
             }
             catch ( Exception e )
             {
+                // Ignore - the null check does the work
             }
         }
         if ( kernel == null )

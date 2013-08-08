@@ -19,9 +19,6 @@
  */
 package org.neo4j.kernel;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.IteratorUtil.count;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.graphdb.DynamicRelationshipType;
@@ -33,6 +30,11 @@ import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.test.DatabaseRule;
 import org.neo4j.test.ImpermanentDatabaseRule;
 
+import static org.junit.Assert.assertThat;
+import static org.neo4j.graphdb.Neo4jMatchers.hasProperty;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
+import static org.neo4j.helpers.collection.IteratorUtil.count;
+
 public class TestTransactionEventDeadlocks
 {
     @Rule
@@ -42,8 +44,8 @@ public class TestTransactionEventDeadlocks
     public void canAvoidDeadlockThatWouldHappenIfTheRelationshipTypeCreationTransactionModifiedData() throws Exception
     {
         GraphDatabaseService graphdb = database.getGraphDatabaseService();
-        final Node root = graphdb.getReferenceNode();
         Transaction tx = graphdb.beginTx();
+        final Node root = graphdb.getReferenceNode();
         try
         {
             root.setProperty( "counter", Long.valueOf( 0L ) );
@@ -95,6 +97,6 @@ public class TestTransactionEventDeadlocks
             tx.finish();
         }
 
-        assertEquals( 1L, root.getProperty( "counter" ) );
+        assertThat( root, inTx( graphdb, hasProperty( "counter" ).withValue( 1L ) ) );
     }
 }

@@ -27,15 +27,17 @@ import java.util.Iterator;
 import org.neo4j.helpers.collection.PrefetchingIterator;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
+import org.neo4j.kernel.api.exceptions.schema.MalformedSchemaRuleException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.nioneo.store.windowpool.WindowPoolFactory;
 import org.neo4j.kernel.impl.util.StringLogger;
 
 import static java.util.Arrays.asList;
 
+import static org.neo4j.helpers.Exceptions.launderedException;
 import static org.neo4j.kernel.impl.nioneo.store.SchemaRule.Kind.deserialize;
 
-public class SchemaStore extends AbstractDynamicStore implements Iterable<SchemaRule>
+public class SchemaStore extends AbstractDynamicStore implements Iterable<SchemaRule>, SchemaRuleAccess
 {
     // store version, each store ends with this string (byte encoded)
     public static final String TYPE_DESCRIPTOR = "SchemaStore";
@@ -52,7 +54,7 @@ public class SchemaStore extends AbstractDynamicStore implements Iterable<Schema
     @Override
     public <FAILURE extends Exception> void accept( Processor<FAILURE> processor, DynamicRecord record ) throws FAILURE
     {
-        throw new UnsupportedOperationException( "Not implemented yet" );
+        processor.processSchema( this, record );
     }
 
     @Override
@@ -65,10 +67,11 @@ public class SchemaStore extends AbstractDynamicStore implements Iterable<Schema
     {
         RecordSerializer serializer = new RecordSerializer();
         serializer = serializer.append( rule );
-        return allocateRecordsFromBytes( serializer.serialize(), asList( forceGetRecord( rule.getId() ) ).iterator() );
+        return allocateRecordsFromBytes( serializer.serialize(), asList( forceGetRecord( rule.getId() ) ).iterator(),
+                recordAllocator );
     }
     
-    public Iterator<SchemaRule> loadAll()
+    public Iterator<SchemaRule> loadAllSchemaRules()
     {
         return new PrefetchingIterator<SchemaRule>()
         {
@@ -85,7 +88,15 @@ public class SchemaStore extends AbstractDynamicStore implements Iterable<Schema
                     DynamicRecord record = forceGetRecord( id );
                     if ( record.inUse() && record.isStartRecord() )
                     {
-                        return getSchemaRule( id, scratchData );
+                        try
+                        {
+                            return getSchemaRule( id, scratchData );
+                        }
+                        catch ( MalformedSchemaRuleException e )
+                        {
+                            // TODO remove this and throw this further up
+                            throw launderedException( e );
+                        }
                     }
                 }
                 return null;
@@ -96,7 +107,7 @@ public class SchemaStore extends AbstractDynamicStore implements Iterable<Schema
     @Override
     public Iterator<SchemaRule> iterator()
     {
-        return loadAll();
+        return loadAllSchemaRules();
     }
 
     private byte[] newRecordBuffer()
@@ -104,9 +115,36 @@ public class SchemaStore extends AbstractDynamicStore implements Iterable<Schema
         return new byte[getRecordSize()*4];
     }
 
-    private SchemaRule getSchemaRule( long id, byte[] buffer )
+    @Override
+    public SchemaRule loadSingleSchemaRule( long ruleId ) throws MalformedSchemaRuleException
     {
-        Collection<DynamicRecord> records = getRecords( id );
+        return forceGetSchemaRule( ruleId, newRecordBuffer() );
+    }
+
+    private SchemaRule getSchemaRule( long id, byte[] buffer ) throws MalformedSchemaRuleException
+    {
+        return readSchemaRule( id, getRecords( id ), buffer );
+    }
+
+    private SchemaRule forceGetSchemaRule( long id, byte[] buffer ) throws MalformedSchemaRuleException
+    {
+        Collection<DynamicRecord> records = getRecords( id, RecordLoad.FORCE );
+        for ( DynamicRecord record : records )
+        {
+            ensureHeavy( record );
+        }
+        return readSchemaRule( id, records, buffer );
+    }
+
+    public static SchemaRule readSchemaRule( long id, Collection<DynamicRecord> records )
+            throws MalformedSchemaRuleException
+    {
+        return readSchemaRule( id, records, new byte[ BLOCK_SIZE * 4 ] );
+    }
+
+    private static SchemaRule readSchemaRule( long id, Collection<DynamicRecord> records, byte[] buffer )
+            throws MalformedSchemaRuleException
+    {
         ByteBuffer scratchBuffer = concatData( records, buffer );
         return deserialize( id, scratchBuffer );
     }

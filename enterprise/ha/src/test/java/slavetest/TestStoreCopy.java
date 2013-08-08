@@ -19,26 +19,29 @@
  */
 package slavetest;
 
-import static org.apache.commons.io.FileUtils.copyFileToDirectory;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.kernel.ha.SlaveStoreWriter.COPY_FROM_MASTER_TEMP;
-import static org.neo4j.kernel.impl.util.FileUtils.deleteFiles;
-import static org.neo4j.kernel.impl.util.StringLogger.DEFAULT_NAME;
-import static org.neo4j.test.ha.ClusterManager.clusterWithAdditionalClients;
-
 import java.io.File;
 import java.io.FileFilter;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
 import org.neo4j.test.AbstractClusterTest;
+import org.neo4j.test.ha.ClusterManager;
 import org.neo4j.test.ha.ClusterManager.RepairKit;
+
+import static org.apache.commons.io.FileUtils.copyFileToDirectory;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import static org.neo4j.kernel.ha.SlaveStoreWriter.COPY_FROM_MASTER_TEMP;
+import static org.neo4j.kernel.impl.util.FileUtils.deleteFiles;
+import static org.neo4j.kernel.impl.util.StringLogger.DEFAULT_NAME;
+import static org.neo4j.test.ha.ClusterManager.clusterWithAdditionalClients;
 
 /**
  * Check sandboxed copy of stores. The before and after methods
@@ -76,11 +79,21 @@ public class TestStoreCopy extends AbstractClusterTest
     @Before
     public void simpleSanityCheck() throws Exception
     {
+        cluster.await( ClusterManager.masterSeesSlavesAsAvailable( 1 ) );
+
         slave = cluster.getAnySlave();
         slaveDir = cluster.getStoreDir( slave );
         slaveTempCopyDir = new File( slaveDir, COPY_FROM_MASTER_TEMP );
-        
-        assertEquals( VALUE, slave.getNodeById( nodeId ).getProperty( KEY ) );
+
+        Transaction transaction = slave.beginTx();
+        try
+        {
+            assertEquals( VALUE, slave.getNodeById( nodeId ).getProperty( KEY ) );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
     
     @After
@@ -158,11 +171,19 @@ public class TestStoreCopy extends AbstractClusterTest
 
     private void assertNodeAndIndexingExists( HighlyAvailableGraphDatabase db, long nodeId, String key, Object value )
     {
-        Node node = db.getNodeById( nodeId );
-        assertEquals( "Property '" + key + "'='" + value + "' mismatch on " + node + " for " + db,
-                value, node.getProperty( key ) );
-        assertTrue( "Index '" + key + "' not found for " + db, db.index().existsForNodes( key ) );
-        assertEquals( "Index '" + key + "'='" + value + "' mismatch on " + node + " for " + db,
-                node, db.index().forNodes( key ).get( key, value ).getSingle() );
+        Transaction transaction = db.beginTx();
+        try
+        {
+            Node node = db.getNodeById( nodeId );
+            assertEquals( "Property '" + key + "'='" + value + "' mismatch on " + node + " for " + db,
+                    value, node.getProperty( key ) );
+            assertTrue( "Index '" + key + "' not found for " + db, db.index().existsForNodes( key ) );
+            assertEquals( "Index '" + key + "'='" + value + "' mismatch on " + node + " for " + db,
+                    node, db.index().forNodes( key ).get( key, value ).getSingle() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 }

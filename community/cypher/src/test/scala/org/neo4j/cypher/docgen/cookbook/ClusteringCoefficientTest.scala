@@ -22,8 +22,14 @@ package org.neo4j.cypher.docgen.cookbook
 import org.junit.Test
 import org.junit.Assert._
 import org.neo4j.cypher.docgen.DocumentingTestBase
+import org.neo4j.visualization.graphviz.GraphStyle
+import org.neo4j.visualization.graphviz.AsciiDocSimpleStyle
 
 class ClusteringCoefficientTest extends DocumentingTestBase {
+
+  override protected def getGraphvizStyle: GraphStyle = 
+    AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors()
+
   def graphDescription = List()
 
   def section = "cookbook"
@@ -64,7 +70,7 @@ Therefore the clustering coefficient of node 1 is `1/6`.
       		"MATCH (a)--(b)  " +
       		"WITH a, count(distinct b) as n " +
       		"MATCH (a)--()-[r]-()--(a) " +
-      		"WHERE a.name! = \"startnode\" " +
+            "WHERE a.name = \"startnode\" " +
       		"RETURN n, count(distinct r) as r",
       returns = "This returns `n` and `r` for the above calculations.",
       assertions = (p) => assertEquals(List(

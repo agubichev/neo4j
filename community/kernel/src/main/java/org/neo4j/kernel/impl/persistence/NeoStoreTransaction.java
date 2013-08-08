@@ -19,13 +19,12 @@
  */
 package org.neo4j.kernel.impl.persistence;
 
-import java.util.Iterator;
 import java.util.Map;
-
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 
 import org.neo4j.helpers.Pair;
+import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
 import org.neo4j.kernel.impl.core.Token;
 import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyData;
@@ -62,32 +61,31 @@ public interface NeoStoreTransaction
      * Adds a property to the given node, with the given index and value.
      *
      * @param nodeId The id of the node to which to add the property.
-     * @param index The index of the key of the property to add.
+     * @param propertyKey The index of the key of the property to add.
      * @param value The value of the property.
      * @return The added property, as a PropertyData object.
      */
-    PropertyData nodeAddProperty( long nodeId, Token index, Object value );
+    PropertyData nodeAddProperty( long nodeId, int propertyKey, Object value );
 
     /**
      * Changes an existing property of the given node, with the given index to
      * the passed value
      *
      * @param nodeId The id of the node which holds the property to change.
-     * @param index The index of the key of the property to change.
+     * @param propertyKey The index of the key of the property to change.
      * @param value The new value of the property.
      * @return The changed property, as a PropertyData object.
      */
-    PropertyData nodeChangeProperty( long nodeId, PropertyData index,
-            Object value );
+    PropertyData nodeChangeProperty( long nodeId, int propertyKey, Object value );
 
     /**
      * Removes the given property identified by indexKeyId of the node with the
      * given id.
      *
      * @param nodeId The id of the node that is to have the property removed.
-     * @param index The index key of the property.
+     * @param propertyKey The index key of the property.
      */
-    void nodeRemoveProperty( long nodeId, PropertyData index );
+    void nodeRemoveProperty( long nodeId, int propertyKey );
 
     /**
      * Creates a node for the given id
@@ -126,11 +124,11 @@ public interface NeoStoreTransaction
      * value.
      *
      * @param relId The id of the relationship to which to add the property.
-     * @param index The index of the key of the property to add.
+     * @param propertyKey The index of the key of the property to add.
      * @param value The value of the property.
      * @return The added property, as a PropertyData object.
      */
-    PropertyData relAddProperty( long relId, Token index, Object value );
+    PropertyData relAddProperty( long relId, int propertyKey, Object value );
 
     /**
      * Changes an existing property's value of the given relationship, with the
@@ -138,12 +136,11 @@ public interface NeoStoreTransaction
      *
      * @param relId The id of the relationship which holds the property to
      *            change.
-     * @param index The index of the key of the property to change.
+     * @param propertyKey The index of the key of the property to change.
      * @param value The new value of the property.
      * @return The changed property, as a PropertyData object.
      */
-    PropertyData relChangeProperty( long relId, PropertyData index,
-            Object value );
+    PropertyData relChangeProperty( long relId, int propertyKey, Object value );
 
     /**
      * Removes the given property identified by its index from the relationship
@@ -151,9 +148,9 @@ public interface NeoStoreTransaction
      *
      * @param relId The id of the relationship that is to have the property
      *            removed.
-     * @param index The index key of the property.
+     * @param propertyKey The index key of the property.
      */
-    void relRemoveProperty( long relId, PropertyData index );
+    void relRemoveProperty( long relId, int propertyKey );
 
     /**
      * Tries to load the light node with the given id, returns true on success.
@@ -164,40 +161,60 @@ public interface NeoStoreTransaction
     NodeRecord nodeLoadLight( long id );
 
     /**
-     * Attempts to load the value off the store forthe given PropertyData
+     * Attempts to load the value off the store for the given PropertyData
      * object.
      *
-     * @param property The property to make heavy
+     * @param nodeId id of node
+     * @param propertyKey The property to make heavy
      * @return The property data
      */
-    Object loadPropertyValue( PropertyData property );
+    Object nodeLoadPropertyValue( long nodeId, int propertyKey );
 
+    /**
+     * Attempts to load the value off the store for the given PropertyData
+     * object.
+     *
+     * @param relationshipId id of relationship
+     * @param propertyKey The property to make heavy
+     * @return The property data
+     */
+    Object relationshipLoadPropertyValue( long relationshipId, int propertyKey );
+    
+    /**
+     * Attempts to load the value off the store for the given PropertyData
+     * object.
+     *
+     * @param propertyKey The property to make heavy
+     * @return The property data
+     */
+    Object graphLoadPropertyValue( int propertyKey);
+    
     /**
      * Adds a property to the graph, with the given index and value.
      *
-     * @param index The index of the key of the property to add.
+     * @param propertyKey The index of the key of the property to add.
      * @param value The value of the property.
      * @return The added property, as a PropertyData object.
      */
-    PropertyData graphAddProperty( Token index, Object value );
+    PropertyData graphAddProperty( int propertyKey, Object value );
 
     /**
      * Changes an existing property of the graph, with the given index to
      * the passed value
      *
-     * @param index The index of the key of the property to change.
+     * @param propertyKey The index of the key of the property to change.
      * @param value The new value of the property.
      * @return The changed property, as a PropertyData object.
      */
-    PropertyData graphChangeProperty( PropertyData index, Object value );
+    PropertyData graphChangeProperty( int propertyKey, Object value );
 
     /**
      * Removes the given property identified by indexKeyId of the graph with the
      * given id.
      *
-     * @param index The index key of the property.
+     * @param propertyKey The index key of the property.
      */
-    void graphRemoveProperty( PropertyData index );
+    void graphRemoveProperty( int propertyKey );
     
     /**
      * Loads the complete property chain for the graph and returns it as a
@@ -305,8 +322,7 @@ public interface NeoStoreTransaction
      */
     int getKeyIdForProperty( PropertyData property );
 
-    boolean delistResource( Transaction tx, int tmsuccess )
-        throws SystemException;
+    boolean delistResource( Transaction tx, int tmsuccess ) throws SystemException;
     
     void createSchemaRule( SchemaRule schemaRule );
     
@@ -316,7 +332,7 @@ public interface NeoStoreTransaction
     
     void removeLabelFromNode( long labelId, long nodeId );
 
-    Iterator<Long> getLabelsForNode( long nodeId );
+    PrimitiveLongIterator getLabelsForNode( long nodeId );
 
     void setConstraintIndexOwner( long constraintIndexId, long constraintId );
 }

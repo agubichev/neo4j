@@ -24,13 +24,16 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.graphdb.Neo4jMatchers.inTx;
 
 import java.util.List;
 import java.util.Map;
 
 import org.json.JSONException;
 import org.junit.Test;
+import org.neo4j.graphdb.Neo4jMatchers;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.server.rest.AbstractRestFunctionalTestBase;
 import org.neo4j.server.rest.JaxRsResponse;
@@ -101,7 +104,6 @@ public class StreamingBatchOperationDocIT extends AbstractRestFunctionalTestBase
         .payload(jsonString)
         .expectedStatus(200)
         .post( batchUri() ).entity();
-        System.out.println("entity = " + entity);
         List<Map<String, Object>> results = JsonHelper.jsonToList(entity);
 
         assertEquals(4, results.size());
@@ -361,8 +363,8 @@ public class StreamingBatchOperationDocIT extends AbstractRestFunctionalTestBase
             UniformInterfaceException, JSONException, PropertyValueException {
     	String string = "Jazz";
         Node gnode = getNode( string );
-        assertEquals( gnode.getProperty( "name" ), string );
-        
+        assertThat( gnode, inTx(graphdb(), Neo4jMatchers.hasProperty( "name" ).withValue(string)) );
+
         String name = "string\\ and \"test\"";
         
         String jsonString = new PrettyJSON()
@@ -643,6 +645,14 @@ public class StreamingBatchOperationDocIT extends AbstractRestFunctionalTestBase
     }
     private int countNodes()
     {
-        return IteratorUtil.count( (Iterable)graphdb().getAllNodes() );
+        Transaction transaction = graphdb().beginTx();
+        try
+        {
+            return IteratorUtil.count( (Iterable)graphdb().getAllNodes() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 }

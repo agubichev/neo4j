@@ -19,11 +19,11 @@
  */
 package org.neo4j.kernel.impl.nioneo.store;
 
-import static org.neo4j.kernel.impl.cache.SizeOfs.withObjectOverhead;
-
 import java.util.Arrays;
 
 import org.neo4j.kernel.impl.cache.SizeOfs;
+
+import static org.neo4j.kernel.impl.cache.SizeOfs.withObjectOverhead;
 
 public class PropertyDatas
 {
@@ -38,7 +38,8 @@ public class PropertyDatas
             this.id = id;
         }
         
-        public int size()
+        @Override
+        public int sizeOfObjectInBytesIncludingOverhead()
         {
             // all primitives fit in 8 byte value
             // Object + id(long) + index(int) + value(pad)
@@ -322,9 +323,10 @@ public class PropertyDatas
             this.value = value;
         }
         
-        public int size()
+        @Override
+        public int sizeOfObjectInBytesIncludingOverhead()
         {
-            return super.size() + 8;
+            return super.sizeOfObjectInBytesIncludingOverhead() + 8;
         }
 
         @SuppressWarnings( "boxing" )
@@ -362,9 +364,10 @@ public class PropertyDatas
             this.value = value;
         }
 
-        public int size()
+        @Override
+        public int sizeOfObjectInBytesIncludingOverhead()
         {
-            return super.size() + 8;
+            return super.sizeOfObjectInBytesIncludingOverhead() + 8;
         }
         
         @SuppressWarnings( "boxing" )
@@ -408,7 +411,8 @@ public class PropertyDatas
             this.value = value;
         }
         
-        public int size()
+        @Override
+        public int sizeOfObjectInBytesIncludingOverhead()
         {
             return withObjectOverhead( 8 /*id*/ + SizeOfs.REFERENCE_SIZE /*value reference*/ + 4 /*index*/ + sizeOf( value ) );
             // TODO with padding the 'int index' will probably amount to 8 bytes.
@@ -420,6 +424,7 @@ public class PropertyDatas
             return id;
         }
 
+        @Override
         public int getIndex()
         {
             return index;
@@ -505,5 +510,41 @@ public class PropertyDatas
     public static PropertyData forStringOrArray( int index, long id, Object value )
     {
         return new ObjectPropertyData( index, id, value );
+    }
+
+    public static PropertyData noProperty( final long propertyKeyId )
+    {
+        return new PropertyData()
+        {
+            @Override
+            public int sizeOfObjectInBytesIncludingOverhead()
+            {
+                return 0;
+            }
+            
+            @Override
+            public void setNewValue( Object newValue )
+            {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public Object getValue()
+            {
+                return null;
+            }
+            
+            @Override
+            public int getIndex()
+            {
+                return (int) propertyKeyId;
+            }
+            
+            @Override
+            public long getId()
+            {
+                return -1;
+            }
+        };
     }
 }

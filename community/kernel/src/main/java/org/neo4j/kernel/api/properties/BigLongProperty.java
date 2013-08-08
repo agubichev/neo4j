@@ -19,6 +19,9 @@
  */
 package org.neo4j.kernel.api.properties;
 
+import org.neo4j.kernel.impl.nioneo.store.PropertyData;
+import org.neo4j.kernel.impl.nioneo.store.PropertyDatas;
+
 final class BigLongProperty extends FullSizeProperty
 {
     private final long value;
@@ -27,6 +30,17 @@ final class BigLongProperty extends FullSizeProperty
     {
         super( propertyKeyId );
         this.value = value;
+    }
+
+    @Override
+    public boolean valueEquals( Object other )
+    {
+        if ( other instanceof Long )
+        {
+            return value == (long)other;
+        }
+
+        return valueCompare( value, other );
     }
 
     @Override
@@ -56,6 +70,13 @@ final class BigLongProperty extends FullSizeProperty
     @Override
     boolean hasEqualValue( FullSizeProperty that )
     {
-        return value == ((BigLongProperty)that).value;
+        return value == ((BigLongProperty) that).value;
+    }
+
+    @Override
+    @Deprecated
+    public PropertyData asPropertyDataJustForIntegration()
+    {
+        return PropertyDatas.forLong( (int) propertyKeyId, -1, value );
     }
 }

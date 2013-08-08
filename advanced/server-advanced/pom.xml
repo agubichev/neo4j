@@ -48,9 +48,6 @@
       which currently assumes external servers to be running at http://localhost:7474/ -->
     <testWithExternalServer>false</testWithExternalServer>
 
-    <!-- For cucumber "feature" tests -->
-    <cukeArgs />
-
     <webdriver.version>2.0b1</webdriver.version>
     <webdriver.impl.class>org.openqa.selenium.firefox.FirefoxDriver</webdriver.impl.class>
 
@@ -61,7 +58,7 @@
   <packaging>jar</packaging>
 
   <scm>
-    <url>https://github.com/neo4j/advanced/tree/master/server-advanced</url>
+	  <url>https://github.com/neo4j/neo4j/tree/master/advanced/server-advanced</url>
   </scm>
 
   <licenses>
@@ -428,19 +425,6 @@
 
   <repositories>
     <repository>
-      <id>java.net</id>
-      <url>http://download.java.net/maven/2/</url>
-    </repository>
-    <repository>
-      <id>tinkerpop-repository</id>
-      <name>TinkerPop Maven2 Repository</name>
-      <url>http://tinkerpop.com/maven2</url>
-      <snapshots>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-      </snapshots>
-    </repository>
-    <repository>
       <id>selenium-repository</id>
       <url>http://selenium.googlecode.com/svn/repository</url>
     </repository>
@@ -467,13 +451,6 @@
       </releases>
     </repository>
   </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>cukes</id>
-      <url>http://cukes.info/maven</url>
-    </pluginRepository>
-  </pluginRepositories>
 
   <distributionManagement>
     <site>

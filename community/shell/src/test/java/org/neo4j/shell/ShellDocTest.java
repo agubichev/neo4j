@@ -141,6 +141,7 @@ public class ShellDocTest
                 "end node" );
         doc.add( "pwd", "0", "print current history stack" );
         doc.add( "ls -avr", "KNOWS", "verbose list relationships" );
+        db.beginTx();
         doc.run();
         doc.add( "rmnode -f 0", "", "delete node 0 (reference node)" );
         doc.add( "cd", "", "cd back to the reference node" );
@@ -156,6 +157,7 @@ public class ShellDocTest
         GraphDatabaseAPI db = (GraphDatabaseAPI)new TestGraphDatabaseFactory().newImpermanentDatabase();
         final GraphDatabaseShellServer server = new GraphDatabaseShellServer( db, false );
 
+        db.beginTx();
         Documenter doc = new Documenter( "simple cypher result dump", server );
         doc.add( "mknode --cd --np \"{'name':'Neo'}\"", "", "create a new node and go to it" );
         doc.add( "mkrel -c -d i -t LIKES --np \"{'app':'foobar'}\"", "", "create a relationship" );
@@ -172,6 +174,7 @@ public class ShellDocTest
         GraphDatabaseAPI db = (GraphDatabaseAPI)new TestGraphDatabaseFactory().newImpermanentDatabase();
         final GraphDatabaseShellServer server = new GraphDatabaseShellServer( db, false );
 
+        db.beginTx();
         Documenter doc = new Documenter( "database dump", server );
         doc.add( "create index on :Person(name);", "", "create an index" );
         doc.add( "create (m:Person:Hacker {name:'Mattias'}), (m)-[:KNOWS]->(m);", "", "create one labeled node and a relationship" );
@@ -243,14 +246,16 @@ public class ShellDocTest
                 "return zionist.name;",
                 "Cypher",
                 "Morpheus' friends, looking up Morpheus by name in the Neo4j autoindex" );
-        doc.add( "profile start morpheus = node:node_auto_index(name='Morpheus') " +
-                "match morpheus-[:KNOWS]-zionist " +
-                "return zionist.name;",
-                "ColumnFilter",
-                "profile the query by displaying more query execution information" );
+//        doc.add( "profile start morpheus = node:node_auto_index(name='Morpheus') " +
+//                "match morpheus-[:KNOWS]-zionist " +
+//                "return zionist.name;",
+//                "ColumnFilter",
+//                "profile the query by displaying more query execution information" );
+        db.beginTx();
         doc.run();
         server.shutdown();
         PrintWriter writer = doc.getWriter( "shell-matrix-example-graph" );
+        db.beginTx();
         writer.println( createGraphVizWithNodeId( "Shell Matrix Example", db,
                 "graph" ) );
         writer.flush();

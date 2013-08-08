@@ -59,7 +59,7 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
      */
     @Test
     @Documented
-    @Title( "Send a Query" )
+    @Title( "Send a query" )
     @Graph( nodes = {
             @NODE( name = "I", setNameProperty = true ),
             @NODE( name = "you", setNameProperty = true ),
@@ -69,7 +69,7 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
                     @REL( start = "I", end = "him", type = "know", properties = { } ),
                     @REL( start = "I", end = "you", type = "know", properties = { } ) } )
     public void testPropertyColumn() throws UnsupportedEncodingException {
-        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name?, n.age?" );
+        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name, n.age" );
 
         String response = cypherRestCall( script, Status.OK );
 
@@ -80,12 +80,12 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
     }
 
     /**
-     * By passing in an additional GET header when you execute cypher queries, meta data about the query will
+     * By passing in an additional GET header when you execute Cypher queries, metadata about the query will
      * be returned, such as how many labels were added or removed by the query.
      */
     @Test
     @Documented
-    @Title( "Retrieve query meta data" )
+    @Title( "Retrieve query metadata" )
     @Graph( nodes = { @NODE( name = "I", labels = { @LABEL("bar") } ) } )
     public void testQueryStatistics() throws JsonParseException
     {
@@ -123,7 +123,7 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
                     @REL( start = "I", end = "him", type = "know", properties = { } ),
                     @REL( start = "I", end = "you", type = "know", properties = { } ) } )
     public void testDataColumnOrder() throws UnsupportedEncodingException {
-        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name?, n.age?" );
+        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name, n.age" );
 
         String response = cypherRestCall( script, Status.OK );
 
@@ -139,7 +139,7 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
     @Title( "Server errors" )
     @Graph( "I know you" )
     public void error_gets_returned_as_json() throws Exception {
-        String response = cypherRestCall( "start x = node(%I%) return x.dummy", Status.BAD_REQUEST );
+        String response = cypherRestCall( "start x = node(%I%) return x.dummy/0", Status.BAD_REQUEST );
         Map<String, Object> output = jsonToMap( response );
         assertTrue( output.containsKey( "message" ) );
         assertTrue( output.containsKey( "stacktrace" ) );
@@ -182,6 +182,22 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
         assertTrue( response.contains( "data" ) );
     }
 
+    /**
+     * Create a node with a label and a property using Cypher.
+     */
+    @Test
+    @Documented
+    @Title( "Create a node" )
+    @Graph
+    public void send_query_to_create_a_node() throws Exception {
+        data.get();
+        String script = "create (n:Person { name : {name} }) return n";
+        String response = cypherRestCall( script, Status.OK, Pair.of( "name", "Andres" ) );
+
+        assertTrue( response.contains( "name" ) );
+        assertTrue( response.contains( "Andres" ) );
+    }
+    
     @Test
     @Graph( nodes = {
             @NODE( name = "I", properties = {
@@ -256,7 +272,7 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
                     @REL( start = "I", end = "him", type = "know", properties = { } ),
                     @REL( start = "I", end = "you", type = "know", properties = { } ) } )
     public void testProfiling() throws Exception {
-        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name?, n.age?" );
+        String script = createScript( "start x  = node(%I%) match x -[r]-> n return type(r), n.name, n.age" );
 
         // WHEN
         String response = doCypherRestCall( cypherUri() + "?profile=true", script, Status.OK );
@@ -318,7 +334,8 @@ public class CypherDocIT extends AbstractRestFunctionalTestBase {
         assertThat( ((String) responseMap.get( "message" )), containsString( "frien" ) );
     }
 
-    private String cypherRestCall( String script, Status status, Pair<String, String> ...params )
+    @SafeVarargs
+    private final String cypherRestCall( String script, Status status, Pair<String, String>... params )
     {
         return doCypherRestCall( cypherUri(), script, status, params );
     }

@@ -19,16 +19,12 @@
  */
 package org.neo4j.kernel.impl.nioneo.xa;
 
-import static org.neo4j.kernel.impl.nioneo.store.TokenStore.NAME_STORE_BLOCK_SIZE;
-import static org.neo4j.kernel.impl.nioneo.store.Record.NO_NEXT_PROPERTY;
-import static org.neo4j.kernel.impl.nioneo.store.Record.NO_PREV_RELATIONSHIP;
-
 import java.io.IOException;
-
+import java.util.Collection;
 import javax.transaction.xa.Xid;
 
-import org.neo4j.kernel.impl.nioneo.store.TokenRecord;
 import org.neo4j.kernel.impl.nioneo.store.DynamicRecord;
+import org.neo4j.kernel.impl.nioneo.store.LabelTokenRecord;
 import org.neo4j.kernel.impl.nioneo.store.NeoStoreRecord;
 import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyKeyTokenRecord;
@@ -36,9 +32,14 @@ import org.neo4j.kernel.impl.nioneo.store.PropertyRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyStore;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipRecord;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.nioneo.store.TokenRecord;
 import org.neo4j.kernel.impl.transaction.XidImpl;
 import org.neo4j.kernel.impl.transaction.xaframework.LogBuffer;
 import org.neo4j.kernel.impl.transaction.xaframework.LogIoUtils;
+
+import static org.neo4j.kernel.impl.nioneo.store.Record.NO_NEXT_PROPERTY;
+import static org.neo4j.kernel.impl.nioneo.store.Record.NO_PREV_RELATIONSHIP;
+import static org.neo4j.kernel.impl.nioneo.store.TokenStore.NAME_STORE_BLOCK_SIZE;
 
 /**
  * This class lives here instead of somewhere else in order to be able to access the {@link Command} implementations.
@@ -101,6 +102,11 @@ public class TransactionWriter
         write( new Command.PropertyKeyTokenCommand( null, withName( new PropertyKeyTokenRecord( id ), dynamicIds, key ) ) );
     }
 
+    public void label( int id, String name, int... dynamicIds ) throws IOException
+    {
+        write( new Command.LabelTokenCommand( null, withName( new LabelTokenRecord( id ), dynamicIds, name ) ) );
+    }
+
     public void relationshipType( int id, String label, int... dynamicIds ) throws IOException
     {
         write( new Command.RelationshipTypeTokenCommand( null,
@@ -134,6 +140,24 @@ public class TransactionWriter
     {
         relationship.setCreated();
         update( relationship );
+    }
+
+    public void createSchema( Collection<DynamicRecord> records ) throws IOException
+    {
+        for ( DynamicRecord record : records )
+        {
+            record.setCreated();
+        }
+        updateSchema( records );
+    }
+
+    public void updateSchema( Collection<DynamicRecord> records ) throws IOException
+    {
+        for ( DynamicRecord record : records )
+        {
+            record.setInUse( true );
+        }
+        addSchema( records );
     }
 
     public void update( RelationshipRecord relationship ) throws IOException
@@ -172,6 +196,11 @@ public class TransactionWriter
     }
 
     // Internals
+
+    private void addSchema( Collection<DynamicRecord> records ) throws IOException
+    {
+        write( new Command.SchemaRuleCommand( null, null, records, null ) );
+    }
 
     public void add( NodeRecord before, NodeRecord after ) throws IOException
     {

@@ -39,7 +39,7 @@
   <packaging>jar</packaging>
 
   <scm>
-    <url>https://github.com/neo4j/enterprise/tree/master/server-enterprise</url>
+	  <url>https://github.com/neo4j/neo4j/tree/master/enterprise/server-enterprise</url>
   </scm>
 
   <licenses>
@@ -112,7 +112,6 @@
     <dependency>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-client</artifactId>
-      <version>1.9</version>
       <scope>test</scope>
     </dependency>
 
@@ -145,7 +144,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
-      <version>1.6.1</version>
     </dependency>
 
     <dependency>
@@ -494,19 +492,6 @@
 
   <repositories>
     <repository>
-      <id>java.net</id>
-      <url>http://download.java.net/maven/2/</url>
-    </repository>
-    <repository>
-      <id>tinkerpop-repository</id>
-      <name>TinkerPop Maven2 Repository</name>
-      <url>http://tinkerpop.com/maven2</url>
-      <snapshots>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-      </snapshots>
-    </repository>
-    <repository>
       <id>selenium-repository</id>
       <url>http://selenium.googlecode.com/svn/repository</url>
     </repository>
@@ -532,18 +517,7 @@
         <enabled>false</enabled>
       </releases>
     </repository>
-    <repository>
-      <id>cukes</id>
-      <url>http://cukes.info/maven</url>
-    </repository>
   </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>cukes</id>
-      <url>http://cukes.info/maven</url>
-    </pluginRepository>
-  </pluginRepositories>
 
   <distributionManagement>
     <site>

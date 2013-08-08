@@ -45,6 +45,7 @@ trait CypherType {
   def rewrite(f: CypherType => CypherType) = f(this)
 }
 
+
 object CypherType {
   def fromJava(obj: Any): CypherType = obj match {
     case _: String                          => StringType()
@@ -57,6 +58,7 @@ object CypherType {
     case _                                  => AnyType()
   }
 }
+
 
 /*
 TypeSafe is everything that needs to check it's types
@@ -71,6 +73,7 @@ trait TypeSafe {
 
   private def check(symbols: SymbolTable, name: String): Boolean = symbols.identifiers.contains(name)
 }
+
 
 /*
 Typed is the trait all classes that have a return type, or have dependencies on an expressions' type.

@@ -20,13 +20,14 @@
 package org.neo4j.kernel.api.index;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
 
 import static java.util.Arrays.asList;
 
@@ -204,8 +205,8 @@ public class UniqueIndexAccessorCompatibility extends IndexProviderCompatibility
         IndexReader reader = accessor.newReader();
         try
         {
-            List<Long> list = new LinkedList<Long>();
-            for ( Iterator<Long> iterator = reader.lookup( propertyValue ); iterator.hasNext(); )
+            List<Long> list = new LinkedList<>();
+            for ( PrimitiveLongIterator iterator = reader.lookup( propertyValue ); iterator.hasNext(); )
             {
                 list.add( iterator.next() );
             }

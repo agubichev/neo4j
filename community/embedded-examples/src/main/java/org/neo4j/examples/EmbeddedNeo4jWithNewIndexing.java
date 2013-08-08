@@ -18,6 +18,7 @@
  */
 package org.neo4j.examples;
 
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.DynamicLabel;
@@ -32,7 +33,7 @@ import org.neo4j.graphdb.schema.Schema;
 
 public class EmbeddedNeo4jWithNewIndexing
 {
-    private static final String DB_PATH = "neo4j-store";
+    private static final String DB_PATH = "target/neo4j-store-with-new-indexing";
 
     public static void main( final String[] args )
     {
@@ -44,20 +45,33 @@ public class EmbeddedNeo4jWithNewIndexing
 
         {
             // START SNIPPET: createIndex
-            Schema schema = graphDb.schema();
             IndexDefinition indexDefinition;
             Transaction tx = graphDb.beginTx();
-            try {
+            try
+            {
+                Schema schema = graphDb.schema();
                 indexDefinition = schema.indexFor( DynamicLabel.label( "User" ) )
-                                        .on( "username" )
-                                        .create();
+                        .on( "username" )
+                        .create();
                 tx.success();
-            } finally {
+            }
+            finally
+            {
                 tx.finish();
             }
-            // Await asynchronous index population
-            schema.awaitIndexOnline( indexDefinition, 10, TimeUnit.SECONDS );
-            // STOP SNIPPET: createIndex
+            // END SNIPPET: createIndex
+            // START SNIPPET: wait
+            Transaction transaction = graphDb.beginTx();
+            try
+            {
+                Schema schema = graphDb.schema();
+                schema.awaitIndexOnline( indexDefinition, 10, TimeUnit.SECONDS );
+            }
+            finally
+            {
+                transaction.finish();
+            }
+            // END SNIPPET: wait
         }
 
         {
@@ -67,7 +81,8 @@ public class EmbeddedNeo4jWithNewIndexing
             {
                 Label label = DynamicLabel.label( "User" );
 
-                // Create some users and index their names with the new IndexingService
+                // Create some users and index their names with the new
+                // IndexingService
                 for ( int id = 0; id < 100; id++ )
                 {
                     Node userNode = graphDb.createNode( label );
@@ -88,21 +103,52 @@ public class EmbeddedNeo4jWithNewIndexing
             Label label = DynamicLabel.label( "User" );
             int idToFind = 45;
             String nameToFind = "user" + idToFind + "@neo4j.org";
-            ResourceIterator<Node> users = graphDb.findNodesByLabelAndProperty( label, "username", nameToFind ).iterator();
+            Transaction transaction = graphDb.beginTx();
             try
             {
+                ResourceIterator<Node> users = graphDb.findNodesByLabelAndProperty( label, "username", nameToFind )
+                        .iterator();
+                ArrayList<Node> userNodes = new ArrayList<>();
                 while ( users.hasNext() )
                 {
-                    Node node = users.next();
+                    userNodes.add( users.next() );
+                }
+
+                for ( Node node : userNodes )
+                {
                     System.out.println( "The username of user " + idToFind + " is " + node.getProperty( "username" ) );
                 }
             }
             finally
             {
-                // alternatively use a transaction
-                users.close();
+                transaction.finish();
             }
             // END SNIPPET: findUsers
+        }
+
+        {
+            // START SNIPPET: resourceIterator
+            Label label = DynamicLabel.label( "User" );
+            int idToFind = 45;
+            String nameToFind = "user" + idToFind + "@neo4j.org";
+            Transaction transaction = graphDb.beginTx();
+            try
+            {
+                ResourceIterator<Node> users = graphDb
+                        .findNodesByLabelAndProperty( label, "username", nameToFind )
+                        .iterator();
+                Node firstUserNode;
+                if ( users.hasNext() )
+                {
+                    firstUserNode = users.next();
+                }
+                users.close();
+            }
+            finally
+            {
+                transaction.finish();
+            }
+            // END SNIPPET: resourceIterator
         }
 
         {
@@ -114,9 +160,9 @@ public class EmbeddedNeo4jWithNewIndexing
                 int idToFind = 45;
                 String nameToFind = "user" + idToFind + "@neo4j.org";
 
-                for (Node node : graphDb.findNodesByLabelAndProperty( label, "username", nameToFind ) )
+                for ( Node node : graphDb.findNodesByLabelAndProperty( label, "username", nameToFind ) )
                 {
-                    node.setProperty( "username", "user" + (idToFind+1) + "@neo4j.org" );
+                    node.setProperty( "username", "user" + ( idToFind + 1 ) + "@neo4j.org" );
                 }
                 tx.success();
             }
@@ -136,7 +182,7 @@ public class EmbeddedNeo4jWithNewIndexing
                 int idToFind = 46;
                 String nameToFind = "user" + idToFind + "@neo4j.org";
 
-                for (Node node : graphDb.findNodesByLabelAndProperty( label, "username", nameToFind ) )
+                for ( Node node : graphDb.findNodesByLabelAndProperty( label, "username", nameToFind ) )
                 {
                     node.delete();
                 }
@@ -155,7 +201,8 @@ public class EmbeddedNeo4jWithNewIndexing
             try
             {
                 Label label = DynamicLabel.label( "User" );
-                for ( IndexDefinition indexDefinition : graphDb.schema().getIndexes(label) )
+                for ( IndexDefinition indexDefinition : graphDb.schema()
+                        .getIndexes( label ) )
                 {
                     // There is only one index
                     indexDefinition.drop();
@@ -175,4 +222,5 @@ public class EmbeddedNeo4jWithNewIndexing
         graphDb.shutdown();
         // END SNIPPET: shutdownDb
     }
+
 }

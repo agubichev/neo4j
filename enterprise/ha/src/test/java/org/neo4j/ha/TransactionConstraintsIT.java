@@ -19,8 +19,10 @@
  */
 package org.neo4j.ha;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +56,13 @@ import static org.neo4j.test.ha.ClusterManager.masterAvailable;
 
 public class TransactionConstraintsIT extends AbstractClusterTest
 {
+    @Before
+    public void stableCluster()
+    {
+        // Ensure a stable cluster before starting tests
+        cluster.await( ClusterManager.allSeesAllAsAvailable() );
+    }
+
     @Test
     public void start_tx_as_slave_and_finish_it_after_having_switched_to_master_should_not_succeed() throws Exception
     {
@@ -234,7 +243,7 @@ public class TransactionConstraintsIT extends AbstractClusterTest
         deadlockDetectionBetween( cluster.getAnySlave(), cluster.getMaster() );
     }
     
-    private void deadlockDetectionBetween( HighlyAvailableGraphDatabase slave1, HighlyAvailableGraphDatabase slave2 ) throws Exception
+    private void deadlockDetectionBetween( HighlyAvailableGraphDatabase slave1, final HighlyAvailableGraphDatabase slave2 ) throws Exception
     {
         // GIVEN
         // -- two members acquiring a read lock on the same entity
@@ -242,9 +251,15 @@ public class TransactionConstraintsIT extends AbstractClusterTest
         Transaction tx1 = slave1.beginTx();
         Transaction tx2 = thread2.execute( new BeginTx() );
         tx1.acquireReadLock( slave1.getReferenceNode() );
-        thread2.execute( new AcquireReadLock( tx2, slave2.getReferenceNode() ) );
+        thread2.execute( new AcquireReadLockOnReferenceNode( tx2, slave2 ) );
         // -- and one of them wanting (and awaiting) to upgrade its read lock to a write lock
-        Future<Lock> writeLockFuture = thread2.executeDontWait( new AcquireWriteLock( tx2, slave2.getReferenceNode() ) );
+        Future<Lock> writeLockFuture = thread2.executeDontWait( new AcquireWriteLock( tx2, new Callable<Node>(){
+            @Override
+            public Node call() throws Exception
+            {
+                return slave2.getReferenceNode();
+            }
+        } ) );
         thread2.waitUntilThreadState( Thread.State.TIMED_WAITING, Thread.State.WAITING );
         
         try
@@ -275,7 +290,7 @@ public class TransactionConstraintsIT extends AbstractClusterTest
         // -- a slave acquiring a lock on an ubiquitous node
         HighlyAvailableGraphDatabase master = cluster.getMaster();
         OtherThreadExecutor<HighlyAvailableGraphDatabase> masterWorker = new OtherThreadExecutor<HighlyAvailableGraphDatabase>( "master worker", master );
-        Node node = createNode( master );
+        final Node node = createNode( master );
         cluster.sync();
         HighlyAvailableGraphDatabase slave = cluster.getAnySlave();
         Transaction slaveTx = slave.beginTx();
@@ -290,7 +305,14 @@ public class TransactionConstraintsIT extends AbstractClusterTest
             // THEN
             // -- that entity should be able to be locked from another member
             Transaction masterTx = masterWorker.execute( new BeginTx() );
-            masterWorker.execute( new AcquireWriteLock( masterTx, node ), 1, SECONDS );
+            masterWorker.execute( new AcquireWriteLock( masterTx, new Callable<Node>()
+            {
+                @Override
+                public Node call() throws Exception
+                {
+                    return node;
+                }
+            } ), 1, SECONDS );
         }
         finally
         {
@@ -371,39 +393,39 @@ public class TransactionConstraintsIT extends AbstractClusterTest
         }
     }
     
-    private static class AcquireReadLock implements WorkerCommand<HighlyAvailableGraphDatabase, Lock>
+    private static class AcquireReadLockOnReferenceNode implements WorkerCommand<HighlyAvailableGraphDatabase, Lock>
     {
         private final Transaction tx;
-        private final Node node;
+        private final HighlyAvailableGraphDatabase highlyAvailableGraphDatabase;
 
-        public AcquireReadLock( Transaction tx, Node node )
+        public AcquireReadLockOnReferenceNode( Transaction tx, HighlyAvailableGraphDatabase highlyAvailableGraphDatabase )
         {
             this.tx = tx;
-            this.node = node;
+            this.highlyAvailableGraphDatabase = highlyAvailableGraphDatabase;
         }
 
         @Override
         public Lock doWork( HighlyAvailableGraphDatabase state )
         {
-            return tx.acquireReadLock( node );
+            return tx.acquireReadLock( highlyAvailableGraphDatabase.getReferenceNode() );
         }
     }
 
     private static class AcquireWriteLock implements WorkerCommand<HighlyAvailableGraphDatabase, Lock>
     {
         private final Transaction tx;
-        private final Node node;
+        private final Callable<Node> callable;
 
-        public AcquireWriteLock( Transaction tx, Node node )
+        public AcquireWriteLock( Transaction tx, Callable<Node> callable )
         {
             this.tx = tx;
-            this.node = node;
+            this.callable = callable;
         }
 
         @Override
-        public Lock doWork( HighlyAvailableGraphDatabase state )
+        public Lock doWork( HighlyAvailableGraphDatabase state ) throws Exception
         {
-            return tx.acquireWriteLock( node );
+            return tx.acquireWriteLock( callable.call() );
         }
     }
 

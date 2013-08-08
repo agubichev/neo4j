@@ -30,10 +30,13 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.helpers.Function;
+import org.neo4j.helpers.FunctionFromPrimitiveLong;
 import org.neo4j.kernel.GraphDatabaseAPI;
 import org.neo4j.kernel.ThreadToStatementContextBridge;
-import org.neo4j.kernel.api.StatementContext;
+import org.neo4j.kernel.api.StatementOperationParts;
 import org.neo4j.kernel.api.exceptions.LabelNotFoundKernelException;
+import org.neo4j.kernel.api.operations.StatementState;
+import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
 import org.neo4j.kernel.impl.cleanup.CleanupService;
 import org.neo4j.kernel.impl.core.NodeManager;
 import org.neo4j.kernel.impl.core.Token;
@@ -78,6 +81,7 @@ public class GlobalGraphOperations
      */
     public Iterable<Node> getAllNodes()
     {
+        assertInTransaction();
         return new Iterable<Node>()
         {
             @Override
@@ -95,6 +99,7 @@ public class GlobalGraphOperations
      */
     public Iterable<Relationship> getAllRelationships()
     {
+        assertInTransaction();
         return new Iterable<Relationship>()
         {
             @Override
@@ -117,6 +122,8 @@ public class GlobalGraphOperations
      */
     public Iterable<RelationshipType> getAllRelationshipTypes()
     {
+        assertInTransaction();
+        statementCtxProvider.assertInTransaction();
         return nodeManager.getRelationshipTypes();
     }
 
@@ -125,19 +132,21 @@ public class GlobalGraphOperations
      * they are used. This method guarantees that it will return all labels currently in use. However,
      * it may also return <i>more</i> than that (e.g. it can return "historic" labels that are no longer used).
      *
-     * If you call this operation outside of a transaction, please take care that the returned 
-     * {@link ResourceIterable} is closed correctly to avoid potential blocking of write operations.
-     *   
+     * Please take care that the returned {@link ResourceIterable} is closed correctly and as soon as possible
+     * inside your transaction to avoid potential blocking of write operations.
+     *
      * @return all labels in the underlying store.
      */
     public ResourceIterable<Label> getAllLabels()
     {
+        assertInTransaction();
         return new ResourceIterable<Label>()
         {
             @Override
             public ResourceIterator<Label> iterator()
             {
-                StatementContext ctx = statementCtxProvider.getCtxForReading();
+                StatementOperationParts ctx = statementCtxProvider.getCtxForReading();
+                StatementState state = statementCtxProvider.statementForReading();
                 return cleanupService.resourceIterator( map( new Function<Token, Label>() {
 
                     @Override
@@ -145,22 +154,23 @@ public class GlobalGraphOperations
                     {
                         return label( labelToken.name() );
                     }
-                }, ctx.labelsGetAllTokens() ), ctx );
+                }, ctx.keyReadOperations().labelsGetAllTokens( state ) ), state );
             }
         };
     }
     
     /**
      * Returns all {@link Node nodes} with a specific {@link Label label}.
-     * 
-     * If you call this operation outside of a transaction, please take care that the returned 
-     * {@link ResourceIterable} is closed correctly to avoid potential blocking of write operations.
-     *   
+     *
+     * Please take care that the returned {@link ResourceIterable} is closed correctly and as soon as possible
+     * inside your transaction to avoid potential blocking of write operations.
+     *
      * @param label the {@link Label} to return nodes for.
      * @return {@link Iterable} containing nodes with a specific label.
      */
     public ResourceIterable<Node> getAllNodesWithLabel( final Label label )
     {
+        assertInTransaction();
         return new ResourceIterable<Node>()
         {
             @Override
@@ -173,25 +183,31 @@ public class GlobalGraphOperations
 
     private ResourceIterator<Node> allNodesWithLabel( String label )
     {
-        StatementContext context = statementCtxProvider.getCtxForReading();
+        StatementOperationParts context = statementCtxProvider.getCtxForReading();
+        StatementState state = statementCtxProvider.statementForReading();
         try
         {
-            long labelId = context.labelGetForName( label );
-            final Iterator<Long> nodeIds = context.nodesGetForLabel( labelId );
-            return cleanupService.resourceIterator( map( new Function<Long, Node>()
+            long labelId = context.keyReadOperations().labelGetForName( state, label );
+            final PrimitiveLongIterator nodeIds = context.entityReadOperations().nodesGetForLabel( state, labelId );
+            return cleanupService.resourceIterator( map( new FunctionFromPrimitiveLong<Node>()
             {
                 @Override
-                public Node apply( Long nodeId )
+                public Node apply( long nodeId )
                 {
                     return nodeManager.getNodeById( nodeId );
                 }
-            }, nodeIds ), context );
+            }, nodeIds ), state );
         }
         catch ( LabelNotFoundKernelException e )
         {
             // That label hasn't been created yet, there cannot possibly be any nodes labeled with it
-            context.close();
+            state.close();
             return emptyIterator();
         }
+    }
+
+    private void assertInTransaction()
+    {
+        statementCtxProvider.assertInTransaction();
     }
 }

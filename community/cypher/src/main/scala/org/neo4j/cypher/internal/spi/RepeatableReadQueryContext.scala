@@ -31,13 +31,9 @@ trait Locker {
 
 class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends DelegatingQueryContext(inner) with LockingQueryContext {
 
-  override def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]): Iterable[Relationship] = {
+  override def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]): Iterator[Relationship] = {
     locker.acquireLock(node)
-    val rels = inner.getRelationshipsFor(node, dir, types)
-
-    new Iterable[Relationship] {
-      def iterator: Iterator[Relationship] = lockAll(rels.iterator)
-    }
+    lockAll(inner.getRelationshipsFor(node, dir, types))
   }
 
   override def getLabelsForNode(node: Long): Iterator[Long] = {
@@ -67,14 +63,14 @@ class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends De
   }
 
   class RepeatableReadOperations[T <: PropertyContainer](inner: Operations[T]) extends DelegatingOperations[T](inner) {
-    override def getProperty(obj: T, propertyKey: String) = {
+    override def getProperty(obj: T, propertyKeyId: Long) = {
       locker.acquireLock(obj)
-      inner.getProperty(obj, propertyKey)
+      inner.getProperty(obj, propertyKeyId)
     }
 
-    override def hasProperty(obj: T, propertyKey: String) = {
+    override def hasProperty(obj: T, propertyKeyId: Long) = {
       locker.acquireLock(obj)
-      inner.hasProperty(obj, propertyKey)
+      inner.hasProperty(obj, propertyKeyId)
     }
 
     override def propertyKeys(obj: T) = {

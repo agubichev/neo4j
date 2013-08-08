@@ -22,13 +22,11 @@ package org.neo4j.kernel.impl.api.integrationtest;
 import java.util.Iterator;
 
 import org.junit.Test;
-
-import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.kernel.impl.core.Token;
 
-import static java.util.Arrays.asList;
-
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.junit.Assert.*;
+import static org.neo4j.helpers.collection.IteratorUtil.asCollection;
 
 public class LabelIT extends KernelIntegrationTest
 {
@@ -37,23 +35,23 @@ public class LabelIT extends KernelIntegrationTest
     {
         // given
         newTransaction();
-        long label1Id = statement.labelGetOrCreateForName( "label1" );
-        long label2Id = statement.labelGetOrCreateForName( "label2" );
+        long label1Id = statement.labelGetOrCreateForName( getState(), "label1" );
+        long label2Id = statement.labelGetOrCreateForName( getState(), "label2" );
 
         // when
-        Iterator<Token> labelIdsBeforeCommit = statement.labelsGetAllTokens();
+        Iterator<Token> labelIdsBeforeCommit = statement.labelsGetAllTokens( getState() );
 
         // then
-        assertEquals( asList( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id ) ),
-                IteratorUtil.asCollection( labelIdsBeforeCommit ) );
+        assertThat( asCollection( labelIdsBeforeCommit ),
+                    hasItems( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id )) );
 
         // when
         commit();
         newTransaction();
-        Iterator<Token> labelIdsAfterCommit = statement.labelsGetAllTokens();
+        Iterator<Token> labelIdsAfterCommit = statement.labelsGetAllTokens( getState() );
 
         // then
-        assertEquals( asList( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id ) ),
-                IteratorUtil.asCollection( labelIdsAfterCommit ) );
+        assertThat(asCollection( labelIdsAfterCommit ) ,
+                hasItems( new Token( "label1", (int) label1Id ), new Token( "label2", (int) label2Id ) ));
     }
 }

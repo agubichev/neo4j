@@ -22,8 +22,9 @@ package org.neo4j.cypher.internal.parser.v2_0
 import org.neo4j.cypher.internal.commands._
 import expressions._
 import org.neo4j.cypher.SyntaxException
-import org.neo4j.cypher.internal.parser.AbstractPattern
+import org.neo4j.cypher.internal.parser.{No, Maybe, Yes, AbstractPattern}
 import org.neo4j.cypher.internal.HasOptionalDefault
+import org.neo4j.cypher.internal.commands.values.TokenType.PropertyKey
 
 trait Expressions extends Base with ParserPattern with Predicates with StringLiteral {
   def expression: Parser[Expression] = term ~ rep("+" ~ term | "-" ~ term) ^^ {
@@ -66,7 +67,6 @@ trait Expressions extends Base with ParserPattern with Predicates with StringLit
       | coalesceFunc
       | filterFunc
       | shortestPathFunc
-      | nullableProperty
       | property
       | stringLit
       | numberLiteral
@@ -100,31 +100,28 @@ trait Expressions extends Base with ParserPattern with Predicates with StringLit
 
   def collectionLiteral: Parser[Expression] = "[" ~> repsep(expression, ",") <~ "]" ^^ (seq => Collection(seq: _*))
 
+  def property: Parser[Expression] = (entity | parens(expression)) ~ rep1("." ~> escapableString) ^^ {
+    case v ~ keys => keys.foldLeft[Expression](v) {
+      case (lastExp, propKey) => Property(lastExp, PropertyKey(propKey))
+    }
+  }
+
+  private val message = "Cypher does not support != for inequality comparisons. " +
+    "It's used for nullable properties instead.\n" +
+    "You probably meant <> instead. Read more about this in the operators chapter in the manual."
+
   def listComprehension: Parser[Expression] = "[" ~> identity ~ IN ~ expression ~ opt(WHERE ~> predicate) ~ opt(":" ~> expression) <~ "]" ^^ {
     case id ~ _ ~ collection ~ Some(predicate) ~ Some(mapExpression) => ExtractFunction(FilterFunction(collection, id, predicate), id, mapExpression)
     case id ~ _ ~ collection ~ Some(predicate) ~ None                => FilterFunction(collection, id, predicate)
     case id ~ _ ~ collection ~ None ~ Some(mapExpression)            => ExtractFunction(collection, id, mapExpression)
   }
 
-  def property: Parser[Expression] = (entity | parens(expression)) ~ rep1("." ~> escapableString) ^^ {
-    case v ~ keys => keys.foldLeft[Expression](v) {
-      case (lastExp, propKey) => Property(lastExp, propKey)
-    }
+  def extract: Parser[Expression] = EXTRACT ~> parens(identity ~ IN ~ expression ~ (":" | "|") ~ expression) ^^ {
+    case (id ~ _ ~ iter ~ _ ~ expression) => ExtractFunction(iter, id, expression)
   }
 
-  def nullableProperty: Parser[Expression] = (
-    property ~> "!=" ^^^ (throw new SyntaxException("Cypher does not support != for inequality comparisons. " +
-                                                    "It's used for nullable properties instead.\n" +
-                                                    "You probably meant <> instead. Read more about this in the operators chapter in the manual.")) |
-    property <~ "?" ^^ (p => new Nullable(p) with DefaultTrue) |
-    property <~ "!" ^^ (p => new Nullable(p) with DefaultFalse))
-
-  def extract: Parser[Expression] = EXTRACT ~> parens(identity ~ IN ~ expression ~ ":" ~ expression) ^^ {
-    case (id ~ in ~ iter ~ ":" ~ expression) => ExtractFunction(iter, id, expression)
-  }
-
-  def reduce: Parser[Expression] = REDUCE ~> parens(identity ~ "=" ~ expression ~ "," ~ identity ~ IN ~ expression ~ ":" ~ expression) ^^ {
-    case (acc ~ "=" ~ init ~ "," ~ id ~ in ~ iter ~ ":" ~ expression) => ReduceFunction(iter, id, expression, acc, init)
+  def reduce: Parser[Expression] = REDUCE ~> parens(identity ~ "=" ~ expression ~ "," ~ identity ~ IN ~ expression ~ (":" | "|") ~ expression) ^^ {
+    case (acc ~ _ ~ init ~ _ ~ id ~ _ ~ iter ~ _ ~ expression) => ReduceFunction(iter, id, expression, acc, init)
   }
 
   def coalesceFunc: Parser[Expression] = COALESCE ~> parens(commaList(expression)) ^^ {
@@ -193,9 +190,27 @@ trait Expressions extends Base with ParserPattern with Predicates with StringLit
     "rels" -> func(1, args => RelationshipFunction(args.head)),
     "relationships" -> func(1, args => RelationshipFunction(args.head)),
     "abs" -> func(1, args => AbsFunction(args.head)),
+    "acos" -> func(1, args => AcosFunction(args.head)),
+    "asin" -> func(1, args => AsinFunction(args.head)),
+    "atan" -> func(1, args => AtanFunction(args.head)),
+    "atan2" -> func(1, args => Atan2Function(args(0), args(1))),
+    "ceil" -> func(1, args => CeilFunction(args.head)),
+    "cos" -> func(1, args => CosFunction(args.head)),
+    "cot" -> func(1, args => CotFunction(args.head)),
+    "degrees" -> func(1, args => DegreesFunction(args.head)),
+    "e" -> func(0, args => EFunction()),
+    "exp" -> func(1, args => ExpFunction(args.head)),
+    "floor" -> func(1, args => FloorFunction(args.head)),
+    "log" -> func(1, args => LogFunction(args.head)),
+    "log10" -> func(1, args => Log10Function(args.head)),
+    "pi" -> func(0, args => PiFunction()),
+    "radians" -> func(1, args => RadiansFunction(args.head)),
+    "rand" -> func(0, args => RandFunction()),
     "round" -> func(1, args => RoundFunction(args.head)),
     "sqrt" -> func(1, args => SqrtFunction(args.head)),
     "sign" -> func(1, args => SignFunction(args.head)),
+    "sin" -> func(1, args => SinFunction(args.head)),
+    "tan" -> func(1, args => TanFunction(args.head)),
     "head" -> func(1, args => HeadFunction(args.head)),
     "last" -> func(1, args => LastFunction(args.head)),
     "tail" -> func(1, args => TailFunction(args.head)),
@@ -224,7 +239,7 @@ trait Expressions extends Base with ParserPattern with Predicates with StringLit
 
   def aggregateExpression: Parser[Expression] = countStar | aggregationFunction
 
-  def aggregateFunctionNames: Parser[String] = COUNT | SUM | MIN | MAX | AVG | COLLECT
+  def aggregateFunctionNames: Parser[String] = COUNT | SUM | MIN | MAX | AVG | COLLECT | STDEV | STDEVP
 
   def aggregationFunction: Parser[Expression] = aggregateFunctionNames ~ parens(opt(DISTINCT) ~ expression) ^^ {
     case function ~ (distinct ~ inner) => {
@@ -236,6 +251,8 @@ trait Expressions extends Base with ParserPattern with Predicates with StringLit
         case "max" => Max(inner)
         case "avg" => Avg(inner)
         case "collect" => Collect(inner)
+        case "stdev" => Stdev(inner)
+        case "stdevp" => StdevP(inner)
       }
 
       if (distinct.isEmpty) {

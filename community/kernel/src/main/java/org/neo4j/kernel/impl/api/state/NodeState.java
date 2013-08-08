@@ -22,7 +22,6 @@ package org.neo4j.kernel.impl.api.state;
 import org.neo4j.kernel.impl.api.DiffSets;
 
 public final class NodeState extends PropertyContainerState
-
 {
     private DiffSets<Long> labelDiffSets;
 
@@ -31,11 +30,11 @@ public final class NodeState extends PropertyContainerState
         super( id );
     }
 
-    public DiffSets<Long> getLabelDiffSets()
+    public DiffSets<Long> labelDiffSets()
     {
         if ( null == labelDiffSets )
         {
-            labelDiffSets = new DiffSets<Long>();
+            labelDiffSets = new DiffSets<>();
         }
         return labelDiffSets;
     }

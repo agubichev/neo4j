@@ -75,7 +75,7 @@ class SnitchingQueryContext extends QueryContext {
   var labels: Map[String, Long] = Map("green" -> 12, "blue" -> 42)
 
 
-  override def setLabelsOnNode(n: Long, input: Iterable[Long]): Int = {
+  override def setLabelsOnNode(n: Long, input: Iterator[Long]): Int = {
     node = n
     ids = input.toSeq
     ids.size
@@ -101,11 +101,13 @@ class SnitchingQueryContext extends QueryContext {
 
   def relationshipOps = ???
 
-  def removeLabelsFromNode(node: Long, labelIds: Iterable[Long]): Int = {???}
+  def removeLabelsFromNode(node: Long, labelIds: Iterator[Long]): Int = {???}
 
   def getTransaction = ???
 
   def getOrCreatePropertyKeyId(propertyKey: String) = ???
+
+  def getOptPropertyKeyId(propertyKey: String): Option[Long] = ???
 
   def getPropertyKeyId(propertyKey: String) = ???
 
@@ -123,9 +125,15 @@ class SnitchingQueryContext extends QueryContext {
 
   def schemaStateContains(key: String) = ???
 
-  def getLabelId(labelName: String): Option[Long] = labels.get(labelName)
+  def getOptLabelId(labelName: String): Option[Long] = labels.get(labelName)
 
   def createUniqueConstraint(labelId: Long, propertyKeyId: Long) {???}
 
   def dropUniqueConstraint(labelId: Long, propertyKeyId: Long) {???}
+
+  def getLabelId(labelName: String): Long = ???
+
+  def getPropertyKeyName(id: Long): String = ???
+
+  def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = ???
 }

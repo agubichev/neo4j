@@ -22,6 +22,7 @@ package org.neo4j.shell.kernel;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.InvalidTransactionException;
@@ -35,7 +36,6 @@ import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Lock;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
@@ -64,7 +64,6 @@ import org.neo4j.helpers.collection.IterableWrapper;
 import org.neo4j.kernel.GraphDatabaseAPI;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.KernelData;
-import org.neo4j.kernel.PlaceboTransaction;
 import org.neo4j.kernel.TransactionBuilder;
 import org.neo4j.kernel.api.KernelAPI;
 import org.neo4j.kernel.guard.Guard;
@@ -86,35 +85,6 @@ import org.neo4j.kernel.info.DiagnosticsManager;
 public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDatabaseAPI, IndexManager
 {
     private final GraphDatabaseAPI actual;
-    private final Transaction tx = new Transaction()
-    {
-        @Override
-        public void success()
-        {
-        }
-
-        @Override
-        public void failure()
-        {
-        }
-
-        @Override
-        public void finish()
-        {
-        }
-
-        @Override
-        public Lock acquireWriteLock( PropertyContainer entity )
-        {
-            return PlaceboTransaction.NO_LOCK;
-        }
-
-        @Override
-        public Lock acquireReadLock( PropertyContainer entity )
-        {
-            return PlaceboTransaction.NO_LOCK;
-        }
-    };
     private final AbstractTransactionManager txManager = new AbstractTransactionManager()
     {
         @Override
@@ -251,8 +221,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     @Override
     public Transaction beginTx()
     {
-        // return readOnly();
-        return tx;
+        return actual.beginTx();
     }
 
     @Override
@@ -1042,6 +1011,12 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         public IndexState getIndexState( IndexDefinition index )
         {
             return actual.getIndexState( index );
+        }
+        
+        @Override
+        public String getIndexFailure( IndexDefinition index )
+        {
+            return actual.getIndexFailure( index );
         }
 
         @Override

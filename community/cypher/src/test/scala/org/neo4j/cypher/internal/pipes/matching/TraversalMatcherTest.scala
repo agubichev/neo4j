@@ -24,6 +24,7 @@ import org.neo4j.cypher.GraphDatabaseTestBase
 import org.neo4j.graphdb.{Node, Path}
 import org.neo4j.cypher.internal.pipes._
 import org.neo4j.graphdb.Direction.OUTGOING
+import org.neo4j.graphdb.Direction.BOTH
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.cypher.internal.commands.True
@@ -99,5 +100,63 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     assert(result.head.startNode() === a)
     assert(result.head.endNode() === c)
+  }
+
+  @Test def fullUndirected2NodeGraph()
+  {
+    val nodeA = createNode("a")
+    val nodeB = createNode("b")
+
+    relate(nodeA, nodeB, "LINK")
+
+    val start = produce(nodeA, nodeB)
+    val end = produce(nodeA, nodeB)
+
+    val pr = SingleStep(0, Seq("LINK"), BOTH, None, True(), True())
+    val matcher = new BidirectionalTraversalMatcher(pr, start, end)
+
+    val queryState = QueryStateHelper.queryStateFrom(graph)
+
+    val result: Set[(Long, Long)] =
+      matcher
+        .findMatchingPaths(queryState, ExecutionContext()).map( (p: Path) => (p.startNode().getId, p.endNode().getId ) )
+        .toSet
+
+
+    val a = nodeA.getId
+    val b = nodeB.getId
+
+    assert( Set((a, b), (b, a)) === result )
+  }
+
+  @Test def fullUndirected3NodeGraph()
+  {
+    val nodeA = createNode("a")
+    val nodeB = createNode("b")
+    val nodeC = createNode("c")
+
+    relate(nodeA, nodeB, "LINK")
+    relate(nodeC, nodeA, "LINK")
+    relate(nodeB, nodeC, "LINK")
+
+    val start = produce(nodeA, nodeB, nodeC)
+    val end = produce(nodeA, nodeB, nodeC)
+
+    val pr = SingleStep(0, Seq("LINK"), BOTH, None, True(), True())
+    val matcher = new BidirectionalTraversalMatcher(pr, start, end)
+
+    val queryState = QueryStateHelper.queryStateFrom(graph)
+
+    val result: Set[(Long, Long)] =
+      matcher
+        .findMatchingPaths(queryState, ExecutionContext()).map( (p: Path) => (p.startNode().getId, p.endNode().getId ) )
+        .toSet
+
+
+    val a = nodeA.getId
+    val b = nodeB.getId
+    val c = nodeC.getId
+
+    assert( Set((a, b), (a, c), (b, a), (b, c), (c, a), (c, b)) === result )
   }
 }

@@ -21,5 +21,5 @@ package org.neo4j.kernel.api;
 
 public enum EntityType
 {
-    NODE, RELATIONSHIP
+    NODE, RELATIONSHIP, GRAPH
 }

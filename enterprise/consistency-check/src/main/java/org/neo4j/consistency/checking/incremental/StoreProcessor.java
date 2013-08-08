@@ -32,6 +32,8 @@ import org.neo4j.kernel.impl.nioneo.store.RecordStore;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipRecord;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenRecord;
 
+import static org.neo4j.consistency.report.ConsistencyReport.DynamicLabelConsistencyReport;
+
 class StoreProcessor extends AbstractStoreProcessor
 {
     private final ConsistencyReport.Reporter report;
@@ -63,17 +65,18 @@ class StoreProcessor extends AbstractStoreProcessor
     }
 
     @Override
-    protected void checkRelationshipTypeName( RecordStore<RelationshipTypeTokenRecord> store, RelationshipTypeTokenRecord record,
-                                              RecordCheck<RelationshipTypeTokenRecord,
-                                                      ConsistencyReport.RelationshipTypeConsistencyReport> checker )
+    protected void checkRelationshipTypeToken( RecordStore<RelationshipTypeTokenRecord> store,
+                                               RelationshipTypeTokenRecord record,
+                                               RecordCheck<RelationshipTypeTokenRecord,
+                                                       ConsistencyReport.RelationshipTypeConsistencyReport> checker )
     {
         report.forRelationshipTypeNameChange( store.forceGetRaw( record ), record, checker );
     }
 
     @Override
-    protected void checkLabelName( RecordStore<LabelTokenRecord> store, LabelTokenRecord record,
-                                              RecordCheck<LabelTokenRecord,
-                                                      ConsistencyReport.LabelNameConsistencyReport> checker )
+    protected void checkLabelToken( RecordStore<LabelTokenRecord> store, LabelTokenRecord record,
+                                    RecordCheck<LabelTokenRecord,
+                                            ConsistencyReport.LabelTokenConsistencyReport> checker )
     {
         report.forLabelNameChange( store.forceGetRaw( record ), record, checker );
     }
@@ -81,7 +84,7 @@ class StoreProcessor extends AbstractStoreProcessor
     @Override
     protected void checkPropertyKeyToken( RecordStore<PropertyKeyTokenRecord> store, PropertyKeyTokenRecord record,
                                           RecordCheck<PropertyKeyTokenRecord,
-                                                  ConsistencyReport.PropertyKeyConsistencyReport> checker )
+                                                  ConsistencyReport.PropertyKeyTokenConsistencyReport> checker )
     {
         report.forPropertyKeyChange( store.forceGetRaw( record ), record, checker );
     }
@@ -91,5 +94,13 @@ class StoreProcessor extends AbstractStoreProcessor
                                  RecordCheck<DynamicRecord, ConsistencyReport.DynamicConsistencyReport> checker )
     {
         report.forDynamicBlockChange( type, store.forceGetRaw( string ), string, checker );
+    }
+
+
+    @Override
+    protected void checkDynamicLabel( RecordType type, RecordStore<DynamicRecord> store, DynamicRecord string,
+                                      RecordCheck<DynamicRecord, DynamicLabelConsistencyReport> checker )
+    {
+        report.forDynamicLabelBlockChange( type, store.forceGetRaw( string ), string, checker );
     }
 }

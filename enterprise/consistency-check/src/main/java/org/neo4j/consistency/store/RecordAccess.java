@@ -30,6 +30,8 @@ import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenRecord;
 
 public interface RecordAccess
 {
+    RecordReference<DynamicRecord> schema( final long id );
+
     RecordReference<NodeRecord> node( final long id );
 
     RecordReference<RelationshipRecord> relationship( final long id );
@@ -45,6 +47,8 @@ public interface RecordAccess
     RecordReference<DynamicRecord> array( final long id );
 
     RecordReference<DynamicRecord> relationshipTypeName( final int id );
+
+    RecordReference<DynamicRecord> nodeLabels( final long id );
 
     RecordReference<LabelTokenRecord> label( final int id );
 

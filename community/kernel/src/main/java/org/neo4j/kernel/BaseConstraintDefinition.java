@@ -33,23 +33,33 @@ public abstract class BaseConstraintDefinition implements ConstraintDefinition
     {
         this.actions = actions;
         this.label = label;
+
+        assertInTransaction();
+    }
+
+    protected final void assertInTransaction()
+    {
+        actions.assertInTransaction();
     }
 
     @Override
     public Label getLabel()
     {
+        assertInTransaction();
         return label;
     }
 
     @Override
     public boolean isConstraintType( ConstraintType type )
     {
+        assertInTransaction();
         return getConstraintType().equals( type );
     }
 
     @Override
     public UniquenessConstraintDefinition asUniquenessConstraint()
     {
+        assertInTransaction();
         throw new UnsupportedOperationException( this + " is of type " + getClass().getSimpleName() );
     }
 
@@ -58,7 +68,7 @@ public abstract class BaseConstraintDefinition implements ConstraintDefinition
     {
         final int prime = 31;
         int result = 1;
-        result = prime * result + ((label == null) ? 0 : label.hashCode());
+        result = prime * result + ((label == null) ? 0 : label.name().hashCode());
         return result;
     }
 

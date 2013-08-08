@@ -22,10 +22,15 @@ package org.neo4j.cypher.docgen
 import org.junit.Test
 import org.junit.Assert._
 import org.neo4j.graphdb.Node
+import org.neo4j.visualization.graphviz.GraphStyle
+import org.neo4j.visualization.graphviz.AsciiDocSimpleStyle
 
 class ReturnTest extends DocumentingTestBase {
   def graphDescription = List("A KNOWS B", "A BLOCKS B")
 
+  override protected def getGraphvizStyle: GraphStyle = 
+    AsciiDocSimpleStyle.withAutomaticRelationshipTypeColors()
+  
   def section = "Return"
 
   override val properties =
@@ -34,7 +39,7 @@ class ReturnTest extends DocumentingTestBase {
   @Test def returnNode() {
     testQuery(
       title = "Return nodes",
-      text = "To return a node, list it in the `RETURN` statemenet.",
+      text = "To return a node, list it in the `RETURN` statement.",
       queryText = """match n where n.name='B' return n""",
       returns = """The example will return the node.""",
       assertions = (p) => assertEquals(List(Map("n" -> node("B"))), p.toList))
@@ -67,17 +72,16 @@ class ReturnTest extends DocumentingTestBase {
       queryText = """match `This isn't a common identifier` where `This isn't a common identifier`.name='A'
 return `This isn't a common identifier`.happy""",
       returns = """The node indexed with name "A" is returned""",
-      assertions = (p) => assertEquals(List(Map("This isn't a common identifier.happy" -> "Yes!")), p.toList))
+      assertions = (p) => assertEquals(List(Map("`This isn't a common identifier`.happy" -> "Yes!")), p.toList))
   }
 
   @Test def nullable_properties() {
     testQuery(
       title = "Optional properties",
-      text = """If a property might or might not be there, you can select it optionally by adding a questionmark to the identifier,
-like this:""",
-      queryText = """match n return n.age?""",
+      text = """If a property might or might not be there, you can still select it as usual. It will be treated as null if it is missing""",
+      queryText = """match n return n.age""",
       returns = """This example returns the age when the node has that property, or +null+ if the property is not there.""",
-      assertions = (p) => assertEquals(List(55, null), p.columnAs[Int]("n.age?").toList))
+      assertions = (p) => assertEquals(List(55, null), p.columnAs[Int]("n.age").toList))
   }
 
   @Test def distinct_output() {

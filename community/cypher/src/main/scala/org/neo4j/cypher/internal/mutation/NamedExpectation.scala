@@ -19,15 +19,18 @@
  */
 package org.neo4j.cypher.internal.mutation
 
-import org.neo4j.cypher.internal.commands.expressions.{Literal, Identifier, Expression}
-import org.neo4j.cypher.internal.symbols.{SymbolTable, TypeSafe}
+import org.neo4j.cypher.internal.commands.expressions.{Identifier, Expression}
+import org.neo4j.cypher.internal.symbols.TypeSafe
 import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import collection.Map
 import org.neo4j.cypher.internal.helpers.{IsCollection, IsMap, CollectionSupport}
 import org.neo4j.cypher.internal.spi.Operations
 import org.neo4j.cypher.internal.ExecutionContext
-import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.internal.commands.expressions.Identifier._
+import org.neo4j.cypher.internal.commands.expressions.Literal
+import org.neo4j.cypher.internal.symbols.SymbolTable
+import org.neo4j.cypher.internal.pipes.QueryState
 
 object NamedExpectation {
   def apply(name: String, bare: Boolean): NamedExpectation = NamedExpectation(name, Map.empty, bare)
@@ -90,14 +93,15 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
     val propsOk = expectations.properties.forall {
       case ("*", expression) =>
         getMapFromExpression(expression(ctx)(state)).forall {
-          case (k, value) => ops.getProperty(x, k) == value
+          case (k, value) => state.query.getOptPropertyKeyId(k).exists(ops.getProperty(x, _) == value)
         }
 
-      case (k, _) if !ops.hasProperty(x, k) => false
+      // case (k, _) if !ops.hasProperty(x, state.query.getOrCreatePropertyKeyId(k)) => false
+      case (k, _) if state.query.getOptPropertyKeyId(k).map(!ops.hasProperty(x, _)).getOrElse(true) => false
 
       case (k, exp) =>
         val expectationValue = exp(ctx)(state)
-        val elementValue = ops.getProperty(x, k)
+        val elementValue = ops.getProperty(x, state.query.getPropertyKeyId(k))
 
         (expectationValue, elementValue) match {
           case (IsCollection(l), IsCollection(r)) => l == r
@@ -109,7 +113,7 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
       case node: Node =>
         val qtx      = state.query
         val nodeId   = node.getId
-        val labelIds = labels.map(_.getId(state))
+        val labelIds = labels.map(_.getOrCreateId(state.query))
         labelIds.forall( qtx.isLabelSetOnNode(_, nodeId) )
       case _ =>
         true
@@ -122,5 +126,17 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
 
   def throwIfSymbolsMissing(symbols: SymbolTable) {
     properties.throwIfSymbolsMissing(symbols)
+  }
+
+  override def toString: String = {
+    val nameStr = if (notNamed(name)) s"(${name.drop(9)})" else name
+    val props = if (properties.isEmpty)
+      ""
+    else
+      " " + properties.map {
+        case (k, v) => k.toString + ": " + v.toString
+      }.mkString(",")
+
+    "(" + nameStr + props + ")"
   }
 }

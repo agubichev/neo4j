@@ -32,7 +32,6 @@ import org.apache.lucene.store.RAMDirectory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 import org.neo4j.kernel.api.index.IndexConfiguration;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.InternalIndexState;
@@ -43,7 +42,6 @@ import static java.lang.Long.parseLong;
 import static java.util.Arrays.asList;
 
 import static org.junit.Assert.assertEquals;
-
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_dir;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
@@ -232,7 +230,7 @@ public class LuceneSchemaIndexPopulatorTest
         DirectoryFactory directoryFactory = new DirectoryFactory.Single(
                 new DirectoryFactory.UncloseableDirectory( directory ) );
         provider = new LuceneSchemaIndexProvider( directoryFactory,
-                new Config( stringMap( store_dir.name(), "whatever" ) ) );
+                new Config( stringMap( store_dir.name(), "target/whatever" ) ) );
         index = provider.getPopulator( indexId, new IndexConfiguration( false ) );
         index.create();
     }
@@ -257,7 +255,7 @@ public class LuceneSchemaIndexPopulatorTest
             for ( int i = 0; i < hits.totalHits; i++ )
             {
                 Document document = searcher.doc( hits.scoreDocs[i].doc );
-                foundNodeIds.add( parseLong( document.get( "_id_" ) ) );
+                foundNodeIds.add( parseLong( document.get( "id" ) ) );
             }
             assertEquals( asSet( hit.nodeIds ), foundNodeIds );
         }

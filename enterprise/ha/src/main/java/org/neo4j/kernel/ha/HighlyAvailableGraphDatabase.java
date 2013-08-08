@@ -25,13 +25,13 @@ import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
 import javax.transaction.Transaction;
+
+import ch.qos.logback.classic.LoggerContext;
 
 import org.neo4j.cluster.ClusterSettings;
 import org.neo4j.cluster.InstanceId;
 import org.neo4j.cluster.client.ClusterClient;
-import org.neo4j.cluster.com.NetworkInstance;
 import org.neo4j.cluster.member.ClusterMemberAvailability;
 import org.neo4j.cluster.member.ClusterMemberEvents;
 import org.neo4j.cluster.member.paxos.MemberIsAvailable;
@@ -52,6 +52,7 @@ import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.KernelData;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.ha.cluster.DefaultElectionCredentialsProvider;
+import org.neo4j.kernel.ha.cluster.HANewSnapshotFunction;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberChangeEvent;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberContext;
 import org.neo4j.kernel.ha.cluster.HighAvailabilityMemberListener;
@@ -90,14 +91,13 @@ import org.neo4j.kernel.impl.transaction.xaframework.TxIdGenerator;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.logging.ClassicLoggingService;
-import org.neo4j.kernel.logging.LogbackService;
+import org.neo4j.kernel.logging.LogbackWeakDependency;
 import org.neo4j.kernel.logging.Logging;
-
-import ch.qos.logback.classic.LoggerContext;
 
 import static org.neo4j.helpers.collection.Iterables.option;
 import static org.neo4j.kernel.ha.DelegateInvocationHandler.snapshot;
+import static org.neo4j.kernel.logging.LogbackWeakDependency.DEFAULT_TO_CLASSIC;
+import static org.neo4j.kernel.logging.LogbackWeakDependency.NEW_LOGGER_CONTEXT;
 
 public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
 {
@@ -135,7 +135,7 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
      * compatibilityLifecycle holds stuff that needs to be shutdown when switching. They can be restarted by adding
       * them to paxosLife too.
      */
-    List<Lifecycle> compatibilityLifecycle = new LinkedList<Lifecycle>();
+    List<Lifecycle> compatibilityLifecycle = new LinkedList<>();
     private DelegateInvocationHandler clusterEventsDelegateInvocationHandler;
     private DelegateInvocationHandler memberContextDelegateInvocationHandler;
     private DelegateInvocationHandler clusterMemberAvailabilityDelegateInvocationHandler;
@@ -147,8 +147,9 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
                                          Iterable<CacheProvider> cacheProviders,
                                          Iterable<TransactionInterceptorProvider> txInterceptorProviders )
     {
-        super( storeDir, params, Iterables.<Class<?>,Class<?>>iterable( GraphDatabaseSettings.class, HaSettings.class,
-                NetworkInstance.Configuration.class, ClusterSettings.class ), indexProviders, kernelExtensions,
+        super( storeDir, params,
+                Iterables.<Class<?>,Class<?>>iterable( GraphDatabaseSettings.class, HaSettings.class,ClusterSettings.class ),
+                indexProviders, kernelExtensions,
                 cacheProviders, txInterceptorProviders );
         accessGuard = new InstanceAccessGuard();
         run();
@@ -213,16 +214,7 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
     @Override
     protected Logging createLogging()
     {
-        try
-        {
-            getClass().getClassLoader().loadClass( "ch.qos.logback.classic.LoggerContext" );
-            loggerContext = new LoggerContext();
-            return life.add( new LogbackService( config, loggerContext ) );
-        }
-        catch ( ClassNotFoundException e )
-        {
-            return life.add( new ClassicLoggingService( config ) );
-        }
+        return life.add( new LogbackWeakDependency().tryLoadLogbackService( config, NEW_LOGGER_CONTEXT, DEFAULT_TO_CLASSIC ) );
     }
 
     @Override
@@ -304,22 +296,25 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
                 }
                 return true;
             }
-        } );
+        }, new HANewSnapshotFunction() );
 
         // Force a reelection after we enter the cluster
         // and when that election is finished refresh the snapshot
         clusterClient.addClusterListener( new ClusterListener.Adapter()
         {
+            boolean hasRequestedElection = false; // This ensures that the election result is (at least) from our request or thereafter
+
             @Override
             public void enteredCluster( ClusterConfiguration clusterConfiguration )
             {
+                hasRequestedElection = true;
                 clusterClient.performRoleElections();
             }
 
             @Override
             public void elected( String role, InstanceId instanceId, URI electedMember )
             {
-                if ( role.equals( ClusterConfiguration.COORDINATOR ) )
+                if ( hasRequestedElection && role.equals( ClusterConfiguration.COORDINATOR ) )
                 {
                     clusterClient.refreshSnapshot();
                     clusterClient.removeClusterListener( this );
@@ -411,8 +406,7 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
                 (TxIdGenerator) Proxy.newProxyInstance( TxIdGenerator.class.getClassLoader(),
                         new Class[]{TxIdGenerator.class}, txIdGeneratorDelegate );
         slaves = life.add( new HighAvailabilitySlaves( members, clusterClient, new DefaultSlaveFactory(
-                xaDataSourceManager, logging, config.get( HaSettings.max_concurrent_channels_per_slave ),
-                config.get( HaSettings.com_chunk_size ).intValue() ) ) );
+                xaDataSourceManager, logging, config.get( HaSettings.com_chunk_size ).intValue() ) ) );
 
         new TxIdGeneratorModeSwitcher( memberStateMachine, txIdGeneratorDelegate,
                 (HaXaDataSourceManager) xaDataSourceManager, master, requestContextFactory, msgLog, config, slaves );
@@ -637,6 +631,10 @@ public class HighlyAvailableGraphDatabase extends InternalAbstractGraphDatabase
                     else if ( ClusterMembers.class.isAssignableFrom( type ) )
                     {
                         result = type.cast( members );
+                    }
+                    else if ( RequestContextFactory.class.isAssignableFrom( type ))
+                    {
+                        result = type.cast( requestContextFactory );
                     }
                     else
                     {

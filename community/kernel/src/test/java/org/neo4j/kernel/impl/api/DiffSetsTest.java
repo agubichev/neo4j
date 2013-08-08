@@ -19,13 +19,19 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
-import static org.neo4j.helpers.collection.IteratorUtil.iterator;
+import java.util.Collection;
+import java.util.Iterator;
 
 import org.junit.Test;
 import org.neo4j.helpers.Predicate;
+
+import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.junit.Assert.*;
+import static org.neo4j.helpers.collection.IteratorUtil.asCollection;
+import static org.neo4j.helpers.collection.IteratorUtil.asSet;
+import static org.neo4j.helpers.collection.IteratorUtil.iterator;
 
 public class DiffSetsTest
 {
@@ -33,7 +39,7 @@ public class DiffSetsTest
     public void testAdd()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.add( 1L );
@@ -48,7 +54,7 @@ public class DiffSetsTest
     public void testRemove()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.add( 1L );
@@ -63,7 +69,7 @@ public class DiffSetsTest
     public void testAddRemove()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.add( 1L );
@@ -78,7 +84,7 @@ public class DiffSetsTest
     public void testRemoveAdd()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.remove( 1L );
@@ -93,7 +99,7 @@ public class DiffSetsTest
     public void testIsAddedOrRemoved()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.add( 1L );
@@ -110,7 +116,7 @@ public class DiffSetsTest
     public void testAddRemoveAll()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
 
         // WHEN
         actual.addAll( iterator( 1L, 2L ) );
@@ -125,7 +131,7 @@ public class DiffSetsTest
     public void testFilterAdded()
     {
         // GIVEN
-        DiffSets<Long> actual = new DiffSets<Long>();
+        DiffSets<Long> actual = new DiffSets<>();
         actual.addAll( iterator( 1L, 2L ) );
         actual.removeAll( iterator( 3L, 4L ) );
 
@@ -135,6 +141,69 @@ public class DiffSetsTest
         // THEN
         assertEquals( asSet( 1L ), filtered.getAdded() );
         assertEquals( asSet( 3L, 4L ), filtered.getRemoved() );
+    }
+
+    @Test
+    public void testReturnSourceFromApplyWithEmptyDiffSets() throws Exception
+    {
+        // GIVEN
+        DiffSets<Long> diffSets = DiffSets.emptyDiffSets();
+
+        // WHEN
+        Iterator<Long> result = diffSets.apply( asList( 18l ).iterator() );
+
+        // THEN
+        assertEquals( asList( 18l ), asCollection( result ) );
+
+    }
+
+    @Test
+    public void testAppendAddedToSourceInApply() throws Exception
+    {
+        // GIVEN
+        DiffSets<Long> diffSets = new DiffSets<>();
+        diffSets.add( 52l );
+        diffSets.remove( 43l );
+
+        // WHEN
+        Iterator<Long> result = diffSets.apply( asList( 18l ).iterator() );
+
+        // THEN
+        assertEquals( asList( 18l, 52l ), asCollection( result ) );
+
+    }
+
+    @Test
+    public void testFilterRemovedFromSourceInApply() throws Exception
+    {
+        // GIVEN
+        DiffSets<Long> diffSets = new DiffSets<>();
+        diffSets.remove( 43l );
+
+        // WHEN
+        Iterator<Long> result = diffSets.apply( asList( 42l, 43l, 44l ).iterator() );
+
+        // THEN
+        assertEquals( asList( 42l, 44l ), asCollection( result ) );
+
+    }
+
+    @Test
+    public void testFilterAddedFromSourceInApply() throws Exception
+    {
+        // GIVEN
+        DiffSets<Long> diffSets = new DiffSets<>();
+        diffSets.add( 42l );
+        diffSets.add( 44l );
+
+        // WHEN
+        Iterator<Long> result = diffSets.apply( asList( 42l, 43l ).iterator() );
+
+        // THEN
+        Collection<Long> collectedResult = asCollection( result );
+        assertEquals( 3, collectedResult.size() );
+        assertThat( collectedResult, hasItems( 43l, 42l, 44l ) );
+
     }
 
     private static final Predicate<Long> ODD_FILTER = new Predicate<Long>()

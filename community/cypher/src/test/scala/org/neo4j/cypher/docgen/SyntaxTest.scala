@@ -53,27 +53,27 @@ class SyntaxTest extends DocumentingTestBase {
   @Test def simple_case() {
     testThis(
       title = "Simple CASE",
-      syntax = """+CASE+ in
-    +WHEN+ value +THEN+ result
-    [+WHEN+ ...]
-    [+ELSE+ default]
-+END+""",
+      syntax = """CASE test
+WHEN value THEN result
+[WHEN ...]
+[ELSE default]
+END""",
 
       arguments = List(
-        "in" -> "A valid expression",
-        "value" -> "An expression whose result will be compared to expression",
-        "result" -> "This is the result expression used if the value expression matches the in expression",
+        "expr" -> "A valid expression.",
+        "value" -> "An expression whose result will be compared to the +test+ expression.",
+        "result" -> "This is the result expression used if the value expression matches the +test+ expression.",
         "default" -> "The expression to use if no match is found."
       ),
       text = "The expression is calculated, and compared in order with the +WHEN+ clauses until a match is found. " +
-        "If no match is found\nthe expression in the +ELSE+ clause is used, or null, if no +ELSE+ case exists.",
+        "If no match is found the expression in the +ELSE+ clause is used, or null, if no +ELSE+ case exists.",
       queryText =
         """match n return CASE n.eyes
     WHEN 'blue'  THEN 1
     WHEN 'brown' THEN 2
                  ELSE 3
 END as result""",
-      returns = "A string.",
+      returns = "",
       assertions = (p) => assert(List(Map("result" -> 2), Map("result" -> 1), Map("result" -> 2), Map("result" -> 1), Map("result" -> 3)) === p.toList)
     )
   }
@@ -81,26 +81,26 @@ END as result""",
   @Test def generic_case() {
     testThis(
       title = "Generic CASE",
-      syntax = """+CASE+
-     +WHEN+ predicate +THEN+ result
-     [+WHEN+ ...]
-     [+ELSE+ result]
-+END+""",
+      syntax = """CASE
+WHEN predicate THEN result
+[WHEN ...]
+[ELSE default]
+END""",
 
       arguments = List(
-        "predicate" -> "A predicate that is tested to find a valid alternative",
-        "result" -> "This is the result expression used if the predicate matches",
+        "predicate" -> "A predicate that is tested to find a valid alternative.",
+        "result" -> "This is the result expression used if the predicate matches.",
         "default" -> "The expression to use if no match is found."
       ),
-      text = "The predicates are evaluated in order until a true value is found, and the result value is used.If no " +
-        "match is found the expression in the +ELSE + clause is used, or null, if no + ELSE + case exists.",
+      text = "The predicates are evaluated in order until a true value is found, and the result value is used." +
+        "If no match is found the expression in the +ELSE+ clause is used, or +null+, if no +ELSE+ case exists.",
       queryText =
         """match n return CASE
     WHEN n.eyes = 'blue'  THEN 1
     WHEN n.age < 40       THEN 2
                           ELSE 3
 END as result""",
-      returns = "A string.",
+      returns = "",
       assertions = (p) => assert(List(Map("result" -> 3), Map("result" -> 1), Map("result" -> 2), Map("result" -> 1), Map("result" -> 3)) === p.toList)
     )
   }
@@ -109,7 +109,11 @@ END as result""",
     val argsText = arguments.map(x => "* _" + x._1 + ":_ " + x._2).mkString("\r\n\r\n")
     val fullText = String.format("""%s
 
-*Syntax:* `%s`
+*Syntax:*
+[source,cypher]
+----
+%s
+----
 
 *Arguments:*
 

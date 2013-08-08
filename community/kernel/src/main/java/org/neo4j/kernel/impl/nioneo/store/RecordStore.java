@@ -20,6 +20,7 @@
 package org.neo4j.kernel.impl.nioneo.store;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.Iterator;
 
 import org.neo4j.helpers.Predicate;
@@ -37,6 +38,10 @@ public interface RecordStore<R extends AbstractBaseRecord>
     long getHighId();
 
     R getRecord( long id );
+
+    Long getNextRecordReference( R record );
+
+    Collection<R> getRecords( long id );
 
     void updateRecord( R record );
 
@@ -65,6 +70,7 @@ public interface RecordStore<R extends AbstractBaseRecord>
         }
     };
 
+    @SuppressWarnings("unchecked")
     abstract class Processor<FAILURE extends Exception>
     {
         // Have it volatile so that it can be stopped from a different thread.
@@ -73,6 +79,11 @@ public interface RecordStore<R extends AbstractBaseRecord>
         public void stopScanning()
         {
             continueScanning = false;
+        }
+
+        public void processSchema( RecordStore<DynamicRecord> store, DynamicRecord schema ) throws FAILURE
+        {
+            processRecord( DynamicRecord.class, store, schema );
         }
 
         public void processNode( RecordStore<NodeRecord> store, NodeRecord node ) throws FAILURE
@@ -100,12 +111,19 @@ public interface RecordStore<R extends AbstractBaseRecord>
             processDynamic( store, array );
         }
 
+        public void processLabelArrayWithOwner( RecordStore<DynamicRecord> store, DynamicRecord labelArray )
+                throws FAILURE
+        {
+            processDynamic( store, labelArray );
+        }
+
         protected void processDynamic( RecordStore<DynamicRecord> store, DynamicRecord record ) throws FAILURE
         {
             processRecord( DynamicRecord.class, store, record );
         }
 
-        public void processRelationshipType( RecordStore<RelationshipTypeTokenRecord> store, RelationshipTypeTokenRecord record ) throws FAILURE
+        public void processRelationshipTypeToken( RecordStore<RelationshipTypeTokenRecord> store,
+                                                  RelationshipTypeTokenRecord record ) throws FAILURE
         {
             processRecord( RelationshipTypeTokenRecord.class, store, record );
         }
@@ -115,11 +133,12 @@ public interface RecordStore<R extends AbstractBaseRecord>
             processRecord( PropertyKeyTokenRecord.class, store, record );
         }
 
-        public void processLabelName( RecordStore<LabelTokenRecord> store, LabelTokenRecord record ) throws FAILURE
+        public void processLabelToken( RecordStore<LabelTokenRecord> store, LabelTokenRecord record ) throws FAILURE
         {
-            processRecord( LabelTokenRecord.class, store, record );
+            processRecord(LabelTokenRecord.class, store, record);
         }
 
+        @SuppressWarnings("UnusedParameters")
         protected <R extends AbstractBaseRecord> void processRecord( Class<R> type, RecordStore<R> store, R record ) throws FAILURE
         {
             throw new UnsupportedOperationException( this + " does not process "
@@ -207,5 +226,6 @@ public interface RecordStore<R extends AbstractBaseRecord>
             }
             progressListener.done();
         }
+
     }
 }

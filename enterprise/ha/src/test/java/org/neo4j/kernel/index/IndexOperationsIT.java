@@ -19,16 +19,12 @@
  */
 package org.neo4j.kernel.index;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.junit.Test;
+
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
@@ -41,13 +37,21 @@ import org.neo4j.test.AbstractClusterTest;
 import org.neo4j.test.OtherThreadExecutor;
 import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import static org.neo4j.test.ha.ClusterManager.allSeesAllAsAvailable;
+
 public class IndexOperationsIT extends AbstractClusterTest
 {
     @Test
     public void index_modifications_are_propagated() throws Exception
     {
         // GIVEN
-        // -- a slave 
+        // -- a slave
+        cluster.await( allSeesAllAsAvailable() );
         String key = "name";
         String value = "Mattias";
         HighlyAvailableGraphDatabase author = cluster.getAnySlave();
@@ -70,6 +74,7 @@ public class IndexOperationsIT extends AbstractClusterTest
     {
         // GIVEN
         // -- an existing index
+        cluster.await( allSeesAllAsAvailable() );
         String key = "key", value = "value";
         HighlyAvailableGraphDatabase master = cluster.getMaster();
         long nodeId = createNode( master, key, value, true );
@@ -79,8 +84,17 @@ public class IndexOperationsIT extends AbstractClusterTest
         Map<HighlyAvailableGraphDatabase,Index<Node>> indexes = new HashMap<HighlyAvailableGraphDatabase, Index<Node>>();
         for ( HighlyAvailableGraphDatabase db : cluster.getAllMembers() )
         {
-            indexManagers.put( db, db.index() );
-            indexes.put( db, db.index().forNodes( key ) );
+            Transaction transaction = db.beginTx();
+            try
+            {
+                indexManagers.put( db, db.index() );
+                indexes.put( db, db.index().forNodes( key ) );
+                transaction.success();
+            }
+            finally
+            {
+                transaction.finish();
+            }
         }
 
         // WHEN
@@ -91,13 +105,36 @@ public class IndexOperationsIT extends AbstractClusterTest
 
         // THEN
         // -- the index instances should still be viable to use
-        for ( IndexManager indexManager : indexManagers.values() )
+        for ( Map.Entry<HighlyAvailableGraphDatabase, IndexManager> entry : indexManagers.entrySet() )
         {
-            assertTrue( indexManager.existsForNodes( key ) );
-            assertEquals( nodeId, indexManager.forNodes( key ).get( key, value ).getSingle().getId() );
+            HighlyAvailableGraphDatabase db = entry.getKey();
+            Transaction transaction = db.beginTx();
+            try
+            {
+                IndexManager indexManager = entry.getValue();
+                assertTrue( indexManager.existsForNodes( key ) );
+                assertEquals( nodeId, indexManager.forNodes( key ).get( key, value ).getSingle().getId() );
+            }
+            finally
+            {
+                transaction.finish();
+            }
         }
-        for ( Index<Node> index : indexes.values())
-            assertEquals( nodeId, index.get( key, value ).getSingle().getId() );
+
+        for ( Map.Entry<HighlyAvailableGraphDatabase, Index<Node>> entry : indexes.entrySet() )
+        {
+            HighlyAvailableGraphDatabase db = entry.getKey();
+            Transaction transaction = db.beginTx();
+            try
+            {
+                Index<Node> index = entry.getValue();
+                assertEquals( nodeId, index.get( key, value ).getSingle().getId() );
+            }
+            finally
+            {
+                transaction.finish();
+            }
+        }
     }
     
     @Test
@@ -105,6 +142,7 @@ public class IndexOperationsIT extends AbstractClusterTest
     {
         // GIVEN
         // -- two instances, each begin a transaction
+        cluster.await( allSeesAllAsAvailable() );
         String key = "key", value = "value";
         HighlyAvailableGraphDatabase db1 = cluster.getMaster(), db2 = cluster.getAnySlave();
         long node = createNode( db1, key, value, false );
@@ -159,10 +197,18 @@ public class IndexOperationsIT extends AbstractClusterTest
     
     private void assertNodeAndIndexingExists( HighlyAvailableGraphDatabase db, long nodeId, String key, Object value )
     {
-        Node node = db.getNodeById( nodeId );
-        assertEquals( value, node.getProperty( key ) );
-        assertTrue( db.index().existsForNodes( key ) );
-        assertEquals( node, db.index().forNodes( key ).get( key, value ).getSingle() );
+        Transaction transaction = db.beginTx();
+        try
+        {
+            Node node = db.getNodeById( nodeId );
+            assertEquals( value, node.getProperty( key ) );
+            assertTrue( db.index().existsForNodes( key ) );
+            assertEquals( node, db.index().forNodes( key ).get( key, value ).getSingle() );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
     
     private static class PutIfAbsent implements WorkerCommand<HighlyAvailableGraphDatabase, Node>

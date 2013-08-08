@@ -19,11 +19,6 @@
  */
 package org.neo4j.consistency.store;
 
-import static java.util.Collections.singletonMap;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -31,6 +26,7 @@ import java.util.Queue;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
 import org.neo4j.consistency.checking.ComparativeRecordChecker;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.report.PendingReferenceCheck;
@@ -45,8 +41,17 @@ import org.neo4j.kernel.impl.nioneo.store.PropertyType;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipRecord;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenRecord;
 
+import static java.util.Collections.singletonMap;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+
 public class RecordAccessStub implements RecordAccess, DiffRecordAccess
 {
+
+    public static final int SCHEMA_RECORD_TYPE = 255;
+
     @SuppressWarnings("unchecked")
     public <RECORD extends AbstractBaseRecord, REPORT extends ConsistencyReport<RECORD, REPORT>>
     REPORT mockReport( Class<REPORT> reportClass, RECORD record )
@@ -171,6 +176,7 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
         }
     }
 
+    private final Map<Long, Delta<DynamicRecord>> schemata = new HashMap<Long, Delta<DynamicRecord>>();
     private final Map<Long, Delta<NodeRecord>> nodes = new HashMap<Long, Delta<NodeRecord>>();
     private final Map<Long, Delta<RelationshipRecord>> relationships = new HashMap<Long, Delta<RelationshipRecord>>();
     private final Map<Long, Delta<PropertyRecord>> properties = new HashMap<Long, Delta<PropertyRecord>>();
@@ -180,6 +186,7 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
     private final Map<Long, Delta<LabelTokenRecord>> labelTokens = new HashMap<Long, Delta<LabelTokenRecord>>();
     private final Map<Long, Delta<PropertyKeyTokenRecord>> propertyKeyTokens = new HashMap<Long, Delta<PropertyKeyTokenRecord>>();
     private final Map<Long, Delta<DynamicRecord>> relationshipTypeNames = new HashMap<Long, Delta<DynamicRecord>>();
+    private final Map<Long, Delta<DynamicRecord>> nodeDynamicLabels = new HashMap<Long, Delta<DynamicRecord>>();
     private final Map<Long, Delta<DynamicRecord>> labelNames = new HashMap<Long, Delta<DynamicRecord>>();
     private final Map<Long, Delta<DynamicRecord>> propertyKeyNames = new HashMap<Long, Delta<DynamicRecord>>();
     private Delta<NeoStoreRecord> graph;
@@ -242,6 +249,11 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
         records.put( newRecord.getLongId(), new Delta<R>( oldRecord, newRecord ) );
     }
 
+    public DynamicRecord addSchema( DynamicRecord schema )
+    {
+        return add( schemata, schema);
+    }
+
     public DynamicRecord addString( DynamicRecord string )
     {
         return add( strings, string );
@@ -252,7 +264,12 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
         return add( arrays, array );
     }
 
-    public DynamicRecord addKeyName( DynamicRecord name )
+    public DynamicRecord addNodeDynamicLabels( DynamicRecord array )
+    {
+        return add( nodeDynamicLabels, array );
+    }
+
+    public DynamicRecord addPropertyKeyName( DynamicRecord name )
     {
         return add( propertyKeyNames, name );
     }
@@ -260,6 +277,11 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
     public DynamicRecord addRelationshipTypeName( DynamicRecord name )
     {
         return add( relationshipTypeNames, name );
+    }
+
+    public DynamicRecord addLabelName( DynamicRecord name )
+    {
+        return add( labelNames, name );
     }
 
     public <R extends AbstractBaseRecord> R addChange( R oldRecord, R newRecord )
@@ -286,6 +308,10 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
             else if ( dyn.getType() == PropertyType.ARRAY.intValue() )
             {
                 add( arrays, (DynamicRecord) oldRecord, dyn );
+            }
+            else if ( dyn.getType() == SCHEMA_RECORD_TYPE )
+            {
+                add( schemata, (DynamicRecord) oldRecord, dyn );
             }
             else
             {
@@ -336,6 +362,10 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
             {
                 addArray( dyn );
             }
+            else if ( dyn.getType() == SCHEMA_RECORD_TYPE )
+            {
+                addSchema( dyn );
+            }
             else
             {
                 throw new IllegalArgumentException( "Invalid dynamic record type" );
@@ -348,6 +378,10 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
         else if ( record instanceof PropertyKeyTokenRecord )
         {
             add( propertyKeyTokens, (PropertyKeyTokenRecord) record );
+        }
+        else if ( record instanceof LabelTokenRecord )
+        {
+            add( labelTokens, (LabelTokenRecord) record );
         }
         else if ( record instanceof NeoStoreRecord )
         {
@@ -379,6 +413,12 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
             throw new AssertionError( String.format( "Access to record with id=%d not expected.", id ) );
         }
         return version.get( delta );
+    }
+
+    @Override
+    public RecordReference<DynamicRecord> schema( long id )
+    {
+        return reference( schemata, id, Version.LATEST );
     }
 
     @Override
@@ -430,6 +470,12 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
     }
 
     @Override
+    public RecordReference<DynamicRecord> nodeLabels( long id )
+    {
+        return reference( nodeDynamicLabels, id, Version.LATEST );
+    }
+
+    @Override
     public RecordReference<LabelTokenRecord> label( int id )
     {
         return reference( labelTokens, id, Version.LATEST );
@@ -469,6 +515,12 @@ public class RecordAccessStub implements RecordAccess, DiffRecordAccess
     public RecordReference<PropertyRecord> previousProperty( long id )
     {
         return reference( properties, id, Version.PREV );
+    }
+
+    @Override
+    public DynamicRecord changedSchema( long id )
+    {
+        return record( schemata, id, Version.NEW );
     }
 
     @Override

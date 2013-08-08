@@ -86,10 +86,15 @@ trait ParserPattern extends Base with Labels {
   }
 
   def node: Parser[ParsedEntity] =
-    parens(nodeFromExpression) | // whatever expression, but inside parenthesis
-      singleNodeDefinition | // x optLabelSeq optValues
+    singleNodeDefinition | // x optLabelSeq optValues
       nodeInParenthesis | // (singleNodeDefinition)
       failure("expected an expression that is a node")
+
+  private def labels: Parser[(Seq[KeyToken], Map[String, Expression], Boolean)] = optLabelShortForm ^^ {
+    case labels =>
+      val bare = labels.isEmpty
+      (labels, Map.empty, bare)
+  }
 
   private def labelsAndValues: Parser[(Seq[KeyToken], Map[String, Expression], Boolean)] = optLabelShortForm ~ opt(curlyMap) ^^ {
     case labels ~ optMap =>
@@ -98,9 +103,9 @@ trait ParserPattern extends Base with Labels {
       (labels, mapVal, bare)
   }
 
-  private def singleNodeDefinition = identity ~ labelsAndValues ^^ {
-    case name ~ labelsAndValues =>
-      val (labelsVal, mapVal, bare) = labelsAndValues
+  private def singleNodeDefinition = identity ~ labels ^^ {
+    case name ~ labels =>
+      val (labelsVal, mapVal, bare) = labels
       ParsedEntity(name, Identifier(name), mapVal, labelsVal, bare)
   }
 
@@ -108,26 +113,6 @@ trait ParserPattern extends Base with Labels {
     case name ~ labelsAndValues =>
       val (labelsVal, mapVal, bare) = labelsAndValues
       ParsedEntity(name, Identifier(name), mapVal, labelsVal, bare)
-  }
-
-  private def nodeFromExpression = Parser {
-    in =>
-      (generatedName ~ expression).apply(in) match {
-        case Success(_ ~ Identifier(name), rest) =>
-          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq.empty, bare = true), rest)
-
-        case Success(name ~ Literal(n: KeyToken.Unresolved), rest) =>
-          Success(ParsedEntity(name, Identifier(name), Map[String, Expression](), Seq(n), bare = true), rest)
-
-        case Success(name ~ x, rest) if x.isInstanceOf[LiteralMap] =>
-          Failure("apa", rest)
-
-        case Success(name ~ exp, rest) =>
-          Success(ParsedEntity(name, exp, Map[String, Expression](), Seq.empty, bare = true), rest)
-
-        case x: Error           => x
-        case Failure(msg, rest) => failure("expected an expression that is a node", rest)
-      }
   }
 
   def path: Parser[List[AbstractPattern]] =
@@ -159,8 +144,8 @@ trait ParserPattern extends Base with Labels {
 
   private def patternForShortestPath: Parser[AbstractPattern] = onlyOne("expected single path segment for shortest path", relationship)
 
-  private def shortestPath: Parser[List[AbstractPattern]] = generatedName ~ (SHORTESTPATH | ALLSHORTESTPATHS) ~ parens(patternForShortestPath) ^^ {
-    case name ~ algo ~ relInfo =>
+  private def shortestPath: Parser[List[AbstractPattern]] = "" ~ generatedName ~ (SHORTESTPATH | ALLSHORTESTPATHS) ~ parens(patternForShortestPath) ^^ {
+    case _ ~ name ~ algo ~ relInfo =>
       val single = algo.startsWith("s")
 
       val PatternWithEnds(start, end, typez, dir, optional, maxDepth, relIterator) = relInfo
@@ -235,39 +220,4 @@ trait ParserPattern extends Base with Labels {
                           varLength: Option[(Option[Int], Option[Int])],
                           types: Seq[String],
                           optional: Boolean)
-
-  abstract sealed class Maybe[+T] {
-    def values: Seq[T]
-    def success: Boolean
-    def ++[B >: T](other: Maybe[B]): Maybe[B]
-    def map[B](f: T => B): Maybe[B]
-    def seqMap[B](f:Seq[T]=>Seq[B]): Maybe[B]
-  }
-
-  case class Yes[T](values: Seq[T]) extends Maybe[T] {
-    def success = true
-
-    def ++[B >: T](other: Maybe[B]): Maybe[B] = other match {
-      case Yes(otherStuff) => Yes(values ++ otherStuff)
-      case No(msg) => No(msg)
-    }
-
-    def map[B](f: T => B): Maybe[B] = Yes(values.map(f))
-
-    def seqMap[B](f: (Seq[T]) => Seq[B]): Maybe[B] = Yes(f(values))
-  }
-
-  case class No(messages: Seq[String]) extends Maybe[Nothing] {
-    def values = throw new Exception("No values exists")
-    def success = false
-
-    def ++[B >: Nothing](other: Maybe[B]): Maybe[B] = other match {
-      case Yes(_) => this
-      case No(otherMessages) => No(messages ++ otherMessages)
-    }
-
-    def map[B](f: Nothing => B): Maybe[B] = this
-
-    def seqMap[B](f: (Seq[Nothing]) => Seq[B]): Maybe[B] = this
-  }
 }

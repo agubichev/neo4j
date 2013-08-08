@@ -42,6 +42,11 @@ trait Pipe {
   def symbols: SymbolTable
 
   def executionPlanDescription: PlanDescription
+
+  /**
+   * Please make sure to add a test for this implementation @ PipeLazynessTest
+   */
+  def isLazy:Boolean = true
 }
 
 object NullPipe extends Pipe {
@@ -52,7 +57,7 @@ object NullPipe extends Pipe {
   val executionPlanDescription = NullPlanDescription
 }
 
-abstract class PipeWithSource(val source: Pipe) extends Pipe {
+abstract class PipeWithSource(source: Pipe) extends Pipe {
   def throwIfSymbolsMissing(symbols: SymbolTable)
 
   throwIfSymbolsMissing(source.symbols)

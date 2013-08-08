@@ -19,6 +19,9 @@
  */
 package org.neo4j.kernel.api.properties;
 
+import org.neo4j.kernel.impl.nioneo.store.PropertyData;
+import org.neo4j.kernel.impl.nioneo.store.PropertyDatas;
+
 final class DoubleProperty extends FullSizeProperty
 {
     private final double value;
@@ -27,6 +30,17 @@ final class DoubleProperty extends FullSizeProperty
     {
         super( propertyKeyId );
         this.value = value;
+    }
+
+    @Override
+    public boolean valueEquals( Object other )
+    {
+        if ( other instanceof Double )
+        {
+            return value == (double) other;
+        }
+
+        return valueCompare( value, other );
     }
 
     @Override
@@ -46,5 +60,12 @@ final class DoubleProperty extends FullSizeProperty
     boolean hasEqualValue( FullSizeProperty that )
     {
         return Double.compare( this.value, ((DoubleProperty) that).value ) == 0;
+    }
+
+    @Override
+    @Deprecated
+    public PropertyData asPropertyDataJustForIntegration()
+    {
+        return PropertyDatas.forDouble( (int) propertyKeyId, -1, value );
     }
 }

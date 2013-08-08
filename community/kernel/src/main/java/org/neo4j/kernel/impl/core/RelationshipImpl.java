@@ -20,6 +20,7 @@
 package org.neo4j.kernel.impl.core;
 
 import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.kernel.api.properties.Property;
 import org.neo4j.kernel.impl.core.WritableTransactionState.CowEntityElement;
 import org.neo4j.kernel.impl.core.WritableTransactionState.PrimitiveElement;
 import org.neo4j.kernel.impl.nioneo.store.PropertyData;
@@ -64,36 +65,21 @@ public class RelationshipImpl extends ArrayBasedPrimitive
     }
 
     @Override
-    protected PropertyData changeProperty( NodeManager nodeManager,
-            PropertyData property, Object value, TransactionState tx )
+    public int sizeOfObjectInBytesIncludingOverhead()
     {
-        return nodeManager.relChangeProperty( this, property, value, tx );
-    }
-
-    @Override
-    protected PropertyData addProperty( NodeManager nodeManager, Token index, Object value )
-    {
-        return nodeManager.relAddProperty( this, index, value );
+        return super.sizeOfObjectInBytesIncludingOverhead() + 8/*idAndMore*/ + 8/*startNodeId and endNodeId*/;
     }
     
     @Override
-    public int size()
+    protected ArrayMap<Integer, PropertyData> loadProperties( NodeManager nodeManager )
     {
-        return super.size() + 8/*idAndMore*/ + 8/*startNodeId and endNodeId*/;
+        return nodeManager.loadProperties( this, false );
     }
 
     @Override
-    protected void removeProperty( NodeManager nodeManager,
-            PropertyData property, TransactionState tx )
+    protected Object loadPropertyValue( NodeManager nodeManager, int propertyKey )
     {
-        nodeManager.relRemoveProperty( this, property, tx );
-    }
-
-    @Override
-    protected ArrayMap<Integer, PropertyData> loadProperties(
-            NodeManager nodeManager, boolean light )
-    {
-        return nodeManager.loadProperties( this, light );
+        return nodeManager.relationshipLoadPropertyValue( getId(), propertyKey );
     }
 
     @Override
@@ -135,10 +121,10 @@ public class RelationshipImpl extends ArrayBasedPrimitive
     {
         return nm.newRelationshipProxyById( getId() );
     }
-
+    
     @Override
-    protected void updateSize( NodeManager nodeManager )
+    protected Property noProperty( long key )
     {
-        nodeManager.updateCacheSize( this, size() );
+        return Property.noRelationshipProperty( getId(), key );
     }
 }

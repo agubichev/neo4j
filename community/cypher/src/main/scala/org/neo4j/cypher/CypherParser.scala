@@ -36,6 +36,11 @@ object CypherVersion {
     val name = "2.0"
     val parser = new internal.parser.v2_0.CypherParserImpl
   }
+  case object vExperimental extends CypherVersion {
+    val name = "experimental"
+    val parser = new internal.parser.experimental.CypherParserImpl
+  }
+  val vDefault = v2_0
 }
 import CypherVersion._
 
@@ -50,12 +55,13 @@ class CypherParser(version: String) {
 
     val (v, q) = queryText match {
       case hasVersionDefined(v1, q1) => (v1, q1)
-      case _ => (version, queryText)
+      case _                         => (version, queryText)
     }
 
     val result = v match {
       case v1_9.name          => v1_9.parser.parse(q)
       case v2_0.name          => v2_0.parser.parse(q)
+      case vExperimental.name => vExperimental.parser.parse(q)
       case _                  => throw new SyntaxException("Versions supported are 1.9 and 2.0")
     }
     result.verifySemantics()

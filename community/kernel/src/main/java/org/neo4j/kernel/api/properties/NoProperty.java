@@ -21,6 +21,8 @@ package org.neo4j.kernel.api.properties;
 
 import org.neo4j.kernel.api.EntityType;
 import org.neo4j.kernel.api.exceptions.PropertyNotFoundException;
+import org.neo4j.kernel.impl.nioneo.store.PropertyData;
+import org.neo4j.kernel.impl.nioneo.store.PropertyDatas;
 
 import static java.lang.String.format;
 
@@ -144,5 +146,12 @@ final class NoProperty extends Property
     public long longValue() throws PropertyNotFoundException
     {
         throw new PropertyNotFoundException( propertyKeyId );
+    }
+    
+    @Override
+    @Deprecated
+    public PropertyData asPropertyDataJustForIntegration()
+    {
+        return PropertyDatas.noProperty( propertyKeyId );
     }
 }

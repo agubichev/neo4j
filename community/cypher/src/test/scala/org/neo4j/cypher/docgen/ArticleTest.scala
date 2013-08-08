@@ -83,9 +83,9 @@ abstract class ArticleTest extends Assertions with DocumentationHelper {
     })
   }
 
-  def node(name: String): Node = db.getNodeById(nodes.getOrElse(name, throw new NotFoundException(name)))
+  def node(name: String): Node = db.inTx(db.getNodeById(nodes.getOrElse(name, throw new NotFoundException(name))))
 
-  def rel(id: Long): Relationship = db.getRelationshipById(id)
+  def rel(id: Long): Relationship = db.inTx(db.getRelationshipById(id))
 
 
   def text: String
@@ -133,6 +133,16 @@ abstract class ArticleTest extends Assertions with DocumentationHelper {
     result.dumpToString()
   }
 
+//  private def consoleSnippet(query: String, empty: Boolean): String = {
+//    if (generateConsole) {
+//      val create = if (!empty) {
+//        db.inTx {
+//          val out = new StringWriter()
+//          new SubGraphExporter(DatabaseSubGraph.from(db)).export(new PrintWriter(out))
+//          out.toString
+//        }
+//      } else "start n=node(*) match n-[r?]->() delete n, r;"
+//      """[console]
   private def consoleSnippet(query: String): String =
     if (generateConsole)
       createDatabaseScript(query)
@@ -140,7 +150,7 @@ abstract class ArticleTest extends Assertions with DocumentationHelper {
       ""
 
   private def createDatabaseScript(query: String): String = {
-    val createText = {
+    val createText = db.inTx {
       val create = new StringWriter()
       new SubGraphExporter(DatabaseSubGraph.from(db)).export(new PrintWriter(create))
       if (create.toString.isEmpty)

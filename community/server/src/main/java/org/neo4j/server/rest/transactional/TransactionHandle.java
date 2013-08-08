@@ -40,10 +40,10 @@ import org.neo4j.server.rest.web.TransactionUriScheme;
  * Encapsulates executing statements in a transaction, committing the transaction, or rolling it back.
  *
  * Constructing a {@link TransactionHandle} does not immediately ask the kernel to create a
- * {@link org.neo4j.kernel.api.TransactionContext}; instead a {@link org.neo4j.kernel.api.TransactionContext} is
+ * {@link org.neo4j.kernel.api.KernelTransaction}; instead a {@link org.neo4j.kernel.api.KernelTransaction} is
  * only created when the first statements need to be executed.
  *
- * At the end of each statement-executing method, the {@link org.neo4j.kernel.api.TransactionContext} is either
+ * At the end of each statement-executing method, the {@link org.neo4j.kernel.api.KernelTransaction} is either
  * suspended (ready to be resumed by a later operation), or committed, or rolled back.
  *
  * If you acquire instances of this class from {@link TransactionHandleRegistry}, it will prevent concurrent access to
@@ -63,7 +63,7 @@ public class TransactionHandle
     private final TransactionUriScheme uriScheme;
     private final StringLogger log;
     private final long id;
-    private TransitionalTxManagementTransactionContext context;
+    private TransitionalTxManagementKernelTransaction context;
 
     public TransactionHandle( KernelAPI kernel, ExecutionEngine engine, TransactionRegistry registry,
                               TransactionUriScheme uriScheme, StringLogger log )
@@ -83,7 +83,7 @@ public class TransactionHandle
 
     public void execute( StatementDeserializer statements, ExecutionResultSerializer output )
     {
-        List<Neo4jError> errors = new LinkedList<Neo4jError>();
+        List<Neo4jError> errors = new LinkedList<>();
         try
         {
             output.transactionCommitUri( uriScheme.txCommitUri( id ) );
@@ -103,7 +103,7 @@ public class TransactionHandle
 
     public void commit( StatementDeserializer statements, ExecutionResultSerializer output )
     {
-        List<Neo4jError> errors = new LinkedList<Neo4jError>();
+        List<Neo4jError> errors = new LinkedList<>();
         try
         {
             ensureActiveTransaction();
@@ -122,7 +122,7 @@ public class TransactionHandle
 
     public void rollback( ExecutionResultSerializer output )
     {
-        List<Neo4jError> errors = new LinkedList<Neo4jError>();
+        List<Neo4jError> errors = new LinkedList<>();
         try
         {
             ensureActiveTransaction();
@@ -151,7 +151,7 @@ public class TransactionHandle
         {
             try
             {
-                context = (TransitionalTxManagementTransactionContext) kernel.newTransactionContext();
+                context = (TransitionalTxManagementKernelTransaction) kernel.newTransaction();
             }
             catch ( RuntimeException e )
             {
@@ -256,7 +256,7 @@ public class TransactionHandle
                     // cypher.execute( ctx, statement, resultVisitor );
                     // ctx.close()
 
-                    output.statementResult( result );
+                    output.statementResult( result, statement.resultDataContents() );
                 }
                 catch ( CypherException e )
                 {

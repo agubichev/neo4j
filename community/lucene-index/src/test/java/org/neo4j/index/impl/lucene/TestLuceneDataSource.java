@@ -92,11 +92,14 @@ public class TestLuceneDataSource
     @Test
     public void testShouldReturnIndexWriterFromLRUCache() throws InstantiationException
     {
-        dataSource = new LuceneDataSource( new Config( config(), GraphDatabaseSettings.class ), indexStore,
+        Config config = new Config( config(), GraphDatabaseSettings.class );
+        dataSource = new LuceneDataSource( config, indexStore,
                 new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT,
+                new XaFactory( config, TxIdGenerator.DEFAULT,
                         new PlaceboTm( null, null ), new DefaultLogBufferFactory(), new DefaultFileSystemAbstraction(),
-                        new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID, LogPruneStrategies.NO_PRUNING ) );
+                        new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID, LogPruneStrategies.NO_PRUNING
+                ),
+                null );
         dataSource.start();
         IndexIdentifier identifier = identifier( "foo" );
         IndexWriter writer = dataSource.getIndexSearcher( identifier ).getWriter();
@@ -108,9 +111,9 @@ public class TestLuceneDataSource
     {
         Config config = new Config( config(), GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         new DefaultFileSystemAbstraction(), new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier identifier = identifier( "foo" );
         IndexReference searcher = dataSource.getIndexSearcher( identifier );
@@ -127,9 +130,9 @@ public class TestLuceneDataSource
         config.put( GraphDatabaseSettings.lucene_searcher_cache_size.name(), "2" );
         Config config1 = new Config( config, GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config1, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config1, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         new DefaultFileSystemAbstraction(), new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier fooIdentifier = identifier( "foo" );
         IndexIdentifier barIdentifier = identifier( "bar" );
@@ -150,9 +153,9 @@ public class TestLuceneDataSource
         config.put( GraphDatabaseSettings.lucene_searcher_cache_size.name(), "2" );
         Config config1 = new Config( config, GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config1, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config1, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         fileSystem, new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier fooIdentifier = identifier( "foo" );
         IndexIdentifier barIdentifier = identifier( "bar" );
@@ -175,9 +178,9 @@ public class TestLuceneDataSource
         config.put( GraphDatabaseSettings.lucene_searcher_cache_size.name(), "2" );
         Config config1 = new Config( config, GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config1, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config1, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         new DefaultFileSystemAbstraction(), new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier fooIdentifier = identifier( "foo" );
         IndexIdentifier barIdentifier = identifier( "bar" );
@@ -203,9 +206,9 @@ public class TestLuceneDataSource
         config.put( GraphDatabaseSettings.lucene_searcher_cache_size.name(), "2" );
         Config config1 = new Config( config, GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config1, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config1, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         new DefaultFileSystemAbstraction(), new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier fooIdentifier = identifier( "foo" );
         IndexIdentifier barIdentifier = identifier( "bar" );
@@ -224,9 +227,9 @@ public class TestLuceneDataSource
     {
         Config config = new Config( config(), GraphDatabaseSettings.class );
         dataSource = new LuceneDataSource( config, indexStore, new DefaultFileSystemAbstraction(),
-                new XaFactory( TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
+                new XaFactory( config, TxIdGenerator.DEFAULT, new PlaceboTm( null, null ), new DefaultLogBufferFactory(),
                         new DefaultFileSystemAbstraction(), new DevNullLoggingService(), RecoveryVerifier.ALWAYS_VALID,
-                        LogPruneStrategies.NO_PRUNING ) );
+                        LogPruneStrategies.NO_PRUNING ), null );
         dataSource.start();
         IndexIdentifier identifier = new IndexIdentifier( LuceneCommand.NODE, dataSource.nodeEntityType, "foo" );
         IndexReference oldSearcher = dataSource.getIndexSearcher( identifier );

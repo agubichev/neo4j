@@ -41,7 +41,7 @@ the relevant Commercial Agreement.
   </licenses>
 
   <scm>
-    <url>https://github.com/neo4j/community/tree/master/graphviz</url>
+	  <url>https://github.com/neo4j/neo4j/tree/master/community/graphviz</url>
   </scm>
 
   <dependencies>
@@ -58,13 +58,11 @@ the relevant Commercial Agreement.
     <dependency>
       <groupId>org.jmock</groupId>
       <artifactId>jmock</artifactId>
-      <version>2.5.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.jmock</groupId>
       <artifactId>jmock-junit4</artifactId>
-      <version>2.5.1</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

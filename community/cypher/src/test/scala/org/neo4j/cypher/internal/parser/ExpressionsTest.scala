@@ -23,6 +23,7 @@ import v2_0.{MatchClause, Expressions}
 import org.neo4j.cypher.internal.commands._
 import expressions._
 import org.junit.Test
+import org.neo4j.cypher.internal.commands.values.TokenType.PropertyKey
 
 class ExpressionsTest extends Expressions with MatchClause with ParserTest {
   implicit val parserToTest = expression
@@ -71,8 +72,8 @@ class ExpressionsTest extends Expressions with MatchClause with ParserTest {
   }
 
   @Test def list_comprehension() {
-    val predicate = Equals(Property(Identifier("x"), "prop"), Literal(42))
-    val mapExpression = Property(Identifier("x"), "name")
+    val predicate = Equals(Property(Identifier("x"), PropertyKey("prop")), Literal(42))
+    val mapExpression = Property(Identifier("x"), PropertyKey("name"))
 
     parsing("[x in collection WHERE x.prop = 42 : x.name]") shouldGive
       ExtractFunction(FilterFunction(Identifier("collection"), "x", predicate), "x", mapExpression)
@@ -119,13 +120,13 @@ class ExpressionsTest extends Expressions with MatchClause with ParserTest {
 
   @Test def better_map_support() {
     parsing("map.key1.key2.key3") shouldGive
-      Property(Property(Property(Identifier("map"), "key1"), "key2"), "key3")
+      Property(Property(Property(Identifier("map"), PropertyKey("key1")), PropertyKey("key2")), PropertyKey("key3"))
 
     parsing("({ key: 'value' }).key") shouldGive
-      Property(LiteralMap(Map("key" -> Literal("value"))), "key")
+      Property(LiteralMap(Map("key" -> Literal("value"))), PropertyKey("key"))
 
     parsing("({ inner1: { inner2: 'Value' } }).key") shouldGive
-      Property(LiteralMap(Map("inner1" -> LiteralMap(Map("inner2" -> Literal("Value"))))), "key")
+      Property(LiteralMap(Map("inner1" -> LiteralMap(Map("inner2" -> Literal("Value"))))), PropertyKey("key"))
 
   }
 }

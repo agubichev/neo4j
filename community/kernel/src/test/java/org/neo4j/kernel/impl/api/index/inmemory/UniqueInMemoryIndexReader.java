@@ -20,11 +20,13 @@
 package org.neo4j.kernel.impl.api.index.inmemory;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
-import org.neo4j.helpers.collection.IteratorUtil;
 import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
+
+import static org.neo4j.helpers.collection.IteratorUtil.emptyPrimitiveLongIterator;
+import static org.neo4j.helpers.collection.IteratorUtil.singletonPrimitiveLongIterator;
 
 class UniqueInMemoryIndexReader implements IndexReader
 {
@@ -32,14 +34,14 @@ class UniqueInMemoryIndexReader implements IndexReader
 
     UniqueInMemoryIndexReader( Map<Object, Long> indexData )
     {
-        this.indexData = new HashMap<Object, Long>( indexData );
+        this.indexData = new HashMap<>( indexData );
     }
 
     @Override
-    public Iterator<Long> lookup( Object value )
+    public PrimitiveLongIterator lookup( Object value )
     {
         Long result = indexData.get( value );
-        return result != null ? IteratorUtil.singletonIterator( result ) : IteratorUtil.<Long>emptyIterator();
+        return result != null ? singletonPrimitiveLongIterator( result ) : emptyPrimitiveLongIterator();
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.kernel.api.exceptions.PropertyKeyIdNotFoundException;
 import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.properties.Property;
+import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
 
 public interface EntityReadOperations
@@ -32,54 +33,67 @@ public interface EntityReadOperations
     // Currently, of course, most relevant operations here are still in the old core API implementation.
 
     /**
+     *
      * @param labelId the label id of the label that returned nodes are guaranteed to have
      * @return ids of all nodes that have the given label
      */
-    Iterator<Long> nodesGetForLabel( long labelId );
+    PrimitiveLongIterator nodesGetForLabel( StatementState state, long labelId );
 
     /**
      * Returns an iterable with the matched nodes.
      *
      * @throws IndexNotFoundKernelException if no such index found.
      */
-    Iterator<Long> nodesGetFromIndexLookup( IndexDescriptor index, Object value ) throws IndexNotFoundKernelException;
+    PrimitiveLongIterator nodesGetFromIndexLookup( StatementState state, IndexDescriptor index, Object value ) throws IndexNotFoundKernelException;
 
     /**
      * Checks if a node is labeled with a certain label or not. Returns
      * {@code true} if the node is labeled with the label, otherwise {@code false.}
-     * Label ids are retrieved from {@link KeyWriteOperations#labelGetOrCreateForName(String)} or
-     * {@link KeyReadOperations#labelGetForName(String)}.
+     * Label ids are retrieved from {@link KeyWriteOperations#labelGetOrCreateForName(StatementState, String)} or
+     * {@link KeyReadOperations#labelGetForName(StatementState, String)}.
      */
-    boolean nodeHasLabel( long nodeId, long labelId ) throws EntityNotFoundException;
+    boolean nodeHasLabel( StatementState state, long nodeId, long labelId ) throws EntityNotFoundException;
 
     /**
      * Returns all labels set on node with id {@code nodeId}.
      * If the node has no labels an empty {@link Iterable} will be returned.
      */
-    Iterator<Long> nodeGetLabels( long nodeId ) throws EntityNotFoundException;
+    PrimitiveLongIterator nodeGetLabels( StatementState state, long nodeId ) throws EntityNotFoundException;
 
-    Property nodeGetProperty( long nodeId, long propertyKeyId )
+    Property nodeGetProperty( StatementState state, long nodeId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
-    Property relationshipGetProperty( long relationshipId, long propertyKeyId )
+    Property relationshipGetProperty( StatementState state, long relationshipId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
+    
+    Property graphGetProperty( StatementState state, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException;
 
     /** Returns true if node has the property given it's property key id for the node with the given node id */
-    boolean nodeHasProperty( long nodeId, long propertyKeyId )
+    boolean nodeHasProperty( StatementState state, long nodeId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
-    boolean relationshipHasProperty( long relationshipId, long propertyKeyId )
+    boolean relationshipHasProperty( StatementState state, long relationshipId, long propertyKeyId )
             throws PropertyKeyIdNotFoundException, EntityNotFoundException;
 
+    boolean graphHasProperty( StatementState state, long propertyKeyId )
+            throws PropertyKeyIdNotFoundException;
+    
     // TODO: decide if this should be replaced by nodeGetAllProperties()
     /** Return all property keys associated with a node. */
-    Iterator<Long> nodeGetPropertyKeys( long nodeId ) throws EntityNotFoundException;
+    PrimitiveLongIterator nodeGetPropertyKeys( StatementState state, long nodeId ) throws EntityNotFoundException;
 
-    Iterator<Property> nodeGetAllProperties( long nodeId ) throws EntityNotFoundException;
+    Iterator<Property> nodeGetAllProperties( StatementState state, long nodeId ) throws EntityNotFoundException;
 
     // TODO: decide if this should be replaced by relationshipGetAllProperties()
     /** Return all property keys associated with a relationship. */
-    Iterator<Long> relationshipGetPropertyKeys( long relationshipId ) throws EntityNotFoundException;
+    PrimitiveLongIterator relationshipGetPropertyKeys( StatementState state, long relationshipId ) throws EntityNotFoundException;
 
-    Iterator<Property> relationshipGetAllProperties( long relationshipId ) throws EntityNotFoundException;
+    Iterator<Property> relationshipGetAllProperties( StatementState state, long relationshipId ) throws EntityNotFoundException;
+
+    // TODO: decide if this should be replaced by relationshipGetAllProperties()
+    /** Return all property keys associated with a relationship. */
+    PrimitiveLongIterator graphGetPropertyKeys( StatementState state );
+
+    Iterator<Property> graphGetAllProperties( StatementState state );
 }

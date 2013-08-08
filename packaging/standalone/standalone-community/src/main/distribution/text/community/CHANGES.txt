@@ -1,5 +1,46 @@
 For Release Notes, see http://neo4j.org/release-notes#neo4j-${project.version}
 
+2.0.0-M04
+---------
+
+Kernel:
+  o BREAKING CHANGE: Require Java 7
+  o BREAKING CHANGE: Transactions are now required for all operations throughout Java Core API,
+    read operations as well as write operations
+  o Define proper equality for indexing of array properties
+  o BREAKING CHANGE: Equality for indexing of number properties compares numbers independent of underlying primitive Java type
+
+Cypher:
+  o Fixes #844 - Label predicate do not work on optional nodes that are null
+  o Fixes #897 - Cypher start doesnt allow combining multiple starting points with start node sets
+  o BREAKING CHANGE: Removes "?", "!" syntax for accessing properties. Missing properties are now treated as null
+  o Introduced a new experimental and fast PEG parser
+  o BREAKING CHANGE: Escaped identifiers in the RETURN clause are kept as the user entered them
+  o BREAKING CHANGE: No longer possible to use expressions and params to identify nodes in patterns
+  o BREAKING CHANGE: Use "|" in favor of ":" in FOREACH, EXTRACT and REDUCE to avoid disambiguity with label syntax
+
+Server:
+  o Added support for extracting and returning the graph structure from the result of a Cypher query executed via the transactional endpoint
+
+Packaging:
+  o Introduce Neo4j Desktop, a launcher for Neo4j Server
+
+2.0.0-M03
+---------
+Kernel:
+  o Read-only index results are closed properly
+
+Cypher:
+  o Make Cypher execution results closable 
+  o Adds Cypher label scan hint
+  o Removes alternative WITH syntax in Cypher
+  o Fixes bug with UNION text output
+  o Added startNode()/endNode()
+  o Fixes #780 - Queries with literal collections fail against schema indexes
+
+Server:
+  o Added support for transaction keep-alive
+
 2.0.0-M02
 ---------
 o In server, added REST transaction support
@@ -20,6 +61,44 @@ o BREAKING CHANGE: The BatchInserter and the BatchGraphDatabase are not binary c
 o Added support for labels across all APIs: Cypher, Core Java and REST
 o Added support for the new label-based indexes across all APIs: Cypher, Core Java and REST
 o Improvements to shell, including import/export of small graphs via cypher statements
+
+1.9.2 (2013-07-16)
+------------------
+Kernel:
+o When flushing persistent windows, do so only if dirty. This is a performance improvement
+  for certain scenarios.
+o Fixes bug where loading relationship chains with high ids would cause them to be
+  ignored when iterating over them.
+
+Cypher:
+o Fixes problem where Cypher would see changes while the query was running
+
+Server:
+o The Content-Type is now correctly used to set the text encoding, not Content-Encoding
+o Fixes concurrency issue with generation of JSON responses
+o HTTPS scheme is now properly propagated on batch requests
+
+1.9.1 (2013-06-24)
+------------------
+Kernel:
+o Fixes bug where creating an Index with an invalid configuration would not properly clean up
+  the configuration for it.
+o Fixes race condition that occasionally would make Node.getSingleRelationship() mistakenly fail.
+o Fixes compliance for non-logback logging implementations
+o Cleanup of transactions that fail commit happens under the same lock as the commit
+
+Cypher:
+o Cypher execution results are now closeable
+o Allow | to be used as a separator in foreach and extract+reduce
+
+Server:
+o Fixes bug where the last security rule would be the only one respected, if multiple would
+  be present
+o Support for chained certificates
+o Enabled streaming support for paged traversals
+
+Packaging:
+o Improved handling of JAVA_HOME on OSX
 
 1.9 (2013-05-13)
 ----------------

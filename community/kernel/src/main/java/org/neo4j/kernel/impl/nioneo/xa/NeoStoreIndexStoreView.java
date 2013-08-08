@@ -25,6 +25,7 @@ import java.util.Set;
 import org.neo4j.helpers.Function;
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.Predicate;
+import org.neo4j.helpers.PrimitiveLongPredicate;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.kernel.api.index.NodePropertyUpdate;
 import org.neo4j.kernel.impl.api.index.IndexDescriptor;
@@ -46,6 +47,7 @@ import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.helpers.collection.IteratorUtil.asIterable;
 import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 import static org.neo4j.helpers.collection.IteratorUtil.emptyIterator;
+import static org.neo4j.kernel.impl.nioneo.store.labels.NodeLabelsField.parseLabelsField;
 
 public class NeoStoreIndexStoreView implements IndexStoreView
 {
@@ -138,11 +140,6 @@ public class NeoStoreIndexStoreView implements IndexStoreView
         {
             this.labels = labels;
         }
-    }
-
-    private interface PrimitiveLongPredicate
-    {
-        boolean accept( long value );
     }
 
     private static PrimitiveLongPredicate singleLongPredicate( final long acceptedValue )
@@ -276,7 +273,7 @@ public class NeoStoreIndexStoreView implements IndexStoreView
         {
             if ( node.inUse() )
             {
-                long[] labelsForNode = nodeStore.getLabelsForNode( node );
+                long[] labelsForNode = parseLabelsField( node ).get( nodeStore );
                 labelsReference.set( labelsForNode ); // Make these available for the processor for this node
                 for ( long nodeLabelId : labelsForNode )
                 {

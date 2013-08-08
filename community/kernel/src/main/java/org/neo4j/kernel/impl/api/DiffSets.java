@@ -164,7 +164,8 @@ public class DiffSets<T>
     public Iterator<T> apply( Iterator<T> source )
     {
         Iterator<T> result = source;
-        if ( removedElements != null && !removedElements.isEmpty() )
+        if ( ( removedElements != null && !removedElements.isEmpty() ) ||
+             ( addedElements != null && !addedElements.isEmpty() ) )
         {
             ensureFilterHasBeenCreated();
             result = filter( filter, result );
@@ -176,11 +177,16 @@ public class DiffSets<T>
         return result;
     }
 
+    public PrimitiveLongIterator applyPrimitiveLongIterator( final PrimitiveLongIterator source )
+    {
+        return new DiffApplyingPrimitiveLongIterator( source, addedElements, removedElements );
+    }
+
     public DiffSets<T> filterAdded( Predicate<T> addedFilter )
     {
         Iterable<T> newAdded = filter( addedFilter, getAdded() );
         Set<T> newRemoved = getRemoved();
-        return new DiffSets<T>( asSet( newAdded ), asSet( newRemoved ) );
+        return new DiffSets<>( asSet( newAdded ), asSet( newRemoved ) );
     }
 
     private void ensureAddedHasBeenCreated()
@@ -209,7 +215,8 @@ public class DiffSets<T>
                 @Override
                 public boolean accept( T item )
                 {
-                    return !removedElements.contains( item );
+                    return ( removedElements == null || !removedElements.contains( item ) ) &&
+                           ( addedElements == null || !addedElements.contains( item ) );
                 }
             };
         }
@@ -222,7 +229,7 @@ public class DiffSets<T>
 
     private Set<T> newSet()
     {
-        return new HashSet<T>();
+        return new HashSet<>();
     }
 
     private Set<T> resultSet( Set<T> coll )
@@ -234,4 +241,5 @@ public class DiffSets<T>
     {
         return removedElements != null && removedElements.remove( item );
     }
+
 }

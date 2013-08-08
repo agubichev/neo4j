@@ -60,7 +60,7 @@ class CreateTest extends DocumentingTestBase with StatisticsChecker {
   @Test def create_single_node_with_labels_and_properties() {
     testQuery(
       title = "Create node and add labels and properties",
-      text = "When creating a new node with labels, you can add properties using +VALUES+ at the same time",
+      text = "When creating a new node with labels, you can add properties using +VALUES+ at the same time.",
       queryText = "create (n:Person {name : 'Andres', title : 'Developer'})",
       returns = "Nothing is returned from this query.",
       assertions = (p) => assertStats(p, nodesCreated = 1, propertiesSet = 2, labelsAdded = 1))
@@ -95,24 +95,6 @@ class CreateTest extends DocumentingTestBase with StatisticsChecker {
         "Once the nodes are loaded, we simply create a relationship between them.",
       queryText = "match a:Person, b:Person where a.name = 'Node A' and b.name = 'Node B' create a-[r:RELTYPE]->b return r",
       returns = "The created relationship is returned by the query.",
-      assertions = (p) => assert(p.size === 1)
-    )
-  }
-
-  @Test def using_expressions_as_nodes() {
-    createTwoNodes
-
-    testQuery(
-      title = "Using expressions for nodes end points",
-      text = "You can use any expression as a node, as long as it returns a node. Just make sure to encase your " +
-        "expression in parenthesis.",
-      queryText =
-        "match a:Person where a.name = 'Node A' " +
-        "with collect(a) as nodes " +
-        "match b:Person where b.name = 'Node B' " +
-        "create (head(nodes))-[r:REL]->b " +
-        "return r",
-      returns = "The created relationship is returned.",
       assertions = (p) => assert(p.size === 1)
     )
   }

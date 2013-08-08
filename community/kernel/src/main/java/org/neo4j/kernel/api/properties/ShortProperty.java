@@ -19,6 +19,9 @@
  */
 package org.neo4j.kernel.api.properties;
 
+import org.neo4j.kernel.impl.nioneo.store.PropertyData;
+import org.neo4j.kernel.impl.nioneo.store.PropertyDatas;
+
 /**
  * This does not extend AbstractProperty since the JVM can take advantage of the 4 byte initial field alignment if
  * we don't extend a class that has fields.
@@ -41,6 +44,16 @@ final class ShortProperty extends NumberPropertyWithin4Bytes
     }
 
     @Override
+    public boolean valueEquals( Object other )
+    {
+        if ( other instanceof Short )
+        {
+            return value == (short)other;
+        }
+
+        return valueCompare( value, other );
+    }
+    @Override
     boolean hasEqualValue( NumberPropertyWithin4Bytes that )
     {
         return value == ((ShortProperty) that).value;
@@ -62,5 +75,12 @@ final class ShortProperty extends NumberPropertyWithin4Bytes
     public long longValue()
     {
         return value;
+    }
+
+    @Override
+    @Deprecated
+    public PropertyData asPropertyDataJustForIntegration()
+    {
+        return PropertyDatas.forShort( (int) propertyKeyId, -1, value );
     }
 }

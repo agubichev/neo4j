@@ -19,6 +19,8 @@
  */
 package org.neo4j.helpers;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 
 public class Exceptions
@@ -127,5 +129,30 @@ public class Exceptions
     private Exceptions()
     {
         // no instances
+    }
+
+    public static final Throwable rootCause( Throwable caughtException )
+    {
+        if ( null == caughtException )
+        {
+            throw new IllegalArgumentException( "Cannot obtain rootCause from (null)" );
+        }
+        Throwable root  = caughtException;
+        Throwable cause = root.getCause();
+        while ( null != cause )
+        {
+            root  = cause;
+            cause = cause.getCause();
+        }
+        return root;
+    }
+    
+    public static String stringify( Throwable cause )
+    {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream target = new PrintStream( bytes );
+        cause.printStackTrace( target );
+        target.flush();
+        return bytes.toString();
     }
 }

@@ -52,6 +52,8 @@ class InternalException(message: String, inner: Exception = null) extends Cypher
 
 class MissingIndexException(indexName: String) extends CypherException("Index `" + indexName + "` does not exist")
 
+class MissingConstraintException() extends CypherException("Constraint not found")
+
 class InvalidAggregateException(message: String) extends CypherException(message)
 
 class NodeStillHasRelationshipsException(val nodeId: Long, cause: Throwable)

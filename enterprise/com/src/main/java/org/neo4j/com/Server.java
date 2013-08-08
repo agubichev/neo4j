@@ -19,6 +19,12 @@
  */
 package org.neo4j.com;
 
+import static org.neo4j.com.DechunkingChannelBuffer.assertSameProtocolVersion;
+import static org.neo4j.com.Protocol.addLengthFieldPipes;
+import static org.neo4j.com.Protocol.assertChunkSizeIsWithinFrameSize;
+import static org.neo4j.com.Protocol.readString;
+import static org.neo4j.com.Protocol.writeString;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -47,10 +53,10 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-
 import org.neo4j.com.RequestContext.Tx;
 import org.neo4j.helpers.Exceptions;
 import org.neo4j.helpers.HostnamePort;
@@ -63,8 +69,7 @@ import org.neo4j.kernel.impl.nioneo.xa.NeoStoreXaDataSource;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.logging.Logging;
-
-import static org.neo4j.com.DechunkingChannelBuffer.assertSameProtocolVersion;
+import org.neo4j.tooling.Clock;
 
 /**
  * Receives requests from {@link Client clients}. Delegates actual work to an instance
@@ -82,10 +87,10 @@ import static org.neo4j.com.DechunkingChannelBuffer.assertSameProtocolVersion;
  *
  * @see Client
  */
-public abstract class Server<T, R> extends Protocol implements ChannelPipelineFactory, Lifecycle
+public abstract class Server<T, R> implements ChannelPipelineFactory, Lifecycle
 {
-
     private InetSocketAddress socketAddress;
+    private final Clock clock;
 
     public interface Configuration
     {
@@ -107,17 +112,17 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
     public final static int DEFAULT_MAX_NUMBER_OF_CONCURRENT_TRANSACTIONS = 200;
 
     private ServerBootstrap bootstrap;
-    private T requestTarget;
+    private final T requestTarget;
     private ChannelGroup channelGroup;
     private final Map<Channel, Pair<RequestContext, AtomicLong /*time last heard of*/>> connectedSlaveChannels =
             new ConcurrentHashMap<Channel, Pair<RequestContext, AtomicLong>>();
     private ExecutorService executor;
     private ExecutorService workerExecutor;
     private ExecutorService targetCallExecutor;
-    private StringLogger msgLog;
+    private final StringLogger msgLog;
     private final Map<Channel, PartialRequest> partialRequests =
             new ConcurrentHashMap<Channel, PartialRequest>();
-    private Configuration config;
+    private final Configuration config;
     private final int frameLength;
     private volatile boolean shuttingDown;
 
@@ -132,11 +137,11 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
 
     private final byte applicationProtocolVersion;
     private long oldChannelThresholdMillis;
-    private TxChecksumVerifier txVerifier;
+    private final TxChecksumVerifier txVerifier;
     private int chunkSize;
 
     public Server( T requestTarget, Configuration config, Logging logging, int frameLength,
-                   byte applicationProtocolVersion, TxChecksumVerifier txVerifier )
+                   byte applicationProtocolVersion, TxChecksumVerifier txVerifier, Clock clock )
     {
         this.requestTarget = requestTarget;
         this.config = config;
@@ -144,6 +149,7 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
         this.applicationProtocolVersion = applicationProtocolVersion;
         this.msgLog = logging.getMessagesLog( getClass() );
         this.txVerifier = txVerifier;
+        this.clock = clock;
     }
 
     @Override
@@ -289,6 +295,7 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
         return INTERNAL_PROTOCOL_VERSION;
     }
 
+    @Override
     public ChannelPipeline getPipeline() throws Exception
     {
         ChannelPipeline pipeline = Channels.pipeline();
@@ -324,6 +331,24 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
         }
 
         @Override
+        public void writeComplete( ChannelHandlerContext ctx, WriteCompletionEvent e ) throws Exception
+        {
+            /*
+             * This is here to ensure that channels that have stuff written to them for a long time, long transaction
+             * pulls and store copies (mainly the latter), will not timeout and have their transactions rolled back.
+             * This is actually not a problem, since both mentioned above have no transaction associated with them
+             * but it is more sanitary and leaves less exceptions in the logs
+             * Each time a write completes, simply update the corresponding channel's timestamp.
+             */
+            Pair<RequestContext, AtomicLong> slave = connectedSlaveChannels.get( ctx.getChannel() );
+            if ( slave != null )
+            {
+                slave.other().set( clock.currentTimeMillis() );
+                super.writeComplete( ctx, e );
+            }
+        }
+
+        @Override
         public void channelClosed( ChannelHandlerContext ctx, ChannelStateEvent e )
                 throws Exception
         {
@@ -348,7 +373,6 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
                 tryToFinishOffChannel( ctx.getChannel() );
             }
         }
-
 
         @Override
         public void exceptionCaught( ChannelHandlerContext ctx, ExceptionEvent e ) throws Exception
@@ -420,11 +444,17 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
                 {
                     finishOffChannel( null, slave );
                 }
+                catch ( TransactionNotPresentOnMasterException e )
+                {
+                    // It's ok, there is nothing to finish anyway, since this is thrown when the transaction was not
+                    // found
+                    return;
+                }
                 catch ( Throwable e )
                 {
                     // Introduce some delay here. it becomes like a busy wait if it never succeeds
                     sleepNicely( 200 );
-                    unfinishedTransactionExecutor.submit( newTransactionFinisher( slave ) );
+                    unfinishedTransactionExecutor.submit( this );
                 }
             }
 
@@ -530,6 +560,7 @@ public abstract class Server<T, R> extends Protocol implements ChannelPipelineFa
     {
         return new Runnable()
         {
+            @Override
             @SuppressWarnings("unchecked")
             public void run()
             {

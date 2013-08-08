@@ -19,16 +19,6 @@
  */
 package org.neo4j.kernel.ha;
 
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.LoggerRule;
-import org.neo4j.test.TargetDirectory;
-import org.neo4j.test.ha.ClusterManager;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -36,6 +26,15 @@ import static org.junit.Assert.fail;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.kernel.ha.HaSettings.tx_push_factor;
 import static org.neo4j.test.ha.ClusterManager.clusterOfSize;
+
+import org.junit.After;
+import org.junit.Rule;
+import org.junit.Test;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.test.LoggerRule;
+import org.neo4j.test.TargetDirectory;
+import org.neo4j.test.ha.ClusterManager;
 
 /**
  * TODO
@@ -66,10 +65,13 @@ public class TestBasicHaOperations
         clusterManager.start();
         ClusterManager.ManagedCluster cluster = clusterManager.getDefaultCluster();
 
+        cluster.await( ClusterManager.allSeesAllAsAvailable() );
+
         HighlyAvailableGraphDatabase master = cluster.getMaster();
         HighlyAvailableGraphDatabase slave1 = cluster.getAnySlave();
         HighlyAvailableGraphDatabase slave2 = cluster.getAnySlave( slave1 );
 
+        // When
         long start = System.nanoTime();
         cluster.shutdown( master );
         logger.getLogger().warn( "Shut down master" );
@@ -79,6 +81,7 @@ public class TestBasicHaOperations
 
         logger.getLogger().warn( "Failover took:"+(end-start)/1000000+"ms" );
 
+        // Then
         boolean slave1Master = slave1.isMaster();
         boolean slave2Master = slave2.isMaster();
 
@@ -125,10 +128,17 @@ public class TestBasicHaOperations
         }
 
         HighlyAvailableGraphDatabase master = cluster.getMaster();
-
-        String value = master.getNodeById( nodeId ).getProperty( "Hello" ).toString();
-        logger.getLogger().info( "Hello=" + value );
-        assertEquals( "World", value );
+        Transaction transaction = master.beginTx();
+        try
+        {
+            String value = master.getNodeById( nodeId ).getProperty( "Hello" ).toString();
+            logger.getLogger().info( "Hello=" + value );
+            assertEquals( "World", value );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 
     @Test
@@ -165,16 +175,31 @@ public class TestBasicHaOperations
 
         // No need to wait, the push factor is 2
         HighlyAvailableGraphDatabase slave1 = cluster.getAnySlave();
-
-        String value = slave1.getNodeById( nodeId ).getProperty( "Hello" ).toString();
-        logger.getLogger().info( "Hello=" + value );
-        assertEquals( "World", value );
+        Transaction transaction = slave1.beginTx();
+        String value;
+        try
+        {
+            value = slave1.getNodeById( nodeId ).getProperty( "Hello" ).toString();
+            logger.getLogger().info( "Hello=" + value );
+            assertEquals( "World", value );
+        }
+        finally
+        {
+            transaction.finish();
+        }
 
 
         HighlyAvailableGraphDatabase slave2 = cluster.getAnySlave(slave1);
-
-        value = slave2.getNodeById( nodeId ).getProperty( "Hello" ).toString();
-        logger.getLogger().info( "Hello=" + value );
-        assertEquals( "World", value );
+        transaction = slave2.beginTx();
+        try
+        {
+            value = slave2.getNodeById( nodeId ).getProperty( "Hello" ).toString();
+            logger.getLogger().info( "Hello=" + value );
+            assertEquals( "World", value );
+        }
+        finally
+        {
+            transaction.finish();
+        }
     }
 }
