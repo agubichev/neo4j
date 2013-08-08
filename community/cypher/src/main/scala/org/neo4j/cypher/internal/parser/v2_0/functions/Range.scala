@@ -36,7 +36,7 @@ case object Range extends Function with LegacyPredicate {
     when(invocation.arguments.length == 3) {
       invocation.arguments(2).limitType(LongType())
     } then
-    invocation.limitType(invocation.arguments.take(2).mergeDownTypes)
+    invocation.limitType(CollectionType(NumberType()))
   }
 
   def toCommand(invocation: ast.FunctionInvocation) = {

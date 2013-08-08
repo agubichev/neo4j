@@ -86,7 +86,9 @@ trait Expressions extends Parser
 
   private def Expression3 : Rule1[ast.Expression] = rule {
     Expression2 ~ zeroOrMore(WS ~ (
-        ((operator(".") ~~ Identifier) memoMismatches) ~>> token ~~> ast.Property
+      ((operator(".") ~~ Identifier) memoMismatches) ~>> token ~~> ast.Property
+      | "[" ~~ Expression ~~ "]" ~>> token ~~> ast.ArrayIndexSingle
+      | "[" ~~ optional(Expression) ~~ ".." ~~ optional(Expression) ~~ "]" ~>> token ~~> ast.ArrayIndexBetween
       | NodeLabels ~>> token ~~> ast.HasLabels
       | operator("=~") ~> identifier ~~ Expression2 ~~> (ast.FunctionInvocation(_: ast.Expression, _, _))
       | keyword("IN") ~> identifier ~~ Expression2 ~~> (ast.FunctionInvocation(_: ast.Expression, _, _))

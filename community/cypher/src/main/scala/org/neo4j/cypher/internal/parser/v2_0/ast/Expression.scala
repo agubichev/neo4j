@@ -129,7 +129,7 @@ case class CountStar(token: InputToken) extends Expression with SimpleTypedExpre
 }
 
 case class Property(map: Expression, identifier: Identifier, token: InputToken) extends Expression with SimpleTypedExpression {
-  protected def possibleTypes = Set(BooleanType(), NumberType(), StringType(), CollectionType(AnyType()))
+  protected def possibleTypes = Set(BooleanType(), MapType(), NumberType(), StringType(), CollectionType(AnyType()))
 
   override def semanticCheck(ctx: SemanticContext) = {
     map.semanticCheck(ctx) then
@@ -138,6 +138,29 @@ case class Property(map: Expression, identifier: Identifier, token: InputToken) 
   }
 
   def toCommand = commands.expressions.Property(map.toCommand, PropertyKey(identifier.name))
+}
+
+case class ArrayIndexBetween(collection: Expression, from: Option[Expression], to: Option[Expression], token: InputToken)
+  extends Expression {
+
+  override def semanticCheck(ctx: SemanticContext) =
+    collection.limitType(CollectionType(AnyType())) then
+    when(from.nonEmpty) { from.get.limitType(NumberType()) } then
+    when(to.nonEmpty) { to.get.limitType(NumberType()) } then
+    limitType(collection.types)
+
+  def toCommand = commandexpressions.SliceExpression(collection.toCommand, from.map(_.toCommand), to.map(_.toCommand))
+}
+
+case class ArrayIndexSingle(collection: Expression, idx: Expression, token: InputToken)
+  extends Expression {
+
+  override def semanticCheck(ctx: SemanticContext) =
+    collection.limitType(CollectionType(AnyType())) then
+      idx.limitType(NumberType()) then
+      limitType(collection.types)
+
+  def toCommand = commandexpressions.ElementFromCollection(collection.toCommand, idx.toCommand)
 }
 
 case class PatternExpression(pattern: Pattern) extends Expression with SimpleTypedExpression {

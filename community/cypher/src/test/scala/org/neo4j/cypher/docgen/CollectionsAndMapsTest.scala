@@ -72,14 +72,14 @@ It follows the form of the mathematical set-builder notation (set comprehension)
 and filter functions.
 
 ###
-RETURN [x in range(0,10) WHERE x % 2 = 0 : x^3 ]###
+RETURN [x in range(0,10) WHERE x % 2 = 0 | x^3 ]###
 
 Either the WHERE part, or the expression, can be omitted, if you only want to filter or map respectively.
 
 ###
 RETURN [x in range(0,10) WHERE x % 2 = 0 ]###
 ###
-RETURN [x in range(0,10) WHERE x % 2 = 0 ]###
+RETURN [x in range(0,10) | x^3 ]###
 
 == Map access ==
 

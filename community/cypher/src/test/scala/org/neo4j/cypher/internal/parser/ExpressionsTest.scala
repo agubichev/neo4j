@@ -109,6 +109,12 @@ class ExpressionsTest extends ParserExperimentalTest[ast.Expression, old.Express
 
     parsing("collection[1..2][0]") shouldGive
       old.ElementFromCollection(old.SliceExpression(old.Identifier("collection"), Some(old.Literal(1)), Some(old.Literal(2))), old.Literal(0))
+
+    parsing("collection[..-2]") shouldGive
+      old.SliceExpression(old.Identifier("collection"), None, Some(old.Literal(-2)))
+
+    parsing("collection[1..]") shouldGive
+      old.SliceExpression(old.Identifier("collection"), Some(old.Literal(1)), None)
   }
 
   @Test def literal_maps() {
