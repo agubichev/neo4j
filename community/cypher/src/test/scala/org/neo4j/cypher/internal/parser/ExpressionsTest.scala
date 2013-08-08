@@ -19,25 +19,29 @@
  */
 package org.neo4j.cypher.internal.parser
 
-import legacy.{MatchClause, Expressions}
-import org.neo4j.cypher.internal.commands._
-import expressions._
 import org.junit.Test
+import org.neo4j.cypher.internal.parser.v2_0.ast
+import org.neo4j.cypher.internal.commands.{expressions => old}
+import org.neo4j.cypher.internal.{commands => oldCommands}
+import org.neo4j.cypher.internal.commands.expressions.GenericCase
+import org.neo4j.cypher.internal.parser.v2_0.rules.Expressions
 import org.neo4j.cypher.internal.commands.values.TokenType.PropertyKey
+import org.neo4j.cypher.internal.parser.v2_0.ast.Expression
 
-class ExpressionsTest extends Expressions with MatchClause with ParserTest {
-  implicit val parserToTest = expression
+
+class ExpressionsTest extends ParserExperimentalTest[ast.Expression, old.Expression] with Expressions {
+  implicit val parserToTest = Expression
 
   @Test def simple_cases() {
     parsing("CASE 1 WHEN 1 THEN 'ONE' END") shouldGive
-      SimpleCase(Literal(1), Seq((Literal(1), Literal("ONE"))), None)
+      old.SimpleCase(old.Literal(1), Seq((old.Literal(1), old.Literal("ONE"))), None)
 
     parsing(
       """CASE 1
            WHEN 1 THEN 'ONE'
            WHEN 2 THEN 'TWO'
          END""") shouldGive
-      SimpleCase(Literal(1), Seq((Literal(1), Literal("ONE")), (Literal(2), Literal("TWO"))), None)
+      old.SimpleCase(old.Literal(1), Seq((old.Literal(1), old.Literal("ONE")), (old.Literal(2), old.Literal("TWO"))), None)
 
     parsing(
       """CASE 1
@@ -45,15 +49,15 @@ class ExpressionsTest extends Expressions with MatchClause with ParserTest {
            WHEN 2 THEN 'TWO'
                   ELSE 'DEFAULT'
          END""") shouldGive
-      SimpleCase(Literal(1), Seq((Literal(1), Literal("ONE")), (Literal(2), Literal("TWO"))), Some(Literal("DEFAULT")))
+      old.SimpleCase(old.Literal(1), Seq((old.Literal(1), old.Literal("ONE")), (old.Literal(2), old.Literal("TWO"))), Some(old.Literal("DEFAULT")))
   }
 
   @Test def generic_cases() {
     parsing("CASE WHEN true THEN 'ONE' END") shouldGive
-      GenericCase(Seq((True(), Literal("ONE"))), None)
+      GenericCase(Seq((oldCommands.True(), old.Literal("ONE"))), None)
 
-    val alt1 = (Equals(Literal(1), Literal(2)), Literal("ONE"))
-    val alt2 = (Equals(Literal(2), Literal("apa")), Literal("TWO"))
+    val alt1 = (oldCommands.Equals(old.Literal(1), old.Literal(2)), old.Literal("ONE"))
+    val alt2 = (oldCommands.Equals(old.Literal(2), old.Literal("apa")), old.Literal("TWO"))
 
     parsing(
       """CASE
@@ -68,65 +72,67 @@ class ExpressionsTest extends Expressions with MatchClause with ParserTest {
            WHEN 2='apa' THEN 'TWO'
                         ELSE 'OTHER'
          END""") shouldGive
-      GenericCase(Seq(alt1, alt2), Some(Literal("OTHER")))
+      GenericCase(Seq(alt1, alt2), Some(old.Literal("OTHER")))
   }
 
   @Test def list_comprehension() {
-    val predicate = Equals(Property(Identifier("x"), PropertyKey("prop")), Literal(42))
-    val mapExpression = Property(Identifier("x"), PropertyKey("name"))
+    val predicate = oldCommands.Equals(old.Property(old.Identifier("x"), PropertyKey("prop")), old.Literal(42))
+    val mapExpression = old.Property(old.Identifier("x"), PropertyKey("name"))
 
-    parsing("[x in collection WHERE x.prop = 42 : x.name]") shouldGive
-      ExtractFunction(FilterFunction(Identifier("collection"), "x", predicate), "x", mapExpression)
+    parsing("[x in collection WHERE x.prop = 42 | x.name]") shouldGive
+      old.ExtractFunction(old.FilterFunction(old.Identifier("collection"), "x", predicate), "x", mapExpression)
 
     parsing("[x in collection WHERE x.prop = 42]") shouldGive
-      FilterFunction(Identifier("collection"), "x", predicate)
+      old.FilterFunction(old.Identifier("collection"), "x", predicate)
 
-    parsing("[x in collection : x.name]") shouldGive
-      ExtractFunction(Identifier("collection"), "x", mapExpression)
+    parsing("[x in collection | x.name]") shouldGive
+      old.ExtractFunction(old.Identifier("collection"), "x", mapExpression)
   }
 
   @Test def array_indexing() {
-    val collection = Collection(Literal(1), Literal(2), Literal(3), Literal(4))
+    val collection = old.Collection(old.Literal(1), old.Literal(2), old.Literal(3), old.Literal(4))
 
     parsing("[1,2,3,4][1..2]") shouldGive
-      SliceExpression(collection, Some(Literal(1)), Some(Literal(2)))
+      old.SliceExpression(collection, Some(old.Literal(1)), Some(old.Literal(2)))
 
     parsing("[1,2,3,4][1..2][2..3]") shouldGive
-      SliceExpression(SliceExpression(collection, Some(Literal(1)), Some(Literal(2))), Some(Literal(2)), Some(Literal(3)))
+      old.SliceExpression(old.SliceExpression(collection, Some(old.Literal(1)), Some(old.Literal(2))), Some(old.Literal(2)), Some(old.Literal(3)))
 
     parsing("collection[1..2]") shouldGive
-      SliceExpression(Identifier("collection"), Some(Literal(1)), Some(Literal(2)))
+      old.SliceExpression(old.Identifier("collection"), Some(old.Literal(1)), Some(old.Literal(2)))
 
     parsing("[1,2,3,4][2]") shouldGive
-      ElementFromCollection(collection, Literal(2))
+      old.ElementFromCollection(collection, old.Literal(2))
 
     parsing("[[1,2]][0][6]") shouldGive
-      ElementFromCollection(ElementFromCollection(Collection(Collection(Literal(1), Literal(2))), Literal(0)), Literal(6))
+      old.ElementFromCollection(old.ElementFromCollection(old.Collection(old.Collection(old.Literal(1), old.Literal(2))), old.Literal(0)), old.Literal(6))
 
     parsing("collection[1..2][0]") shouldGive
-      ElementFromCollection(SliceExpression(Identifier("collection"), Some(Literal(1)), Some(Literal(2))), Literal(0))
+      old.ElementFromCollection(old.SliceExpression(old.Identifier("collection"), Some(old.Literal(1)), Some(old.Literal(2))), old.Literal(0))
   }
 
   @Test def literal_maps() {
     parsing("{ name: 'Andres' }") shouldGive
-      LiteralMap(Map("name" -> Literal("Andres")))
+      old.LiteralMap(Map("name" -> old.Literal("Andres")))
 
-    parsing("{ } ") shouldGive
-      LiteralMap(Map())
+    parsing("{ meta : { name: 'Andres' } }") shouldGive
+      old.LiteralMap(Map("meta" -> old.LiteralMap(Map("name" -> old.Literal("Andres")))))
 
-    parsing("{ meta : { name: 'Andres' } } ") shouldGive
-      LiteralMap(Map("meta" -> LiteralMap(Map("name" -> Literal("Andres")))))
+    parsing("{ }") shouldGive
+      old.LiteralMap(Map())
   }
 
   @Test def better_map_support() {
     parsing("map.key1.key2.key3") shouldGive
-      Property(Property(Property(Identifier("map"), PropertyKey("key1")), PropertyKey("key2")), PropertyKey("key3"))
+      old.Property(old.Property(old.Property(old.Identifier("map"), PropertyKey("key1")), PropertyKey("key2")), PropertyKey("key3"))
 
     parsing("({ key: 'value' }).key") shouldGive
-      Property(LiteralMap(Map("key" -> Literal("value"))), PropertyKey("key"))
+      old.Property(old.LiteralMap(Map("key" -> old.Literal("value"))), PropertyKey("key"))
 
     parsing("({ inner1: { inner2: 'Value' } }).key") shouldGive
-      Property(LiteralMap(Map("inner1" -> LiteralMap(Map("inner2" -> Literal("Value"))))), PropertyKey("key"))
+      old.Property(old.LiteralMap(Map("inner1" -> old.LiteralMap(Map("inner2" -> old.Literal("Value"))))), PropertyKey("key"))
 
   }
+
+  def convert(astNode: Expression): old.Expression = astNode.toCommand
 }
