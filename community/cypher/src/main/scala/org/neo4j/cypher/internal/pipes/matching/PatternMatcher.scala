@@ -19,12 +19,11 @@
  */
 package org.neo4j.cypher.internal.pipes.matching
 
-import org.neo4j.graphdb.Node
-import org.neo4j.cypher.internal.commands.{True, Predicate}
+import org.neo4j.cypher.internal.commands.Predicate
 import collection.Map
-import org.neo4j.cypher.EntityNotFoundException
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.NodeThingie
 
 class PatternMatcher(bindings: Map[String, MatchingPair],
                      predicates: Seq[Predicate],
@@ -78,7 +77,7 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
   }
 
   private def traverseNextNodeFromRelationship[U](rel: GraphRelationship,
-                                                  gNode: Node,
+                                                  gNode: NodeThingie,
                                                   nextPNode: PatternNode,
                                                   currentRel: PatternRelationship,
                                                   history: History,
@@ -96,7 +95,7 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
       val newHistory = history.add(current)
 
       if (isMatchSoFar(newHistory)) {
-        val nextNode = rel.getOtherNode(gNode)
+        val nextNode = rel.getOtherNode(gNode)(state.query)
 
         val nextPair = MatchingPair(nextPNode, nextNode)
 
@@ -224,16 +223,9 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
     """, history, resultMap))
   }
 
-  private def debug(rel: GraphRelationship, node: Node, pNode: PatternNode, pRel: PatternRelationship, history: History, remaining: Set[MatchingPair]) {
+  private def debug(rel: GraphRelationship, node: NodeThingie, pNode: PatternNode, pRel: PatternRelationship, history: History, remaining: Set[MatchingPair]) {
     if (isDebugging)
-      println(String.format("""traverseNextNodeFromRelationship
-    rel=%s
-    node=%s
-    pNode=%s
-    pRel=%s
-    history=%s
-    remaining=%s
-    """, rel, node, pNode, pRel, history, remaining))
+      println(s"traverseNextNodeFromRelationship\n    rel=${rel}\n    node=${node}\n    pNode=${pNode}\n    pRel=${pRel}\n    history=${history}\n    remaining=${remaining}\n    ")
   }
 
 

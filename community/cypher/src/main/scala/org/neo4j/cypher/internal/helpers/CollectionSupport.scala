@@ -24,6 +24,8 @@ import collection.Map
 import java.lang.{Iterable => JavaIterable}
 import java.util.{Map => JavaMap}
 import collection.JavaConverters._
+import org.neo4j.graphdb.{Relationship, Node, Path}
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 object IsCollection extends CollectionSupport {
   def unapply(x: Any):Option[Iterable[Any]] = {
@@ -85,6 +87,11 @@ trait CollectionSupport {
   }
 
   protected def castToIterable: PartialFunction[Any, Iterable[Any]] = {
+    case x: Path => x.iterator().asScala.map {
+      case n: Node => NodeThingie(n.getId)
+      case n: Relationship => RelationshipThingie(n.getId)
+    }.toIterable
+
     case x: Array[_]        => x
     case x: Map[_, _]       => Iterable(x)
     case x: JavaMap[_, _]   => Iterable(x.asScala)

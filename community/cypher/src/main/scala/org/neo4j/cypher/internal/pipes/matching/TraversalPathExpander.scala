@@ -25,6 +25,7 @@ import java.lang.{Iterable => JIterable}
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.cypher.internal.helpers.DynamicJavaIterable
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 class TraversalPathExpander(params: ExecutionContext, queryState: QueryState) extends PathExpander[Option[ExpanderStep]] {
   def expand(path: Path, state: BranchState[Option[ExpanderStep]]): JIterable[Relationship] = {

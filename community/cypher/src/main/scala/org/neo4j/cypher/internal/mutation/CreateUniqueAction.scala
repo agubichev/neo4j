@@ -26,6 +26,7 @@ import org.neo4j.cypher.UniquePathNotUniqueException
 import org.neo4j.graphdb.PropertyContainer
 import org.neo4j.cypher.internal.commands.expressions.Expression
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.Entity
 
 case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
 
@@ -91,7 +92,7 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
     }
   }
 
-  case class TraverseResult(identifier: String, element: PropertyContainer, link: UniqueLink)
+  case class TraverseResult(identifier: String, element: Entity, link: UniqueLink)
 
   private def traverseNextStep(nextSteps: Seq[TraverseResult], oldContext: ExecutionContext): ExecutionContext = {
     val uniqueKVPs = nextSteps.map(x => x.identifier -> x.element).distinct
@@ -156,13 +157,14 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
 
   private def extractTraversals(results: scala.Seq[(UniqueLink, CreateUniqueResult)]): Seq[TraverseResult] =
     results.flatMap {
-      case (link, Traverse(ctx@_*)) => ctx.map {
+      case (link, Traverse(ctx)) => ctx.map {
         case (key, element) => TraverseResult(key, element, link)
       }
       case _                        => None
     }
 
-  private def executeAllRemainingPatterns(linksToDo: Seq[UniqueLink], ctx: ExecutionContext, state: QueryState): Seq[(UniqueLink, CreateUniqueResult)] = linksToDo.flatMap(link => link.exec(ctx, state))
+  private def executeAllRemainingPatterns(linksToDo: Seq[UniqueLink], ctx: ExecutionContext, state: QueryState): Seq[(UniqueLink, CreateUniqueResult)] =
+    linksToDo.flatMap(link => link.exec(ctx, state))
 
   private def canNotAdvanced(results: scala.Seq[(UniqueLink, CreateUniqueResult)]) = results.forall(_._2 == CanNotAdvance())
 
@@ -183,7 +185,7 @@ sealed abstract class CreateUniqueResult
 
 case class CanNotAdvance() extends CreateUniqueResult
 
-case class Traverse(result: (String, PropertyContainer)*) extends CreateUniqueResult
+case class Traverse(result: Seq[(String, Entity)]) extends CreateUniqueResult
 
 case class Update(cmds: Seq[UpdateWrapper]) extends CreateUniqueResult
 

@@ -38,12 +38,17 @@ object Property {
 class Property(val mapExpr: Expression,
                val propertyKey: KeyToken,
                val nullOnNotFound: Boolean /* Required only for Cypher 1.9 */)
-  extends Expression with Product with Serializable
-{
-  def copy(mapExpr: Expression = this.mapExpr, propertyKey: KeyToken = this.propertyKey, nullOnNotFound: Boolean = this.nullOnNotFound) =
+  extends Expression with Product with Serializable {
+
+  def copy(mapExpr: Expression = this.mapExpr,
+           propertyKey: KeyToken = this.propertyKey,
+           nullOnNotFound: Boolean = this.nullOnNotFound) =
     new Property(mapExpr, propertyKey, nullOnNotFound)
+
   override def productPrefix = classOf[Product].getSimpleName
+
   def productArity = 3
+
   def productElement(n: Int): Any = n match {
     case 0 => this.mapExpr
     case 1 => this.propertyKey
@@ -60,15 +65,18 @@ class Property(val mapExpr: Expression,
 
   override def toString = ScalaRunTime._toString(this)
 
-  def apply(ctx: ExecutionContext)(implicit state: QueryState): Any = mapExpr(ctx) match {
-    case null           => null
-    case IsMap(mapFunc) => try {
-      mapFunc(state.query).apply(propertyKey.name)
-    } catch {
-      case _: EntityNotFoundException if nullOnNotFound => null
-      case _: NotFoundException if nullOnNotFound => null
+  def apply(ctx: ExecutionContext)(implicit state: QueryState): Any = {
+    val expr: Any = mapExpr(ctx)
+    expr match {
+      case null           => null
+      case IsMap(mapFunc) => try {
+        mapFunc(state.query).apply(propertyKey.name)
+      } catch {
+        case _: EntityNotFoundException if nullOnNotFound => null
+        case _: NotFoundException if nullOnNotFound       => null
+      }
+      case x              => throw new ThisShouldNotHappenError("Andres", "Need something with properties - got: " + x)
     }
-    case _              => throw new ThisShouldNotHappenError("Andres", "Need something with properties")
   }
 
   def rewrite(f: (Expression) => Expression) = f(new Property(mapExpr.rewrite(f), propertyKey.rewrite(f), nullOnNotFound))

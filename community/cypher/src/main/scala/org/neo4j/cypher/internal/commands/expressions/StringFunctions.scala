@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.{ExecutionContext}
 import org.neo4j.cypher.internal.spi.QueryContext
 import org.neo4j.cypher.internal.commands.values.KeyToken
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 abstract class StringFunction(arg: Expression) extends NullInNullOutExpression(arg) with StringHelper with CollectionSupport {
   def innerExpectedType = StringType()
@@ -45,25 +46,42 @@ trait StringHelper {
     case _         => throw new CypherTypeException("Expected a string value for %s, but got: %s; perhaps you'd like to cast to a string it with str().".format(toString, a.toString))
   }
 
-  protected def props(x: PropertyContainer, qtx: QueryContext): String = {
+  protected def props(x: Entity, qtx: QueryContext): String = innerProps(x,qtx)
+  protected def props(x: PropertyContainer, qtx: QueryContext): String = innerProps(x,qtx)
 
-    val keyValStrings = x match {
-      case n: Node         => qtx.nodeOps.propertyKeyIds(n).map(pkId => qtx.getPropertyKeyName(pkId) + ":" + text(qtx.nodeOps.getProperty(n, pkId), qtx))
-      case r: Relationship => qtx.relationshipOps.propertyKeyIds(r).map(pkId => qtx.getPropertyKeyName(pkId) + ":" + text(qtx.relationshipOps.getProperty(r, pkId), qtx))
+  private def innerProps(x: Any, qtx: QueryContext): String = {
+    def nodeText(id: Long): Iterator[String] =
+      qtx.nodeOps.
+      propertyKeyIds(id).
+      map(pkId => qtx.getPropertyKeyName(pkId) + ":" + text(qtx.nodeOps.getProperty(id, pkId), qtx))
+    def relText(id: Long): Iterator[String] =
+      qtx.relationshipOps.
+      propertyKeyIds(id).
+      map(pkId => qtx.getPropertyKeyName(pkId) + ":" + text(qtx.relationshipOps.getProperty(id, pkId), qtx))
+
+
+    val keyValStrings: Iterator[String] = x match {
+      case n: NodeThingie         => nodeText(n.id)
+      case n: Node                => nodeText(n.getId)
+      case r: RelationshipThingie => relText(r.id)
+      case r: Relationship        => relText(r.getId)
     }
 
     keyValStrings.mkString("{", ",", "}")
+
   }
 
   protected def text(a: Any, qtx: QueryContext): String = a match {
-    case x: Node            => x.toString + props(x, qtx)
-    case x: Relationship    => ":" + x.getType.name() + "[" + x.getId + "]" + props(x, qtx)
-    case IsCollection(coll) => coll.map(elem => text(elem, qtx)).mkString("[", ",", "]")
-    case x: String          => "\"" + x + "\""
-    case v: KeyToken        => v.name
-    case Some(x)            => x.toString
-    case null               => "<null>"
-    case x                  => x.toString
+    case x: NodeThingie         => x.toString + props(x, qtx)
+    case x: RelationshipThingie => ":" + qtx.getRelationshipType(x.id) + "[" + x.id + "]" + props(x, qtx)
+    case x: Node                => x.toString + props(x, qtx)
+    case x: Relationship        => ":" + x.getType.name() + "[" + x.getId + "]" + props(x, qtx)
+    case IsCollection(coll)     => coll.map(elem => text(elem, qtx)).mkString("[", ",", "]")
+    case x: String              => "\"" + x + "\""
+    case v: KeyToken            => v.name
+    case Some(x)                => x.toString
+    case null                   => "<null>"
+    case x                      => x.toString
   }
 
   def makeSize(txt: String, wantedSize: Int): String = {

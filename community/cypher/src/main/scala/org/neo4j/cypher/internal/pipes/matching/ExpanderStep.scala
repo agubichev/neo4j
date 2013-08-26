@@ -30,6 +30,7 @@ import org.neo4j.cypher.EntityNotFoundException
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.cypher.internal.ExecutionContext
 import collection.mutable.{Map => MutableMap}
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 trait ExpanderStep {
   def next: Option[ExpanderStep]
@@ -106,8 +107,8 @@ abstract class MiniMapProperty(originalName: String, propertyKeyName: String) ex
         val pc = extract(m)
         try {
           pc match {
-            case n: Node         => qtx.nodeOps.getProperty(n, qtx.getPropertyKeyId(propertyKeyName))
-            case r: Relationship => qtx.relationshipOps.getProperty(r, qtx.getPropertyKeyId(propertyKeyName))
+            case n: NodeThingie         => qtx.nodeOps.getProperty(n.id, qtx.getPropertyKeyId(propertyKeyName))
+            case r: RelationshipThingie => qtx.relationshipOps.getProperty(r.id, qtx.getPropertyKeyId(propertyKeyName))
           }
         } catch {
           case x: NotFoundException =>
@@ -121,7 +122,7 @@ abstract class MiniMapProperty(originalName: String, propertyKeyName: String) ex
 
   protected def fail() = throw new ThisShouldNotHappenError("Andres", "This predicate should never be used outside of the traversal matcher")
 
-  protected def extract(m: MiniMap): PropertyContainer
+  protected def extract(m: MiniMap): Entity
 }
 
 abstract class MiniMapIdentifier() extends Expression {
@@ -138,17 +139,17 @@ abstract class MiniMapIdentifier() extends Expression {
     case _          => fail()
   }
 
-  protected def extract(m: MiniMap): PropertyContainer
+  protected def extract(m: MiniMap): Entity
 
   def fail() = throw new ThisShouldNotHappenError("Andres", "This predicate should never be used outside of the traversal matcher")
 }
 
 case class NodeIdentifier() extends MiniMapIdentifier() {
-  protected def extract(m: MiniMap) = m.node
+  protected def extract(m: MiniMap) = NodeThingie(m.node.getId)
 }
 
 case class RelationshipIdentifier() extends MiniMapIdentifier() {
-  protected def extract(m: MiniMap) = m.relationship
+  protected def extract(m: MiniMap) = RelationshipThingie(m.relationship.getId)
 }
 
 class MiniMap(var relationship: Relationship, var node: Node, myMap: MutableMap[String, Any] = MutableMaps.empty)

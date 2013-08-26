@@ -23,14 +23,15 @@ import org.neo4j.cypher.internal.executionplan.{PlanBuilder, ExecutionPlanInProg
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.graphdb
-import org.neo4j.cypher.internal.pipes.NullPipe
+import org.neo4j.cypher.internal.pipes.{QueryState, NullPipe, TraversalMatchPipe, EntityProducer}
 import graphdb.Node
-import org.neo4j.cypher.internal.pipes.{TraversalMatchPipe, EntityProducer}
 import org.neo4j.cypher.internal.pipes.matching.{Trail, TraversalMatcher, MonoDirectionalTraversalMatcher, BidirectionalTraversalMatcher}
 import org.neo4j.cypher.internal.commands.NodeByIndex
 import org.neo4j.cypher.internal.commands.NodeByIndexQuery
 import org.neo4j.cypher.internal.symbols.{NodeType, SymbolTable}
 import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.data.{SimpleVal, NodeThingie}
+import org.neo4j.cypher.internal.ExecutionContext
 
 class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext): ExecutionPlanInProgress =
@@ -99,7 +100,7 @@ class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
 
   private def chooseCorrectMatcher(end:Option[String],
                            longestPath:LongestTrail,
-                           startNodeFn:EntityProducer[Node],
+                           startNodeFn:EntityProducer[NodeThingie],
                            startToken:QueryToken[StartItem],
                            unsolvedItems: Seq[QueryToken[StartItem]],
                            ctx:PlanContext): (TraversalMatcher,Seq[QueryToken[StartItem]]) = {
@@ -115,13 +116,23 @@ class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
     (matcher,tokens)
   }
 
+  implicit class FullNodeEntityProducer(producer: EntityProducer[NodeThingie]) extends EntityProducer[Node] {
+    def description: Seq[(String, SimpleVal)] = producer.description
+
+    def name: String = producer.name
+
+    def apply(ctx: ExecutionContext, state: QueryState): Iterator[Node] =
+      producer(ctx, state).
+        map(n => state.query.getNodeById(n.id))
+  }
+
   def identifier2nodeFn(ctx:PlanContext, identifier: String, unsolvedItems: Seq[QueryToken[StartItem]]):
-  (QueryToken[StartItem], EntityProducer[Node]) = {
+  (QueryToken[StartItem], EntityProducer[NodeThingie]) = {
     val startItemQueryToken = unsolvedItems.filter { (item) => identifier == item.token.identifierName }.head
     (startItemQueryToken, mapNodeStartCreator()(ctx, startItemQueryToken.token))
   }
 
-  private def mapNodeStartCreator(): PartialFunction[(PlanContext, StartItem), EntityProducer[Node]] = {
+  private def mapNodeStartCreator(): PartialFunction[(PlanContext, StartItem), EntityProducer[NodeThingie]] = {
     val entityFactory = new EntityProducerFactory
 
     entityFactory.nodeById orElse

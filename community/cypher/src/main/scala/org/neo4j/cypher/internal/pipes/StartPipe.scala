@@ -19,12 +19,13 @@
  */
 package org.neo4j.cypher.internal.pipes
 
-import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import org.neo4j.cypher.internal.data.SimpleVal._
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.{Entity, NodeThingie, RelationshipThingie}
+import org.neo4j.graphdb.Relationship
 
-abstract class StartPipe[T <: PropertyContainer](source: Pipe, name: String, createSource: EntityProducer[T]) extends PipeWithSource(source) {
+abstract class StartPipe[T <: Entity](source: Pipe, name: String, createSource: EntityProducer[T]) extends PipeWithSource(source) {
   def identifierType: CypherType
 
   val symbols = source.symbols.add(name, identifierType)
@@ -47,12 +48,12 @@ abstract class StartPipe[T <: PropertyContainer](source: Pipe, name: String, cre
   def throwIfSymbolsMissing(symbols: SymbolTable) {}
 }
 
-class NodeStartPipe(source: Pipe, name: String, createSource: EntityProducer[Node])
-  extends StartPipe[Node](source, name, createSource) {
+class NodeStartPipe(source: Pipe, name: String, createSource: EntityProducer[NodeThingie])
+  extends StartPipe[NodeThingie](source, name, createSource) {
   def identifierType = NodeType()
 }
 
-class RelationshipStartPipe(source: Pipe, name: String, createSource: EntityProducer[Relationship])
-  extends StartPipe[Relationship](source, name, createSource) {
+class RelationshipStartPipe(source: Pipe, name: String, createSource: EntityProducer[RelationshipThingie])
+  extends StartPipe[RelationshipThingie](source, name, createSource) {
   def identifierType = RelationshipType()
 }

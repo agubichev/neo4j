@@ -39,8 +39,8 @@ import org.neo4j.cypher.export.{ SubGraphExporter, DatabaseSubGraph }
 import org.neo4j.helpers.Settings
 import org.neo4j.cypher.internal.prettifier.Prettifier
 import org.neo4j.cypher.internal.CypherParser
-import scala.util.parsing.json.JSONObject
-import org.neo4j.cypher.javacompat.JavaExecutionEngineDocTest
+//import scala.util.parsing.json.JSONObject
+//import org.neo4j.cypher.javacompat.JavaExecutionEngineDocTest
 
 trait DocumentationHelper extends GraphIcing {
   def generateConsole: Boolean
@@ -273,9 +273,9 @@ abstract class DocumentingTestBase extends Assertions with DocumentationHelper w
   }
 
   def runQuery(dir: File, writer: PrintWriter, testId: String, query: String, returns: String, result: ExecutionResult, consoleData: String) {
-    if (parameters != null) {
-      writer.append(JavaExecutionEngineDocTest.parametersToAsciidoc(mapMapValue(parameters)))
-    }
+//    if (parameters != null) {
+//      writer.append(JavaExecutionEngineDocTest.parametersToAsciidoc(mapMapValue(parameters)))
+//    }
     val output = new StringBuilder(2048)
     output.append(".Query\n")
     output.append(createCypherSnippet(query))

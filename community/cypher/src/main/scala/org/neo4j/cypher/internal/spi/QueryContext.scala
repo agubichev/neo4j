@@ -22,6 +22,7 @@ package org.neo4j.cypher.internal.spi
 
 import org.neo4j.graphdb._
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 /*
  * Developer note: This is an attempt at an internal graph database API, which defines a clean cut between
@@ -37,15 +38,15 @@ import org.neo4j.kernel.impl.api.index.IndexDescriptor
  */
 trait QueryContext extends TokenContext {
 
-  def nodeOps: Operations[Node]
+  def nodeOps: Operations[NodeThingie]
 
-  def relationshipOps: Operations[Relationship]
+  def relationshipOps: Operations[RelationshipThingie]
 
-  def createNode(): Node
+  def createNode(): NodeThingie
 
-  def createRelationship(start: Node, end: Node, relType: String): Relationship
+  def createRelationship(start: Long, end: Long, relType: String): RelationshipThingie
 
-  def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]): Iterator[Relationship]
+  def getRelationshipsFor(node: Long, dir: Direction, types: Seq[String]): Iterator[RelationshipThingie]
 
   def getOrCreateLabelId(labelName: String): Long
 
@@ -65,9 +66,9 @@ trait QueryContext extends TokenContext {
 
   def close(success: Boolean)
 
-  def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[Node]
+  def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[NodeThingie]
 
-  def getNodesByLabel(id: Long): Iterator[Node]
+  def getNodesByLabel(id: Long): Iterator[NodeThingie]
 
   def upgradeToLockingQueryContext: LockingQueryContext = upgrade(this)
 
@@ -85,28 +86,34 @@ trait QueryContext extends TokenContext {
    * This should not be used. We'll remove sooner (or later). Don't do it.
    */
   def withAnyOpenQueryContext[T](work: (QueryContext) => T): T
+
+  def getOtherNodeFor(relationship:Long, node:Long):NodeThingie
+
+  def getNodeById(id:Long):Node
+  def getRelationshipById(id:Long):Relationship
+  def getRelationshipType(id:Long):String
+  def getStartNode(relationship:Long):NodeThingie
+  def getEndNode(relationship:Long):NodeThingie
 }
 
 trait LockingQueryContext extends QueryContext {
   def releaseLocks()
 }
 
-trait Operations[T <: PropertyContainer] {
-  def delete(obj: T)
+trait Operations[T <: Entity] {
+  def delete(id: Long)
 
-  def setProperty(obj: T, propertyKeyId: Long, value: Any)
+  def setProperty(id: Long, propertyKeyId: Long, value: Any)
 
-  def removeProperty(obj: T, propertyKeyId: Long)
+  def removeProperty(id: Long, propertyKeyId: Long)
 
-  def getProperty(obj: T, propertyKeyId: Long): Any
+  def getProperty(id: Long, propertyKeyId: Long): Any
 
-  def hasProperty(obj: T, propertyKeyId: Long): Boolean
+  def hasProperty(id: Long, propertyKeyId: Long): Boolean
 
-  def propertyKeyIds(obj: T): Iterator[Long]
+  def propertyKeyIds(id: Long): Iterator[Long]
 
-  def propertyKeys(obj: T): Iterator[String]
-
-  def getById(id: Long): T
+  def propertyKeys(id: Long): Iterator[String]
 
   def indexGet(name: String, key: String, value: Any): Iterator[T]
 

@@ -27,11 +27,12 @@ import internal.spi.{PlanContext, QueryContext}
 import internal.ClosingIterator
 import internal.commands._
 import internal.symbols.SymbolTable
-import org.neo4j.graphdb.GraphDatabaseService
+import org.neo4j.graphdb.{Relationship, Node, GraphDatabaseService}
 import org.neo4j.cypher.ExecutionResult
 import org.neo4j.cypher.internal.commands.values.{TokenType, KeyToken}
 import org.neo4j.cypher.internal.commands.expressions.ExpressionResolver
 import org.neo4j.cypher.internal.helpers.IsMap
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuilder {
 
@@ -156,9 +157,20 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
   private def prepareStateAndResult(queryContext: QueryContext, params: Map[String, Any], pipe: Pipe, profile:Boolean):
     (QueryState, ClosingIterator, () => PlanDescription) = {
 
+    // We don't want to use Node and Relationship objects inside Cypher, so we clean them out at the gate
+    def cleanUp: PartialFunction[Any, Any] = {
+      case n: Node           => NodeThingie(n.getId)
+      case r: Relationship   => RelationshipThingie(r.getId)
+      case x: Map[_, _]      => x.mapValues(cleanUp)
+      case l: Traversable[_] => l.map(cleanUp)
+      case x                 => x
+    }
+
+    val cleanParams = params.mapValues(cleanUp)
+
     try {
       val decorator = if (profile) new Profiler() else NullDecorator
-      val state = new QueryState(graph, queryContext, params, decorator)
+      val state = QueryState(graph, queryContext, cleanParams, decorator)
       val results: Iterator[collection.Map[String, Any]] = pipe.createResults(state)
       val closingIterator = new ClosingIterator(results, queryContext)
       val descriptor = () => decorator.decorate(pipe.executionPlanDescription, closingIterator.isEmpty)

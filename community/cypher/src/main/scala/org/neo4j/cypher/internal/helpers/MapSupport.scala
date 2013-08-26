@@ -26,6 +26,7 @@ import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.cypher.internal.spi.{Operations, QueryContext}
 import org.neo4j.cypher.EntityNotFoundException
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie, Entity}
 
 object IsMap extends MapSupport {
   def unapply(x: Any): Option[(QueryContext) => Map[String, Any]] = if (isMap(x)) {
@@ -39,27 +40,27 @@ trait MapSupport {
   def isMap(x: Any) = castToMap.isDefinedAt(x)
 
   def castToMap: PartialFunction[Any, (QueryContext) => Map[String, Any]] = {
-    case x: Any if x.isInstanceOf[Map[_, _]] =>
+    case x: Any if x.isInstanceOf[Map[_, _]]     =>
       (_: QueryContext) => x.asInstanceOf[Map[String, Any]]
     case x: Any if x.isInstanceOf[JavaMap[_, _]] =>
       (_: QueryContext) => x.asInstanceOf[JavaMap[String, Any]].asScala
-    case x: Node  =>
+    case x: NodeThingie                          =>
       (ctx: QueryContext) => new PropertyContainerMap(x, ctx, ctx.nodeOps)
-    case x: Relationship =>
+    case x: RelationshipThingie                  =>
       (ctx: QueryContext) => new PropertyContainerMap(x, ctx, ctx.relationshipOps)
   }
 
-  class PropertyContainerMap[T <: PropertyContainer](n: T, ctx: QueryContext, ops: Operations[T]) extends Map[String, Any] {
+  class PropertyContainerMap[T <: Entity](n: T, ctx: QueryContext, ops: Operations[T]) extends Map[String, Any] {
     def +[B1 >: Any](kv: (String, B1)) = throw new ThisShouldNotHappenError("Andres", "This map is not a real map")
 
     def -(key: String) = throw new ThisShouldNotHappenError("Andres", "This map is not a real map")
 
-    def get(key: String) = ctx.getOptPropertyKeyId(key).flatMap( (pkId: Long) => Option(ops.getProperty(n, pkId)) )
+    def get(key: String) = ctx.getOptPropertyKeyId(key).flatMap( (pkId: Long) => Option(ops.getProperty(n.id, pkId)) )
 
     def iterator: Iterator[(String, Any)] =
-      ops.propertyKeyIds(n).map(id => ctx.getPropertyKeyName(id) -> ops.getProperty(n, id)).toIterator
+      ops.propertyKeyIds(n.id).map(id => ctx.getPropertyKeyName(id) -> ops.getProperty(n.id, id)).toIterator
 
-    override def contains(key: String) = ctx.getOptPropertyKeyId(key).exists(ops.hasProperty(n, _))
+    override def contains(key: String) = ctx.getOptPropertyKeyId(key).exists(ops.hasProperty(n.id, _))
 
     override def apply(key: String) =
       get(key).getOrElse(throw new EntityNotFoundException("The property '%s' does not exist on %s".format(key, n)))

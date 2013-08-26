@@ -24,12 +24,14 @@ import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.CypherTypeException
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 case class IdFunction(inner: Expression) extends NullInNullOutExpression(inner) {
   def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = value match {
-    case node: Node        => node.getId
-    case rel: Relationship => rel.getId
-    case x => throw new CypherTypeException("Expected `%s` to be a node or relationship, but it was ``".format(inner, x.getClass.getSimpleName))
+    case node: NodeThingie        => node.id
+    case rel: RelationshipThingie => rel.id
+    case x                        =>
+      throw new CypherTypeException("Expected `%s` to be a node or relationship, but it was ``".format(inner, x.getClass.getSimpleName))
   }
 
   def rewrite(f: (Expression) => Expression) = f(IdFunction(inner.rewrite(f)))

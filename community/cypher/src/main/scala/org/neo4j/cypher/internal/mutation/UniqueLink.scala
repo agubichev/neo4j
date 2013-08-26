@@ -30,6 +30,7 @@ import collection.Map
 import org.neo4j.cypher.internal.helpers.{IsMap, MapSupport}
 import org.neo4j.cypher.internal.ExecutionContext
 import values.KeyToken
+import org.neo4j.cypher.internal.data.NodeThingie
 
 object UniqueLink {
   def apply(start: String, end: String, relName: String, relType: String, dir: Direction): UniqueLink =
@@ -44,23 +45,23 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
 
   def exec(context: ExecutionContext, state: QueryState): Option[(UniqueLink, CreateUniqueResult)] = {
 
-    def getNode(expect: NamedExpectation): Option[Node] = context.get(expect.name) match {
-      case Some(n: Node)                             => Some(n)
+    def getNode(expect: NamedExpectation): Option[NodeThingie] = context.get(expect.name) match {
+      case Some(n: NodeThingie)                      => Some(n)
       case Some(x)                                   => throw new CypherTypeException("Expected `%s` to a node, but it is a %s".format(expect.name, x))
       case None if expect.e.isInstanceOf[Identifier] => None
-      case None => expect.e(context)(state) match {
-        case n: Node  => Some(n)
-        case IsMap(_) => None
-        case x        => throw new CypherTypeException("Expected `%s` to a node, but it is a %s".format(expect.name, x))
+      case None                                      => expect.e(context)(state) match {
+        case n: NodeThingie => Some(n)
+        case IsMap(_)       => None
+        case x              => throw new CypherTypeException("Expected `%s` to a node, but it is a %s".format(expect.name, x))
       }
     }
 
     // This method sees if a matching relationship already exists between two nodes
     // If any matching rels are found, they are returned. Otherwise, a new one is
     // created and returned.
-    def twoNodes(startNode: Node, endNode: Node): Option[(UniqueLink, CreateUniqueResult)] = {
-      val rels = state.query.getRelationshipsFor(startNode, dir, Seq(relType)).
-        filter(r => r.getOtherNode(startNode) == endNode && rel.compareWithExpectations(r, context, state) ).
+    def twoNodes(startNode: NodeThingie, endNode: NodeThingie): Option[(UniqueLink, CreateUniqueResult)] = {
+      val rels = state.query.getRelationshipsFor(startNode.id, dir, Seq(relType)).
+        filter(r => state.query.getOtherNodeFor(r.id, startNode.id) == endNode && rel.compareWithExpectations(r, context, state) ).
         toList
 
       rels match {
@@ -70,7 +71,7 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
             RelationshipEndpoint(Literal(startNode), Map(), Seq.empty, bare = true),
             RelationshipEndpoint(Literal(endNode), Map(), Seq.empty, bare = true), relType, expectations.properties)
           Some(this->Update(Seq(UpdateWrapper(Seq(), createRel, rel.name))))
-        case List(r) => Some(this->Traverse(rel.name -> r))
+        case List(r) => Some(this->Traverse(Seq(rel.name -> r)))
         case _ => throw new UniquePathNotUniqueException("The pattern " + this + " produced multiple possible paths, and that is not allowed")
       }
     }
@@ -78,7 +79,7 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
     // When only one node exists in the context, we'll traverse all the relationships of that node
     // and try to find a matching node/rel. If matches are found, they are returned. If nothing is
     // found, we'll create it and return it
-    def oneNode(startNode: Node, dir: Direction, other: NamedExpectation): Option[(UniqueLink, CreateUniqueResult)] = {
+    def oneNode(startNode: NodeThingie, dir: Direction, other: NamedExpectation): Option[(UniqueLink, CreateUniqueResult)] = {
 
       def createUpdateActions(): Seq[UpdateWrapper] = {
         val relExpectations = rel.getExpectations(context, state)
@@ -99,14 +100,16 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
         Seq(nodeCreate, relUpdate)
       }
 
-      val rels = state.query.getRelationshipsFor(startNode, dir, Seq(relType)).
-        filter(r => rel.compareWithExpectations(r, context, state) && other.compareWithExpectations(r.getOtherNode(startNode), context, state)).toList
+      val rels = state.query.getRelationshipsFor(startNode.id, dir, Seq(relType)).
+        filter(r =>
+        rel.compareWithExpectations(r, context, state) &&
+        other.compareWithExpectations(state.query.getOtherNodeFor(r.id, startNode.id), context, state)).toList
 
       rels match {
         case List() =>
           Some(this -> Update(createUpdateActions()))
 
-        case List(r) => Some(this -> Traverse(rel.name -> r, other.name -> r.getOtherNode(startNode)))
+        case List(r) => Some(this -> Traverse(Seq(rel.name -> r, other.name -> state.query.getOtherNodeFor(r.id, startNode.id))))
 
         case _ => throw new UniquePathNotUniqueException("The pattern " + this + " produced multiple possible paths, and that is not allowed")
       }

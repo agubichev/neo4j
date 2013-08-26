@@ -52,7 +52,7 @@ case class PathExpression(pathPattern: Seq[Pattern], predicate:Predicate=True())
     if (returnNull) {
       null
     } else {
-      matchingContext.getMatches(ctx, state).map(getPath)
+      matchingContext.getMatches(ctx, state).map(getPath(_, state))
     }
   }
 

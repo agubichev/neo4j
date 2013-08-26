@@ -24,6 +24,7 @@ import spi.QueryContext
 import org.neo4j.graphdb.TransactionFailureException
 import org.neo4j.cypher.NodeStillHasRelationshipsException
 import org.neo4j.cypher.internal.helpers.IsCollection
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 /**
  * An iterator that decorates an inner iterator, and calls close() on the QueryContext once
@@ -50,10 +51,12 @@ class ClosingIterator(inner: Iterator[collection.Map[String, Any]], queryContext
   }
 
   private def materialize(v: Any): Any = v match {
-    case (x: Stream[_])   => x.map(materialize).toList
-    case (x: Map[_, _])   => x.mapValues(materialize)
-    case (x: Iterable[_]) => x.map(materialize)
-    case x                => x
+    case (x: Stream[_])           => x.map(materialize).toList
+    case (x: Map[_, _])           => x.mapValues(materialize)
+    case (x: Iterable[_])         => x.map(materialize)
+    case (n: NodeThingie)         => queryContext.getNodeById(n.id)
+    case (r: RelationshipThingie) => queryContext.getRelationshipById(r.id)
+    case x                        => x
   }
 
   def close() {

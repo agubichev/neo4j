@@ -23,13 +23,18 @@ import scala.collection.Map
 import org.neo4j.graphdb.{PropertyContainer, Path}
 import org.neo4j.cypher.PathImpl
 import collection.JavaConverters._
+import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 
 // TODO: This is duplicated with NamedPathPipe
 trait PathExtractor {
   def pathPattern:Seq[Pattern]
-  def getPath(ctx: Map[String, Any]): Path = {
-    def get(x: String): PropertyContainer = ctx(x).asInstanceOf[PropertyContainer]
+  def getPath(ctx: Map[String, Any], state: QueryState): Path = {
+    def get(x: String): PropertyContainer = ctx(x) match {
+      case n: NodeThingie         => state.query.getNodeById(n.id)
+      case r: RelationshipThingie => state.query.getRelationshipById(r.id)
+    }
 
     val firstNode: String = getFirstNode
 

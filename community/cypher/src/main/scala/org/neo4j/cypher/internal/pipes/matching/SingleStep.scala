@@ -41,8 +41,15 @@ case class SingleStep(id: Int,
 
   def expand(node: Node, parameters: ExecutionContext, state: QueryState): (Iterable[Relationship], Option[ExpanderStep]) = {
     val rels = DynamicIterable {
-      val allRelationships = state.query.getRelationshipsFor(node, direction, typ)
-      if (needToFilter) FilteringIterator( node, combinedPredicate, state, allRelationships ) else allRelationships
+      val allRelationships = state.query.
+        getRelationshipsFor(node.getId, direction, typ).
+        //TODO: We should not have to do this
+        map(r=>state.query.getRelationshipById(r.id))
+
+      if (needToFilter)
+        FilteringIterator(node, combinedPredicate, state, allRelationships)
+      else
+        allRelationships
     }
     (rels, next)
   }
@@ -98,34 +105,30 @@ object SingleStep {
   final case class FilteringIterator(startNode: Node, predicate: Predicate, state: QueryState,
                                      inner: Iterator[Relationship]) extends Iterator[Relationship] {
     val miniMap: MiniMap = new MiniMap(null, startNode)
-    var _next: Relationship = computeNext()
+    var _next: Option[Relationship] = computeNext()
 
-    def hasNext: Boolean = _next != null
+    def hasNext: Boolean = _next.nonEmpty
 
     def next(): Relationship = {
       if (hasNext) {
         val result = _next
         _next = computeNext()
-        result
+        result.get
       } else {
         throw new NoSuchElementException
       }
     }
 
-    private def computeNext(): Relationship = {
-      while (inner.hasNext) {
-        val nextCandidate = asValidNextCandidate(inner.next())
-        if (isValidNext(nextCandidate)) {
-          return nextCandidate
-        }
+    private def computeNext(): Option[Relationship] =
+      inner.find {
+        r =>
+          checkNotNull(r)
+          isValidNext(r)
       }
-      null
-    }
 
-    private def asValidNextCandidate(r: Relationship): Relationship = {
+    private def checkNotNull(r: Relationship) {
       if (null == r)
         throw new IllegalStateException("Inner iterator delivered null as Relationship")
-      r
     }
 
     private def isValidNext(r: Relationship): Boolean = {

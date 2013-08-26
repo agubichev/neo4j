@@ -24,6 +24,7 @@ import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import org.neo4j.cypher.internal.commands.expressions.{Expression, Property}
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 case class PropertySetAction(prop: Property, e: Expression)
   extends UpdateAction with GraphElementPropertyFunctions {
@@ -33,20 +34,14 @@ case class PropertySetAction(prop: Property, e: Expression)
     implicit val s = state
 
     val value = makeValueNeoSafe(e(context))
-    val entity = mapExpr(context).asInstanceOf[PropertyContainer]
+    val entity = mapExpr(context)
     val qtx = state.query
 
     entity match {
-      case (n: Node) =>
-        if ( null == value )
-          propertyKey.getOptId(qtx).foreach(qtx.nodeOps.removeProperty(n, _))
-        else
-          qtx.nodeOps.setProperty(n, propertyKey.getOrCreateId(qtx), value)
-      case (r: Relationship) =>
-        if ( null == value )
-          propertyKey.getOptId(qtx).foreach(qtx.relationshipOps.removeProperty(r, _))
-        else
-          qtx.relationshipOps.setProperty(r, propertyKey.getOrCreateId(qtx), value)
+      case n: NodeThingie if null == value         => propertyKey.getOptId(qtx).foreach(qtx.nodeOps.removeProperty(n.id, _))
+      case n: NodeThingie                          => qtx.nodeOps.setProperty(n.id, propertyKey.getOrCreateId(qtx), value)
+      case r: RelationshipThingie if null == value => propertyKey.getOptId(qtx).foreach(qtx.relationshipOps.removeProperty(r.id, _))
+      case r: RelationshipThingie                  => qtx.relationshipOps.setProperty(r.id, propertyKey.getOrCreateId(qtx), value)
     }
 
     Iterator(context)

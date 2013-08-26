@@ -25,6 +25,7 @@ import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.mutation.{UpdateAction, MergeNodeAction}
 import org.neo4j.graphdb.Node
 import org.neo4j.cypher.internal.pipes.EntityProducer
+import org.neo4j.cypher.internal.data.NodeThingie
 
 /*
 This builder is concerned with finding queries without start items and without index hints, and
@@ -65,7 +66,7 @@ class StartPointChoosingBuilder extends PlanBuilder {
   private def solveUnsolvedMergePoints(ctx: PlanContext): (QueryToken[UpdateAction] => QueryToken[UpdateAction]) = {
     case Unsolved(mergeNodeAction@MergeNodeAction(identifier, where, _, _, None)) =>
       val startItem = NodeFetchStrategy.findStartStrategy(identifier, where, ctx)
-      val nodeProducer: EntityProducer[Node] = entityProducerFactory.nodeStartItems(ctx, startItem.s)
+      val nodeProducer: EntityProducer[NodeThingie] = entityProducerFactory.nodeStartItems(ctx, startItem.s)
       val predicatesLeft = where.toSet -- startItem.solvedPredicates
 
       val newMergeNodeAction = mergeNodeAction.copy(

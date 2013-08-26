@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.commands.{Predicate, True}
 import org.neo4j.cypher.internal.symbols.SymbolTable
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 class SimplePatternMatcherBuilder(pattern: PatternGraph, predicates: Seq[Predicate], symbolTable: SymbolTable) extends MatcherBuilder {
   def createPatternNodes: immutable.Map[String, SimplePatternNode] = {
@@ -58,13 +59,13 @@ class SimplePatternMatcherBuilder(pattern: PatternGraph, predicates: Seq[Predica
     }
   }
 
-  def setAssociations(sourceRow: Map[String, Any]): (immutable.Map[String, SimplePatternNode], immutable.Map[String, SimplePatternRelationship]) = {
+  def setAssociations(sourceRow: Map[String, Any], state:QueryState): (immutable.Map[String, SimplePatternNode], immutable.Map[String, SimplePatternRelationship]) = {
     val patternNodes = createPatternNodes
     val patternRels = createPatternRels(patternNodes)
     patternNodes.values.foreach(pn => {
       sourceRow.get(pn.getLabel) match {
-        case Some(node: Node) => pn.setAssociation(node)
-        case _ => pn.setAssociation(null)
+        case Some(node: NodeThingie) => pn.setAssociation(state.query.getNodeById(node.id))
+        case _                       => pn.setAssociation(null)
       }
     })
 
@@ -79,17 +80,17 @@ class SimplePatternMatcherBuilder(pattern: PatternGraph, predicates: Seq[Predica
   }
 
   def getMatches(ctx: ExecutionContext, state:QueryState) = {
-    val (patternNodes, patternRels) = setAssociations(ctx)
+    val (patternNodes, patternRels) = setAssociations(ctx, state)
     val validPredicates = predicates.filter(p => p.symbolDependenciesMet(symbolTable))
     val startPoint = patternNodes.values.find(_.getAssociation != null).get
     SimplePatternMatcher.getMatcher.`match`(startPoint, startPoint.getAssociation).asScala.flatMap(patternMatch => {
       val result = ctx.clone
 
       patternNodes.foreach {
-        case (key, pn) => result += key -> patternMatch.getNodeFor(pn)
+        case (key, pn) => result += key -> NodeThingie(patternMatch.getNodeFor(pn).getId)
       }
       patternRels.foreach {
-        case (key, pr) => result += key -> patternMatch.getRelationshipFor(pr)
+        case (key, pr) => result += key -> RelationshipThingie(patternMatch.getRelationshipFor(pr).getId)
       }
 
       Some(result).filter(r => validPredicates.forall(_.isMatch(r)(state)))

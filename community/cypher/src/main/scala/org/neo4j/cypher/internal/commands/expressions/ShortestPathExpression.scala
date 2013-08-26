@@ -30,6 +30,7 @@ import org.neo4j.graphdb.{Path, DynamicRelationshipType, Node, Expander}
 import org.neo4j.cypher.internal.commands.{Pattern, PathExtractor, ShortestPath}
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.data.NodeThingie
 
 case class ShortestPathExpression(ast: ShortestPath) extends Expression with PathExtractor {
   val pathPattern:Seq[Pattern] = Seq(ast)
@@ -42,13 +43,16 @@ case class ShortestPathExpression(ast: ShortestPath) extends Expression with Pat
     }
   }
 
-  private def getMatches(m: Map[String, Any]): Any = {
+  private def getMatches(m: Map[String, Any])(implicit state: QueryState): Any = {
     val start = getEndPoint(m, ast.start)
     val end = getEndPoint(m, ast.end)
     shortestPathStrategy.findResult(start, end)
   }
 
-  def getEndPoint(m: Map[String, Any], start: String): Node = m.getOrElse(start, throw new SyntaxException("To find a shortest path, both ends of the path need to be provided. Couldn't find `" + start + "`")).asInstanceOf[Node]
+  def getEndPoint(m: Map[String, Any], start: String)(implicit state: QueryState): Node = {
+    val n = m.getOrElse(start, throw new SyntaxException("To find a shortest path, both ends of the path need to be provided. Couldn't find `" + start + "`")).asInstanceOf[NodeThingie]
+    state.query.getNodeById(n.id)
+  }
 
   private def anyStartpointsContainNull(m: Map[String, Any]): Boolean =
     symbolTableDependencies.exists(key => m.get(key) match {

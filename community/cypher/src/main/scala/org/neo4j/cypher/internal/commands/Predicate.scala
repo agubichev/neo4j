@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.helpers.{CastSupport, IsCollection, CollectionS
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
 import values.KeyToken
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 abstract class Predicate extends Expression {
   def apply(ctx: ExecutionContext)(implicit state: QueryState) = isMatch(ctx)
@@ -163,15 +164,15 @@ case class Xor(a: Predicate, b: Predicate) extends Predicate {
 
 case class HasRelationshipTo(from: Expression, to: Expression, dir: Direction, relType: Seq[String]) extends Predicate {
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = {
-    val fromNode = from(m).asInstanceOf[Node]
-    val toNode = to(m).asInstanceOf[Node]
+    val fromNode = from(m).asInstanceOf[NodeThingie]
+    val toNode = to(m).asInstanceOf[NodeThingie]
 
     if ((fromNode == null) || (toNode == null)) {
       return false
     }
 
-    state.query.getRelationshipsFor(fromNode, dir, relType).
-      exists(rel => rel.getOtherNode(fromNode) == toNode)
+    state.query.getRelationshipsFor(fromNode.id, dir, relType).
+      exists(rel => state.query.getOtherNodeFor(rel.id, fromNode.id) == toNode)
   }
 
   def containsIsNull = false
@@ -186,13 +187,13 @@ case class HasRelationshipTo(from: Expression, to: Expression, dir: Direction, r
 
 case class HasRelationship(from: Expression, dir: Direction, relType: Seq[String]) extends Predicate {
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = {
-    val fromNode = from(m).asInstanceOf[Node]
+    val fromNode = from(m).asInstanceOf[NodeThingie]
 
     if (fromNode == null) {
       return false
     }
 
-    val matchingRelationships = state.query.getRelationshipsFor(fromNode, dir, relType)
+    val matchingRelationships = state.query.getRelationshipsFor(fromNode.id, dir, relType)
 
     matchingRelationships.hasNext
   }
@@ -231,10 +232,10 @@ case class True() extends Predicate {
 
 case class Has(identifier: Expression, propertyKey: KeyToken) extends Predicate {
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = identifier(m) match {
-    case pc: Node         => propertyKey.getOptId(state.query).exists(state.query.nodeOps.hasProperty(pc, _))
-    case pc: Relationship => propertyKey.getOptId(state.query).exists(state.query.relationshipOps.hasProperty(pc, _))
-    case null             => false
-    case _                => throw new CypherTypeException("Expected " + identifier + " to be a property container.")
+    case pc: NodeThingie         => propertyKey.getOptId(state.query).exists(state.query.nodeOps.hasProperty(pc.id, _))
+    case pc: RelationshipThingie => propertyKey.getOptId(state.query).exists(state.query.relationshipOps.hasProperty(pc.id, _))
+    case null                    => false
+    case _                       => throw new CypherTypeException("Expected " + identifier + " to be a property container.")
   }
 
   override def toString: String = "hasProp(" + propertyKey.name + ")"
@@ -325,8 +326,8 @@ case class HasLabel(entity: Expression, label: KeyToken) extends Predicate with 
     if(value == null)
       return false
 
-    val node           = CastSupport.erasureCastOrFail[Node](value)
-    val nodeId         = node.getId
+    val node           = CastSupport.erasureCastOrFail[NodeThingie](value)
+    val nodeId         = node.id
     val queryCtx       = state.query
 
     val labelId = try {

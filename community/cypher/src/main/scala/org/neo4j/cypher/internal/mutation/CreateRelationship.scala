@@ -22,10 +22,10 @@ package org.neo4j.cypher.internal.mutation
 import org.neo4j.cypher.internal.commands.expressions.{Identifier, Expression}
 import collection.Map
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.graphdb.Node
 import org.neo4j.cypher.internal.symbols.{SymbolTable, RelationshipType}
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.internal.data.NodeThingie
 
 object RelationshipEndpoint {
   def apply(name:String) = new RelationshipEndpoint(Identifier(name), Map.empty, Seq.empty, true)
@@ -65,9 +65,9 @@ extends UpdateAction
     }
 
   def exec(context: ExecutionContext, state: QueryState) = {
-    val f = from.node(context)(state).asInstanceOf[Node]
-    val t = to.node(context)(state).asInstanceOf[Node]
-    val relationship = state.query.createRelationship(f, t, typ)
+    val f = from.node(context)(state).asInstanceOf[NodeThingie]
+    val t = to.node(context)(state).asInstanceOf[NodeThingie]
+    val relationship = state.query.createRelationship(f.id, t.id, typ)
     setProperties(relationship, props, context, state)
     context.put(key, relationship)
     Iterator(context)
@@ -82,6 +82,6 @@ extends UpdateAction
   }
 
   override def symbolTableDependencies: Set[String] =
-    (props.flatMap(_._2.symbolTableDependencies)).toSet ++
+    props.flatMap(_._2.symbolTableDependencies).toSet ++
     from.symbolTableDependencies ++ to.symbolTableDependencies
 }

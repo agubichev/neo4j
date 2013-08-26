@@ -28,6 +28,7 @@ import org.neo4j.cypher.CypherTypeException
 import collection.Map
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.spi.{QueryContext, Operations}
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 case class MapPropertySetAction(element: Expression, mapExpression: Expression)
   extends UpdateAction with GraphElementPropertyFunctions with MapSupport {
@@ -44,9 +45,9 @@ case class MapPropertySetAction(element: Expression, mapExpression: Expression)
 
     /*Find the property container we'll be working on*/
     element(context)(state) match {
-      case n: Node         => setProperties(qtx, qtx.nodeOps, n, map)
-      case r: Relationship => setProperties(qtx, qtx.relationshipOps, r, map)
-      case x               =>
+      case n: NodeThingie         => setProperties(qtx, qtx.nodeOps, n, map)
+      case r: RelationshipThingie => setProperties(qtx, qtx.relationshipOps, r, map)
+      case x                      =>
         throw new CypherTypeException("Expected %s to be a node or a relationship, but it was :`%s`".format(element, x))
     }
 
@@ -72,18 +73,18 @@ case class MapPropertySetAction(element: Expression, mapExpression: Expression)
   }
 
 
-  def setProperties[T <: PropertyContainer](qtx: QueryContext, ops: Operations[T], target: T, map: Map[Long, Any]) {
+  def setProperties[T <: Entity](qtx: QueryContext, ops: Operations[T], target: T, map: Map[Long, Any]) {
     /*Set all map values on the property container*/
     for ( (k, v) <- map) {
       if (null == v)
-        ops.removeProperty(target, k)
+        ops.removeProperty(target.id, k)
       else
-        ops.setProperty(target, k, makeValueNeoSafe(v))
+        ops.setProperty(target.id, k, makeValueNeoSafe(v))
     }
 
     /*Remove all other properties from the property container*/
-    for ( propertyKeyId <- ops.propertyKeyIds(target) if !map.contains(propertyKeyId) ) {
-      ops.removeProperty(target, propertyKeyId)
+    for ( propertyKeyId <- ops.propertyKeyIds(target.id) if !map.contains(propertyKeyId) ) {
+      ops.removeProperty(target.id, propertyKeyId)
     }
   }
 

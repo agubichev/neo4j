@@ -19,8 +19,9 @@
  */
 package org.neo4j.cypher.internal.spi
 
-import org.neo4j.graphdb.{PropertyContainer, Direction, Node}
+import org.neo4j.graphdb.{Relationship, PropertyContainer, Direction, Node}
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 
 class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
@@ -34,7 +35,7 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
 
   def createNode() = inner.createNode()
 
-  def createRelationship(start: Node, end: Node, relType: String) = inner.createRelationship(start, end, relType)
+  def createRelationship(start: Long, end: Long, relType: String) = inner.createRelationship(start, end, relType)
 
   def getLabelsForNode(node: Long) = inner.getLabelsForNode(node)
 
@@ -46,7 +47,7 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
 
   def getOrCreateLabelId(labelName: String) = inner.getOrCreateLabelId(labelName)
 
-  def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]) = inner.getRelationshipsFor(node, dir, types)
+  def getRelationshipsFor(node: Long, dir: Direction, types: Seq[String]) = inner.getRelationshipsFor(node, dir, types)
 
   def nodeOps = inner.nodeOps
 
@@ -68,9 +69,9 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
 
   def dropIndexRule(labelIds: Long, propertyKeyId: Long) { inner.dropIndexRule(labelIds, propertyKeyId) }
 
-  def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[Node] = inner.exactIndexSearch(index, value)
+  def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[NodeThingie] = inner.exactIndexSearch(index, value)
 
-  def getNodesByLabel(id: Long): Iterator[Node] = inner.getNodesByLabel(id)
+  def getNodesByLabel(id: Long): Iterator[NodeThingie] = inner.getNodesByLabel(id)
 
   def upgrade(context: QueryContext): LockingQueryContext = inner.upgrade(context)
 
@@ -87,29 +88,40 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
   }
 
   def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = inner.withAnyOpenQueryContext(work)
+
+  def getOtherNodeFor(relationship: Long, node: Long): NodeThingie =
+    inner.getOtherNodeFor(relationship, node)
+
+  def getNodeById(id: Long): Node = inner.getNodeById(id)
+
+  def getRelationshipById(id: Long): Relationship = inner.getRelationshipById(id)
+
+  def getRelationshipType(id: Long): String = inner.getRelationshipType(id)
+
+  def getStartNode(relationship: Long): NodeThingie = inner.getStartNode(relationship)
+
+  def getEndNode(relationship: Long): NodeThingie = inner.getEndNode(relationship)
 }
 
-class DelegatingOperations[T <: PropertyContainer](protected val inner: Operations[T]) extends Operations[T] {
-  def delete(obj: T) {
-    inner.delete(obj)
+class DelegatingOperations[T <: Entity](protected val inner: Operations[T]) extends Operations[T] {
+  def delete(id: Long) {
+    inner.delete(id)
   }
 
-  def setProperty(obj: T, propertyKey: Long, value: Any) {
-    inner.setProperty(obj, propertyKey, value)
+  def setProperty(id: Long, propertyKey: Long, value: Any) {
+    inner.setProperty(id, propertyKey, value)
   }
 
-  def getById(id: Long) = inner.getById(id)
+  def getProperty(id: Long, propertyKeyId: Long) = inner.getProperty(id, propertyKeyId)
 
-  def getProperty(obj: T, propertyKeyId: Long) = inner.getProperty(obj, propertyKeyId)
+  def hasProperty(id: Long, propertyKeyId: Long) = inner.hasProperty(id, propertyKeyId)
 
-  def hasProperty(obj: T, propertyKeyId: Long) = inner.hasProperty(obj, propertyKeyId)
+  def propertyKeys(id: Long) = inner.propertyKeys(id)
 
-  def propertyKeys(obj: T) = inner.propertyKeys(obj)
+  def propertyKeyIds(id: Long) = inner.propertyKeyIds(id)
 
-  def propertyKeyIds(obj: T) = inner.propertyKeyIds(obj)
-
-  def removeProperty(obj: T, propertyKeyId: Long) {
-    inner.removeProperty(obj, propertyKeyId)
+  def removeProperty(id: Long, propertyKeyId: Long) {
+    inner.removeProperty(id, propertyKeyId)
   }
 
   def indexGet(name: String, key: String, value: Any): Iterator[T] = inner.indexGet(name, key, value)

@@ -31,6 +31,7 @@ import org.neo4j.cypher.internal.commands.expressions.Expression
 import org.neo4j.graphdb.{Node, Relationship, PropertyContainer}
 import org.neo4j.cypher.internal.commands.AstNode
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie, Entity}
 
 trait UpdateAction extends TypeSafe with AstNode[UpdateAction] {
   def exec(context: ExecutionContext, state: QueryState): Iterator[ExecutionContext]
@@ -56,7 +57,7 @@ trait GraphElementPropertyFunctions extends CollectionSupport {
     def symboltableDependencies: Set[String] = m.values.flatMap(_.symbolTableDependencies).toSet
   }
 
-  def setProperties(pc: PropertyContainer, props: Map[String, Expression], context: ExecutionContext, state: QueryState) {
+  def setProperties(pc: Entity, props: Map[String, Expression], context: ExecutionContext, state: QueryState) {
     props.foreach {
       case ("*", expression) => setAllMapKeyValues(expression, context, pc, state)
       case (key, expression) => setSingleValue(expression, context, pc, key, state)
@@ -72,30 +73,30 @@ trait GraphElementPropertyFunctions extends CollectionSupport {
       throw new CypherTypeException(s"Don't know how to extract parameters from this type: ${v.getClass.getName}")
   }
 
-  private def setAllMapKeyValues(expression: Expression, context: ExecutionContext, pc: PropertyContainer, state: QueryState) {
+  private def setAllMapKeyValues(expression: Expression, context: ExecutionContext, pc: Entity, state: QueryState) {
     val map = getMapFromExpression(expression(context)(state))
 
     pc match {
-      case n: Node => map.foreach {
+      case n: NodeThingie => map.foreach {
         case (key, value) =>
-          state.query.nodeOps.setProperty(n, state.query.getOrCreatePropertyKeyId(key), makeValueNeoSafe(value))
+          state.query.nodeOps.setProperty(n.id, state.query.getOrCreatePropertyKeyId(key), makeValueNeoSafe(value))
       }
 
-      case r: Relationship => map.foreach {
+      case r: RelationshipThingie => map.foreach {
         case (key, value) =>
-          state.query.relationshipOps.setProperty(r, state.query.getOrCreatePropertyKeyId(key), makeValueNeoSafe(value))
+          state.query.relationshipOps.setProperty(r.id, state.query.getOrCreatePropertyKeyId(key), makeValueNeoSafe(value))
       }
     }
   }
 
-  private def setSingleValue(expression: Expression, context: ExecutionContext, pc: PropertyContainer, key: String, state: QueryState) {
+  private def setSingleValue(expression: Expression, context: ExecutionContext, pc: Entity, key: String, state: QueryState) {
     val value = makeValueNeoSafe(expression(context)(state))
     pc match {
-      case n: Node =>
-        state.query.nodeOps.setProperty(n, state.query.getOrCreatePropertyKeyId(key), value)
+      case n: NodeThingie =>
+        state.query.nodeOps.setProperty(n.id, state.query.getOrCreatePropertyKeyId(key), value)
 
-      case r: Relationship =>
-        state.query.relationshipOps.setProperty(r, state.query.getOrCreatePropertyKeyId(key), value)
+      case r: RelationshipThingie =>
+        state.query.relationshipOps.setProperty(r.id, state.query.getOrCreatePropertyKeyId(key), value)
     }
   }
 

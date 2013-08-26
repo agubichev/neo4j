@@ -17,21 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.pipes
+package org.neo4j.cypher.internal.data
 
-import org.neo4j.cypher.internal.ExecutionContext
-import org.neo4j.cypher.internal.data.{Entity, SimpleVal}
+/*
+ * Copyright (C) 2012 Neo Technology
+ * All rights reserved
+ */
 
-trait EntityProducer[T] extends ((ExecutionContext, QueryState) => Iterator[T]) {
-  def name: String
-  def description: Seq[(String, SimpleVal)]
+trait Entity extends Any {
+  def id:Long
 }
 
-object EntityProducer {
-  def apply[T](nameStr: String, args: (String, SimpleVal)*)(f:(ExecutionContext, QueryState) => Iterator[T]) =
-    new EntityProducer[T] {
-      def name = nameStr
-      def description = args
-      def apply(m: ExecutionContext, q: QueryState) = f(m, q)
-    }
-}
+case class NodeThingie(id:Long) extends AnyVal with Entity
+case class RelationshipThingie(id:Long) extends AnyVal with Entity

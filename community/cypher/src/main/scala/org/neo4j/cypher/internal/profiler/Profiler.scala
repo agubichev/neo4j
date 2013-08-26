@@ -24,8 +24,8 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.spi.{DelegatingOperations, Operations, QueryContext, DelegatingQueryContext}
 import collection.mutable
 import org.neo4j.cypher.{ProfilerStatisticsNotReadyException, PlanDescription}
-import org.neo4j.graphdb.{PropertyContainer, Direction, Relationship, Node}
-import org.neo4j.cypher.internal.data.PrimVal
+import org.neo4j.graphdb.Direction
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie, PrimVal}
 
 class Profiler extends PipeDecorator {
 
@@ -85,35 +85,30 @@ trait Counter {
 
 class ProfilingQueryContext(val inner: QueryContext, val p: Pipe) extends DelegatingQueryContext(inner) with Counter {
 
-  class ProfilerOperations[T <: PropertyContainer](inner: Operations[T]) extends DelegatingOperations[T](inner) {
-    override def delete(obj: T) {
+  class ProfilerOperations[T <: Entity](inner: Operations[T]) extends DelegatingOperations[T](inner) {
+    override def delete(id: Long) {
       increment()
-      inner.delete(obj)
+      inner.delete(id)
     }
 
-    override def getById(id: Long): T = {
+    override def getProperty(id: Long, propertyKeyId: Long): Any = {
       increment()
-      inner.getById(id)
+      inner.getProperty(id, propertyKeyId)
     }
 
-    override def getProperty(obj: T, propertyKeyId: Long): Any = {
+    override def hasProperty(id: Long, propertyKeyId: Long): Boolean = {
       increment()
-      inner.getProperty(obj, propertyKeyId)
+      inner.hasProperty(id, propertyKeyId)
     }
 
-    override def hasProperty(obj: T, propertyKeyId: Long): Boolean = {
+    override def propertyKeys(id: Long): Iterator[String] = {
       increment()
-      inner.hasProperty(obj, propertyKeyId)
+      inner.propertyKeys(id).toIterator
     }
 
-    override def propertyKeys(obj: T): Iterator[String] = {
+    override def setProperty(id: Long, propertyKeyId: Long, value: Any) {
       increment()
-      inner.propertyKeys(obj).toIterator
-    }
-
-    override def setProperty(obj: T, propertyKeyId: Long, value: Any) {
-      increment()
-      inner.setProperty(obj, propertyKeyId, value)
+      inner.setProperty(id, propertyKeyId, value)
     }
 
     override def indexGet(name: String, key: String, value: Any): Iterator[T] = countItems(inner.indexGet(name, key, value))
@@ -129,25 +124,37 @@ class ProfilingQueryContext(val inner: QueryContext, val p: Pipe) extends Delega
     }
   }
 
-  override def createNode(): Node = {
+  override def createNode(): NodeThingie = {
     increment()
     inner.createNode()
   }
 
-  override def createRelationship(start: Node, end: Node, relType: String): Relationship = {
+  override def createRelationship(start: Long, end: Long, relType: String): RelationshipThingie = {
     increment()
     inner.createRelationship(start, end, relType)
   }
 
-  override def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]): Iterator[Relationship] =
-    inner.getRelationshipsFor(node, dir, types).map { (rel: Relationship) =>
+  override def getRelationshipsFor(node: Long, dir: Direction, types: Seq[String]): Iterator[RelationshipThingie] =
+    inner.getRelationshipsFor(node, dir, types).map { (rel: RelationshipThingie) =>
       increment()
       rel
     }
 
-  override def nodeOps: Operations[Node] = new ProfilerOperations(inner.nodeOps)
+  override def getRelationshipType(id: Long): String = {
+    increment()
+    inner.getRelationshipType(id)
+  }
 
-  override def relationshipOps: Operations[Relationship] = new ProfilerOperations(inner.relationshipOps)
+  override def getStartNode(relationship: Long): NodeThingie = {
+    increment()
+    inner.getStartNode(relationship)
+  }
+
+  override def getEndNode(relationship: Long): NodeThingie = ???
+
+  override def nodeOps: Operations[NodeThingie] = new ProfilerOperations(inner.nodeOps)
+
+  override def relationshipOps: Operations[RelationshipThingie] = new ProfilerOperations(inner.relationshipOps)
 }
 
 class ProfilingIterator(inner: Iterator[ExecutionContext]) extends Iterator[ExecutionContext] with Counter {

@@ -26,6 +26,7 @@ import org.neo4j.kernel.{Uniqueness, Traversal}
 import traversal._
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.EntityProducer
+import org.neo4j.cypher.internal.data.NodeThingie
 
 class MonoDirectionalTraversalMatcher(steps: ExpanderStep, start: EntityProducer[Node])
   extends TraversalMatcher {

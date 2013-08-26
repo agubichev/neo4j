@@ -19,9 +19,9 @@
  */
 package org.neo4j.cypher.internal.executionplan.builders
 
-import org.neo4j.graphdb.PropertyContainer
 import org.neo4j.cypher.ParameterWrongTypeException
 import collection.JavaConverters._
+import org.neo4j.cypher.internal.data.Entity
 
 object GetGraphElements {
   def getElements[T: Manifest](data: Any, name: String, getElement: Long => T): Iterator[T] = {
@@ -38,7 +38,7 @@ object GetGraphElements {
       case result: java.util.Iterator[_] => result.asScala.map(castElement)
       case result: java.lang.Iterable[_] => result.asScala.view.map(castElement).iterator
       case result: Seq[_]                => result.view.map(castElement).iterator
-      case element: PropertyContainer    => Iterator.single(element.asInstanceOf[T])
+      case element: Entity               => Iterator.single(element.asInstanceOf[T])
       case x                             => throw new ParameterWrongTypeException("Expected a propertycontainer or number here, but got: " + x.toString)
     }
   }

@@ -19,14 +19,17 @@
  */
 package org.neo4j.cypher.internal.commands.expressions
 
-import org.neo4j.graphdb.Relationship
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.helpers.CastSupport
+import org.neo4j.cypher.internal.data.RelationshipThingie
 
 case class RelationshipTypeFunction(relationship: Expression) extends NullInNullOutExpression(relationship) {
-  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) =
-    value.asInstanceOf[Relationship].getType.name()
+  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = {
+    val r = CastSupport.erasureCastOrFail[RelationshipThingie](value)
+    state.query.getRelationshipType(r.id)
+  }
 
   def rewrite(f: (Expression) => Expression) = f(RelationshipTypeFunction(relationship.rewrite(f)))
 

@@ -28,8 +28,8 @@ import org.neo4j.cypher.internal.pipes.QueryState
 case class RelationshipFunction(path: Expression) extends NullInNullOutExpression(path) {
   def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = value match {
     case p: PathImpl => p.relList
-    case p: Path => p.relationships().asScala.toSeq
-    case x       => throw new SyntaxException("Expected " + path + " to be a path.")
+    case p: Path     => p.relationships().asScala.toSeq
+    case x           => throw new SyntaxException("Expected " + path + " to be a path.")
   }
 
   def rewrite(f: (Expression) => Expression) = f(RelationshipFunction(path.rewrite(f)))

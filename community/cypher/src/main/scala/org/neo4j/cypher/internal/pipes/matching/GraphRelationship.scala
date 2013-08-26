@@ -21,17 +21,20 @@ package org.neo4j.cypher.internal.pipes.matching
 
 import java.lang.IllegalArgumentException
 import scala.collection.JavaConverters._
-import org.neo4j.graphdb.{NotFoundException, Path, Node, Relationship}
+import org.neo4j.graphdb.Path
+import org.neo4j.cypher.internal.data.{NodeThingie, RelationshipThingie}
+import org.neo4j.cypher.internal.pipes.QueryState
+import org.neo4j.cypher.internal.spi.QueryContext
 
 abstract class GraphRelationship {
-  def getOtherNode(node: Node): Node
+  def getOtherNode(node: NodeThingie)(implicit query: QueryContext): NodeThingie
 }
 
-case class SingleGraphRelationship(rel: Relationship) extends GraphRelationship {
-  def getOtherNode(node: Node): Node = rel.getOtherNode(node)
+case class SingleGraphRelationship(rel: RelationshipThingie) extends GraphRelationship {
+  def getOtherNode(node: NodeThingie)(implicit query: QueryContext): NodeThingie = query.getOtherNodeFor(rel.id, node.id)
 
   override def canEqual(that: Any) = that.isInstanceOf[SingleGraphRelationship] ||
-    that.isInstanceOf[Relationship] ||
+    that.isInstanceOf[RelationshipThingie] ||
     that.isInstanceOf[VariableLengthGraphRelationship]
 
   override def equals(obj: Any) = obj match {
@@ -45,10 +48,13 @@ case class SingleGraphRelationship(rel: Relationship) extends GraphRelationship 
 }
 
 case class VariableLengthGraphRelationship(path: Path) extends GraphRelationship {
-  def getOtherNode(node: Node): Node = {
-    if (path.startNode() == node) path.endNode()
-    else if (path.endNode() == node) path.startNode()
-    else throw new IllegalArgumentException("Node is not start nor end of path.")
+  def getOtherNode(node: NodeThingie)(implicit state: QueryContext): NodeThingie = {
+    if (path.startNode().getId == node.id)
+      NodeThingie(path.endNode().getId)
+    else if (path.endNode().getId == node.id)
+      NodeThingie(path.startNode().getId)
+    else
+      throw new IllegalArgumentException("Node is not start nor end of path.")
   }
 
   override def canEqual(that: Any) = that.isInstanceOf[VariableLengthGraphRelationship] ||
@@ -56,11 +62,14 @@ case class VariableLengthGraphRelationship(path: Path) extends GraphRelationship
     that.isInstanceOf[SingleGraphRelationship]
 
   override def equals(obj: Any) = obj match {
-    case r: Relationship => path.relationships().asScala.exists(_ == r)
+    case r: RelationshipThingie => path.relationships().asScala.exists(_ == r)
     case x => obj == this || (obj == path && path.length() > 0)
   }
 
-  def relationships: List[Relationship] = path.relationships().asScala.toList
+  def relationships: List[RelationshipThingie] = path.
+    relationships().asScala.
+    map( r => RelationshipThingie(r.getId)).
+    toList
 
   override def toString = path.toString
 }

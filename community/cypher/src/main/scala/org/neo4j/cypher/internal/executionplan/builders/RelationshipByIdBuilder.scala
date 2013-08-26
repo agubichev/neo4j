@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.commands.{RelationshipById, StartItem}
 import org.neo4j.graphdb.{Relationship, GraphDatabaseService}
 import org.neo4j.cypher.internal.pipes.{EntityProducer, QueryState, RelationshipStartPipe}
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.RelationshipThingie
 
 class RelationshipByIdBuilder(graph: GraphDatabaseService) extends LegacyPlanBuilder {
   def priority = PlanBuilder.RelationshipById
@@ -37,8 +38,8 @@ class RelationshipByIdBuilder(graph: GraphDatabaseService) extends LegacyPlanBui
     val Unsolved(RelationshipById(key, expression)) = startItemToken
 
     val pipe = new RelationshipStartPipe(p, key,
-      EntityProducer[Relationship]("Rels(RelationshipById)") { (ctx: ExecutionContext, state: QueryState) =>
-        getElements[Relationship](expression(ctx)(state), key, state.query.relationshipOps.getById)
+      EntityProducer[RelationshipThingie]("Rels(RelationshipById)") { (ctx: ExecutionContext, state: QueryState) =>
+        getElements[RelationshipThingie](expression(ctx)(state), key, RelationshipThingie)
     } )
 
     val remainingQ: Seq[QueryToken[StartItem]] = q.start.filterNot(_ == startItemToken) :+ startItemToken.solve

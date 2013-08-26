@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.pipes
 
-import org.neo4j.cypher.internal.data.SimpleVal
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie, SimpleVal}
 import org.neo4j.cypher.internal.symbols.{SymbolTable, PathType}
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.PathImpl
@@ -30,13 +30,17 @@ import collection.JavaConverters._
 case class NamedPathPipe(source: Pipe, pathName: String, entities: Seq[AbstractPattern]) extends PipeWithSource(source) {
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) =
     input.map {
-      ctx => ctx += (pathName -> getPath(ctx))
+      ctx => ctx += (pathName -> getPath(ctx,state))
     }
 
   // TODO: This is duplicated with PathExtractor
-  private def getPath(ctx: ExecutionContext): Path = {
+  private def getPath(ctx: ExecutionContext, state:QueryState): Path = {
     def get(x: String): PropertyContainer =
-      ctx(x).asInstanceOf[PropertyContainer]
+      ctx(x) match {
+        case n: NodeThingie         => state.query.getNodeById(n.id)
+        case r: RelationshipThingie => state.query.getRelationshipById(r.id)
+        case null                   => null
+      }
 
     val p: Seq[PropertyContainer] = entities.foldLeft(get(firstNode) :: Nil)((soFar, p) => p match {
       case e: ParsedEntity           => soFar

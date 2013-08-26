@@ -25,18 +25,18 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.{EntityProducer, QueryState}
 import org.neo4j.cypher.internal.commands.Predicate
 import org.neo4j.cypher.{InternalException, CypherTypeException}
-import org.neo4j.graphdb.Node
 import org.neo4j.cypher.internal.spi.QueryContext
+import org.neo4j.cypher.internal.data.NodeThingie
 
 case class MergeNodeAction(identifier: String,
                            expectations: Seq[Predicate],
                            onCreate: Seq[UpdateAction],
                            onMatch: Seq[UpdateAction],
-                           nodeProducerOption: Option[EntityProducer[Node]]) extends UpdateAction {
+                           nodeProducerOption: Option[EntityProducer[NodeThingie]]) extends UpdateAction {
 
   def children = expectations ++ onCreate ++ onMatch
 
-  lazy val nodeProducer: EntityProducer[Node] = nodeProducerOption.getOrElse(throw new InternalException(
+  lazy val nodeProducer: EntityProducer[NodeThingie] = nodeProducerOption.getOrElse(throw new InternalException(
     "Tried to run merge action without finding node producer. This should never happen. " +
       "It seems the execution plan builder failed. "))
 
@@ -47,7 +47,7 @@ case class MergeNodeAction(identifier: String,
 
     if (foundNodes.isEmpty) {
       val query: QueryContext = state.query
-      val createdNode: Node = query.createNode()
+      val createdNode: NodeThingie = query.createNode()
       val newContext = context += (identifier -> createdNode)
 
       onCreate.foreach {

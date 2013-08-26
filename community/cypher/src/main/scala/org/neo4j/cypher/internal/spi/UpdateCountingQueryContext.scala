@@ -22,6 +22,7 @@ package org.neo4j.cypher.internal.spi
 import org.neo4j.cypher.QueryStatistics
 import java.util.concurrent.atomic.AtomicInteger
 import org.neo4j.graphdb.{PropertyContainer, Relationship, Node}
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryContext(inner) {
 
@@ -55,9 +56,9 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     inner.createNode()
   }
 
-  override def nodeOps: Operations[Node] = new CountingOps[Node](inner.nodeOps, nodesDeleted)
+  override def nodeOps: Operations[NodeThingie] = new CountingOps[NodeThingie](inner.nodeOps, nodesDeleted)
 
-  override def relationshipOps: Operations[Relationship] = new CountingOps[Relationship](inner.relationshipOps,
+  override def relationshipOps: Operations[RelationshipThingie] = new CountingOps[RelationshipThingie](inner.relationshipOps,
     relationshipsDeleted)
 
   override def setLabelsOnNode(node: Long, labelIds: Iterator[Long]): Int = {
@@ -66,7 +67,7 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     added
   }
 
-  override def createRelationship(start: Node, end: Node, relType: String) = {
+  override def createRelationship(start: Long, end: Long, relType: String) = {
     relationshipsCreated.increase()
     inner.createRelationship(start, end, relType)
   }
@@ -107,23 +108,23 @@ class UpdateCountingQueryContext(inner: QueryContext) extends DelegatingQueryCon
     }
   }
 
-  private class CountingOps[T <: PropertyContainer](inner: Operations[T],
-                                                    deletes: Counter) extends DelegatingOperations[T](inner) {
-    override def delete(obj: T) {
+  private class CountingOps[T <: Entity](inner: Operations[T],
+                                         deletes: Counter) extends DelegatingOperations[T](inner) {
+    override def delete(id: Long) {
       deletes.increase()
-      inner.delete(obj)
+      inner.delete(id)
     }
 
 
-    override def removeProperty(obj: T, propertyKeyId: Long)
-    {
+    override def removeProperty(id: Long, propertyKeyId: Long) {
       propertiesSet.increase()
-      inner.removeProperty(obj, propertyKeyId)
+      inner.removeProperty(id, propertyKeyId)
     }
 
-    override def setProperty(obj: T, propertyKeyId: Long, value: Any) {
+    override def setProperty(id: Long, propertyKeyId: Long, value: Any) {
       propertiesSet.increase()
-      inner.setProperty(obj, propertyKeyId, value)
+      inner.setProperty(id, propertyKeyId, value)
     }
   }
+
 }

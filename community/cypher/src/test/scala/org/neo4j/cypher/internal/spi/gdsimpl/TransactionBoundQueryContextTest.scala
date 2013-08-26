@@ -82,11 +82,11 @@ class TransactionBoundQueryContextTest extends JUnitSuite with Assertions with M
     val context = new TransactionBoundQueryContext(graph, tx, statementContext, state)
 
     // WHEN
-    val iterable = DynamicIterable( context.getRelationshipsFor(node, Direction.BOTH, Seq.empty) )
+    val iterable = DynamicIterable( context.getRelationshipsFor(node.getId, Direction.BOTH, Seq.empty) )
 
     // THEN
-    val iteratorA: Iterator[Relationship] = iterable.iterator
-    val iteratorB: Iterator[Relationship] = iterable.iterator
+    val iteratorA = iterable.iterator
+    val iteratorB = iterable.iterator
     assert( iteratorA != iteratorB )
     assert( iteratorA.toList === iteratorB.toList )
     assert( 2 === iterable.size )

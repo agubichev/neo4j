@@ -26,6 +26,7 @@ import org.neo4j.kernel.{Uniqueness, Traversal}
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.symbols.RelationshipType
 import org.neo4j.cypher.internal.spi.QueryContext
+import org.neo4j.cypher.internal.data.NodeThingie
 
 class PatternRelationship(key: String,
                           val startNode: PatternNode,
@@ -39,13 +40,13 @@ class PatternRelationship(key: String,
 
   def getOtherNode(node: PatternNode) = if (startNode == node) endNode else startNode
 
-  def getGraphRelationships(node: PatternNode, realNode: Node, ctx:QueryContext): Seq[GraphRelationship] = {
+  def getGraphRelationships(node: PatternNode, realNode: NodeThingie, ctx:QueryContext): Seq[GraphRelationship] = {
 
     val result: Iterator[GraphRelationship] =
-      ctx.getRelationshipsFor(realNode, getDirection(node), relTypes).map(new SingleGraphRelationship(_))
+      ctx.getRelationshipsFor(realNode.id, getDirection(node), relTypes).map(new SingleGraphRelationship(_))
 
     if (startNode == endNode)
-      result.filter(r => r.getOtherNode(realNode) == realNode).toSeq
+      result.filter(r => r.getOtherNode(realNode)(ctx) == realNode).toSeq
     else
       result.toSeq
   }
@@ -112,7 +113,7 @@ class VariableLengthPatternRelationship(pathName: String,
       endNode.key -> NodeType(),
       key -> CollectionType(RelationshipType())) ++ relIterable.map(_ -> CollectionType(RelationshipType())).toMap
 
-  override def getGraphRelationships(node: PatternNode, realNode: Node, ctx:QueryContext): Seq[GraphRelationship] = {
+  override def getGraphRelationships(node: PatternNode, realNode: NodeThingie, ctx:QueryContext): Seq[GraphRelationship] = {
 
     val depthEval = (minHops, maxHops) match {
       case (None, None)           => Evaluators.fromDepth(1)
@@ -136,7 +137,8 @@ class VariableLengthPatternRelationship(pathName: String,
       baseTraversalDescription.expand(expander)
     }
 
-    traversalDescription.traverse(realNode).asScala.toStream.map(p => VariableLengthGraphRelationship(p))
+    val graphNode = ctx.getNodeById(realNode.id)
+    traversalDescription.traverse(graphNode).asScala.toStream.map(p => VariableLengthGraphRelationship(p))
   }
 }
 

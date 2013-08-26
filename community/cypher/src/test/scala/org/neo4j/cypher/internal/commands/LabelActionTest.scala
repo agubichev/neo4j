@@ -24,11 +24,12 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.GraphDatabaseTestBase
 import org.scalatest.Assertions
 import org.neo4j.cypher.internal.spi.{LockingQueryContext, QueryContext}
-import org.neo4j.graphdb.{Direction, Node}
+import org.neo4j.graphdb.{Relationship, Direction, Node}
 import org.neo4j.cypher.internal.pipes.{NullDecorator, QueryState}
 import org.junit.Test
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
 import org.neo4j.cypher.internal.commands.values.{TokenType, KeyToken}
+import org.neo4j.cypher.internal.data.NodeThingie
 
 class LabelActionTest extends GraphDatabaseTestBase with Assertions {
   val queryContext = new SnitchingQueryContext
@@ -83,19 +84,17 @@ class SnitchingQueryContext extends QueryContext {
 
   def getOrCreateLabelId(labelName: String) = labels(labelName)
 
-  def getLabelsForNode(node: Node) = Seq(12L)
-
   def close(success: Boolean) {???}
 
   def createNode() = ???
 
-  def createRelationship(start: Node, end: Node, relType: String) = ???
+  def createRelationship(start: Long, end: Long, relType: String) = ???
 
   def getLabelName(id: Long) = ???
 
-  def getLabelsForNode(node: Long) = ???
+  def getLabelsForNode(node: Long) = Iterator(12L)
 
-  def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]) = ???
+  def getRelationshipsFor(node: Long, dir: Direction, types: Seq[String]) = ???
 
   def nodeOps = ???
 
@@ -115,9 +114,9 @@ class SnitchingQueryContext extends QueryContext {
 
   def dropIndexRule(labelIds: Long, propertyKeyId: Long) = ???
 
-  def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[Node] = ???
+  def exactIndexSearch(index: IndexDescriptor, value: Any) = ???
 
-  def getNodesByLabel(id: Long): Iterator[Node] = ???
+  def getNodesByLabel(id: Long) = ???
 
   def upgrade(context: QueryContext): LockingQueryContext = ???
 
@@ -136,4 +135,16 @@ class SnitchingQueryContext extends QueryContext {
   def getPropertyKeyName(id: Long): String = ???
 
   def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = ???
+
+  def getNodeById(id: Long): Node = ???
+
+  def getOtherNodeFor(relationship: Long, node: Long): NodeThingie = ???
+
+  def getRelationshipById(id: Long): Relationship = ???
+
+  def getRelationshipType(id: Long): String = ???
+
+  def getStartNode(relationship: Long): NodeThingie = ???
+
+  def getEndNode(relationship: Long): NodeThingie = ???
 }

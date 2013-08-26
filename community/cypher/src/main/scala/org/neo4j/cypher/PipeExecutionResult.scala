@@ -156,7 +156,8 @@ class PipeExecutionResult(result: ClosingIterator,
   private def createString(columns: List[String], columnSizes: Map[String, Int], m: Map[String, Any], qtx: QueryContext): String = {
     columns.map(c => {
       val length = columnSizes.get(c).get
-      val txt = text(m.get(c).get, qtx)
+      val value1: Any = m.get(c).get
+      val txt = text(value1, qtx)
       val value = makeSize(txt, length)
       value
     }).mkString("| ", " | ", " |")

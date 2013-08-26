@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.graphdb.Node
 import org.neo4j.cypher.internal.helpers.{CastSupport, CollectionSupport}
 import values.KeyToken
+import org.neo4j.cypher.internal.data.NodeThingie
 
 
 sealed abstract class LabelOp
@@ -44,13 +45,13 @@ case class LabelAction(entity: Expression, labelOp: LabelOp, labels: Seq[KeyToke
     LabelAction(entity.rewrite(f), labelOp, labels.map(_.typedRewrite[KeyToken](f)))
 
   def exec(context: ExecutionContext, state: QueryState) = {
-    val node      = CastSupport.erasureCastOrFail[Node](entity(context)(state))
+    val node      = CastSupport.erasureCastOrFail[NodeThingie](entity(context)(state))
     val queryCtx  = state.query
     val labelIds  = labels.map(_.getOrCreateId(state.query))
 
     labelOp match {
-      case LabelSetOp => queryCtx.setLabelsOnNode(node.getId, labelIds.iterator)
-      case LabelRemoveOp => queryCtx.removeLabelsFromNode(node.getId, labelIds.iterator)
+      case LabelSetOp    => queryCtx.setLabelsOnNode(node.id, labelIds.iterator)
+      case LabelRemoveOp => queryCtx.removeLabelsFromNode(node.id, labelIds.iterator)
     }
 
     Iterator(context)

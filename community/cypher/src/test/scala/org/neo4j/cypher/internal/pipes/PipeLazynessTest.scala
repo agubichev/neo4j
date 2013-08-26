@@ -33,7 +33,7 @@ import org.neo4j.graphdb._
 import collection.JavaConverters._
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.ExecutionContext
-import org.neo4j.cypher.internal.data.SimpleVal
+import org.neo4j.cypher.internal.data.{NodeThingie, SimpleVal}
 import org.neo4j.cypher.GraphDatabaseTestBase
 import org.neo4j.cypher.internal.parser.ParsedEntity
 
@@ -183,14 +183,14 @@ object PipeLazynessTest extends MockitoSugar {
   private val sortByX: List[SortItem] = List(SortItem(Identifier("x"), ascending = true))
 
   private def startPipe = {
-    val node = mock[Node]
+    val node = NodeThingie(0)
     val (iter, src) = emptyFakes
-    val pipe = new NodeStartPipe(src, "y", new EntityProducer[Node]() {
+    val pipe = new NodeStartPipe(src, "y", new EntityProducer[NodeThingie]() {
       def description: Seq[(String, SimpleVal)] = Seq.empty
 
       def name: String = ""
 
-      def apply(v1: ExecutionContext, v2: QueryState): Iterator[Node] = Iterator(node)
+      def apply(v1: ExecutionContext, v2: QueryState): Iterator[NodeThingie] = Iterator(node)
     })
     Seq(pipe, iter)
   }

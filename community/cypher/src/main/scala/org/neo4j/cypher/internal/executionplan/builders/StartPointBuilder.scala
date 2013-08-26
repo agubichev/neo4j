@@ -24,6 +24,7 @@ import org.neo4j.cypher.internal.pipes._
 import org.neo4j.graphdb.{Relationship, Node}
 import org.neo4j.cypher.internal.executionplan.{PlanBuilder, ExecutionPlanInProgress}
 import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie}
 
 /*
 This class is responsible for taking unsolved StartItems and transforming them into StartPipes
@@ -50,7 +51,7 @@ class StartPointBuilder extends PlanBuilder {
       mapQueryToken().isDefinedAt((context, itemToken))
     })
 
-  private def genNodeStart(entityFactory: EntityProducerFactory): PartialFunction[(PlanContext, StartItem), EntityProducer[Node]] =
+  private def genNodeStart(entityFactory: EntityProducerFactory): PartialFunction[(PlanContext, StartItem), EntityProducer[NodeThingie]] =
     entityFactory.nodeByIndex orElse
       entityFactory.nodeByIndexQuery orElse
       entityFactory.nodeByIndexHint orElse
@@ -59,7 +60,7 @@ class StartPointBuilder extends PlanBuilder {
       entityFactory.nodeByLabel
 
 
-  private def genRelationshipStart(entityFactory: EntityProducerFactory): PartialFunction[(PlanContext, StartItem), EntityProducer[Relationship]] =
+  private def genRelationshipStart(entityFactory: EntityProducerFactory): PartialFunction[(PlanContext, StartItem), EntityProducer[RelationshipThingie]] =
     entityFactory.relationshipByIndex orElse
       entityFactory.relationshipByIndexQuery orElse
       entityFactory.relationshipById orElse

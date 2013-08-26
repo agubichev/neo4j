@@ -27,30 +27,39 @@ import collection.JavaConverters._
 import org.neo4j.kernel.impl.core.NodeManager
 import org.neo4j.graphdb.{PropertyContainer, Path, Relationship, Node}
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.data.{RelationshipThingie, NodeThingie, Entity}
 
 case class DeleteEntityAction(elementToDelete: Expression)
   extends UpdateAction {
   def exec(context: ExecutionContext, state: QueryState) = {
     elementToDelete(context)(state) match {
-      case n: Node => delete(n, state)
-      case r: Relationship => delete(r, state)
-      case null =>
-      case p:Path => p.iterator().asScala.foreach( pc => delete(pc, state))
-      case x => throw new CypherTypeException("Expression `" + elementToDelete.toString() + "` yielded `" + x.toString + "`. Don't know how to delete that.")
+      case n: NodeThingie         => delete(n, state)
+      case r: RelationshipThingie => delete(r, state)
+      case null                   =>
+
+        // TODO: Path should be PathThingie
+      case p: Path => p.
+        iterator().asScala.
+        foreach {
+        case n: Node         => delete(NodeThingie(n.getId), state)
+        case r: Relationship => delete(RelationshipThingie(r.getId), state)
+      }
+
+      case x                      => throw new CypherTypeException("Expression `" + elementToDelete.toString() + "` yielded `" + x.toString + "`. Don't know how to delete that.")
     }
 
     Iterator(context)
   }
 
-  private def delete(x: PropertyContainer, state: QueryState) {
+  private def delete(x: Entity, state: QueryState) {
     val nodeManager: NodeManager = state.graphDatabaseAPI.getNodeManager
 
     x match {
-      case n: Node if (!nodeManager.isDeleted(n)) =>
-        state.query.nodeOps.delete(n)
+      case n: NodeThingie if !nodeManager.isDeleted(state.query.getNodeById(n.id)) =>
+        state.query.nodeOps.delete(n.id)
 
-      case r: Relationship if (!nodeManager.isDeleted(r))=>
-        state.query.relationshipOps.delete(r)
+      case r: RelationshipThingie if !nodeManager.isDeleted(state.query.getRelationshipById(r.id)) =>
+        state.query.relationshipOps.delete(r.id)
 
       case _ => // Entity is already deleted. No need to do anything
     }

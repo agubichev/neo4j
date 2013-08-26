@@ -21,18 +21,19 @@ package org.neo4j.cypher.internal.spi
 
 import org.neo4j.graphdb.{PropertyContainer, Relationship, Direction, Node}
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
+import org.neo4j.cypher.internal.data.{Entity, RelationshipThingie, NodeThingie}
 
 
 trait Locker {
-  def acquireLock(p: PropertyContainer)
+  def acquireLock(p: Entity)
 
   def releaseAllLocks()
 }
 
 class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends DelegatingQueryContext(inner) with LockingQueryContext {
 
-  override def getRelationshipsFor(node: Node, dir: Direction, types: Seq[String]): Iterator[Relationship] = {
-    locker.acquireLock(node)
+  override def getRelationshipsFor(node: Long, dir: Direction, types: Seq[String]): Iterator[RelationshipThingie] = {
+    locker.acquireLock(NodeThingie(node))
     lockAll(inner.getRelationshipsFor(node, dir, types))
   }
 
@@ -46,13 +47,37 @@ class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends De
     inner.isLabelSetOnNode(label, node)
   }
 
-  override def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[Node] =
+  override def exactIndexSearch(index: IndexDescriptor, value: Any): Iterator[NodeThingie] =
     lockAll(inner.exactIndexSearch(index, value))
 
-  override def getNodesByLabel(id: Long): Iterator[Node] = lockAll(inner.getNodesByLabel(id))
+  override def getRelationshipType(id: Long): String = {
+    val r = RelationshipThingie(id)
+    locker.acquireLock(r)
+    inner.getRelationshipType(id)
+  }
 
-  val nodeOpsValue = new RepeatableReadOperations[Node](inner.nodeOps)
-  val relationshipOpsValue = new RepeatableReadOperations[Relationship](inner.relationshipOps)
+  override def getNodesByLabel(id: Long): Iterator[NodeThingie] = lockAll(inner.getNodesByLabel(id))
+
+  override def getStartNode(relationship: Long): NodeThingie = {
+    val r = RelationshipThingie(relationship)
+    locker.acquireLock(r)
+    inner.getStartNode(relationship)
+  }
+
+  override def getEndNode(relationship: Long): NodeThingie = {
+    val r = RelationshipThingie(relationship)
+    locker.acquireLock(r)
+    inner.getEndNode(relationship)
+  }
+
+
+  val nodeOpsValue = new RepeatableReadOperations[NodeThingie](inner.nodeOps) {
+    def getEntity(id: Long): Entity = NodeThingie(id)
+  }
+
+  val relationshipOpsValue = new RepeatableReadOperations[RelationshipThingie](inner.relationshipOps) {
+    def getEntity(id: Long): Entity = RelationshipThingie(id)
+  }
 
   override def nodeOps = nodeOpsValue
 
@@ -62,40 +87,35 @@ class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends De
     locker.releaseAllLocks()
   }
 
-  class RepeatableReadOperations[T <: PropertyContainer](inner: Operations[T]) extends DelegatingOperations[T](inner) {
-    override def getProperty(obj: T, propertyKeyId: Long) = {
-      locker.acquireLock(obj)
-      inner.getProperty(obj, propertyKeyId)
+  abstract class RepeatableReadOperations[T <: Entity](inner: Operations[T]) extends DelegatingOperations[T](inner) {
+
+    def getEntity(id:Long):Entity
+
+    override def getProperty(id: Long, propertyKeyId: Long) = {
+      locker.acquireLock(getEntity(id))
+      inner.getProperty(id, propertyKeyId)
     }
 
-    override def hasProperty(obj: T, propertyKeyId: Long) = {
-      locker.acquireLock(obj)
-      inner.hasProperty(obj, propertyKeyId)
+    override def hasProperty(id: Long, propertyKeyId: Long) = {
+      locker.acquireLock(getEntity(id))
+      inner.hasProperty(id, propertyKeyId)
     }
 
-    override def propertyKeys(obj: T) = {
-      locker.acquireLock(obj)
-      inner.propertyKeys(obj)
-    }
-
-    override def getById(id: Long): T = {
-      val result = inner.getById(id)
-      locker.acquireLock(result)
-      result
+    override def propertyKeys(id: Long) = {
+      locker.acquireLock(getEntity(id))
+      inner.propertyKeys(id)
     }
 
     override def indexGet(name: String, key: String, value: Any): Iterator[T] = lockAll(inner.indexGet(name, key, value))
 
     override def indexQuery(name: String, query: Any): Iterator[T] = lockAll(inner.indexQuery(name, query))
-
-    def getByInnerId(id: Long): T = inner.getById(id)
   }
 
   private def lockNode(id: Long) {
-    locker.acquireLock(nodeOps.getByInnerId(id))
+    locker.acquireLock(NodeThingie(id))
   }
 
-  private def lockAll[T <: PropertyContainer](iter: Iterator[T]): Iterator[T] = iter.map {
+  private def lockAll[T <: Entity](iter: Iterator[T]): Iterator[T] = iter.map {
     item =>
       locker.acquireLock(item)
       item
