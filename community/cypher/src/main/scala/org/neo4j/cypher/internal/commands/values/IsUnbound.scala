@@ -17,22 +17,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.pipes.aggregation
+package org.neo4j.cypher.internal.commands.values
 
-import org.neo4j.cypher.internal.commands.expressions.Expression
-import org.neo4j.cypher.internal.ExecutionContext
-import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
+/**
+ * This singleton value represents unbound entities inside expressions or predicates.
+ *
+ * It currently only may occur due to patterns containing optional relationships which may introduce
+ * unbound identifiers.  It mainly serves to differentiate this situation from plain null values.
+ */
+case object IsUnbound {
 
-class CountFunction(value: Expression) extends AggregationFunction {
-  var count: Long = 0
-
-  def apply(data: ExecutionContext)(implicit state: QueryState) {
-    value(data) match {
-      case v if IsUnbound.orNull(v) => count
-      case _                        => count += 1
-    }
+  def apply(v: Any) = v match {
+    case IsUnbound => true
+    case _         => false
   }
 
-  def result: Long = count
+  def unapply(v: Any) = v match {
+    case IsUnbound => Some(IsUnbound)
+    case _         => None
+  }
+
+  def orNull(v: Any): Boolean = null == v || IsUnbound(v)
 }

@@ -25,13 +25,13 @@ import org.neo4j.cypher.internal.symbols._
 import collection.JavaConverters._
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
 
 case class NodesFunction(path: Expression) extends NullInNullOutExpression(path) {
   def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = value match {
     case p: PathImpl => p.nodeList
     case p: Path     => p.nodes().asScala.toSeq
-    case IsUnknown   => IsUnknown
+    case IsUnbound   => List.empty
     case x           => throw new SyntaxException("Expected " + path + " to be a path.")
   }
 

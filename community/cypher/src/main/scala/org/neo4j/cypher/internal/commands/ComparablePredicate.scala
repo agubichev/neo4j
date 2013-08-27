@@ -24,7 +24,7 @@ import org.neo4j.cypher.internal.{ExecutionContext, Comparer}
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.helpers.IsCollection
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.{IsTrue, Ternary, IsUnknown}
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsTrue, Ternary, IsUnknown}
 
 abstract sealed class ComparablePredicate(left: Expression, right: Expression) extends TernaryPredicate with Comparer {
   def compare(comparisonResult: Int): Boolean
@@ -33,7 +33,7 @@ abstract sealed class ComparablePredicate(left: Expression, right: Expression) e
     val l: Any = left(m)
     val r: Any = right(m)
 
-    if (IsUnknown(l) || IsUnknown(r)) {
+    if (IsUnbound(l) || IsUnbound(r) || IsUnknown(l) || IsUnknown(r)) {
       IsUnknown
     } else {
       val comparisonResult: Int = compare(l, r)
@@ -68,8 +68,10 @@ case class Equals(a: Expression, b: Expression) extends TernaryPredicate with Co
 
     val result = (a1, b1) match {
       case (IsCollection(l), IsCollection(r)) => Ternary(l == r)
-      case (IsUnknown, x)                     => if (x == null) IsTrue else IsUnknown
-      case (x, IsUnknown)                     => if (x == null) IsTrue else IsUnknown
+      case (IsUnbound, x)                     => IsUnknown
+      case (x, IsUnbound)                     => IsUnknown
+      case (IsUnknown, x)                     => IsUnknown
+      case (x, IsUnknown)                     => IsUnknown
       case _                                  => Ternary(a1 == b1)
     }
     result

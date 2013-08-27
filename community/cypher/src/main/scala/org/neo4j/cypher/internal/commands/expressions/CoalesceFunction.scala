@@ -22,14 +22,14 @@ package org.neo4j.cypher.internal.commands.expressions
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
 
 case class CoalesceFunction(children: Expression*) extends Expression {
   def apply(ctx: ExecutionContext)(implicit state: QueryState): Any =
     children.
       view.
       map(expression => expression(ctx)).
-      find(value => !(value == null || IsUnknown(value))) match {
+      find(value => ! IsUnbound.orNull(value)) match {
       case None    => null
       case Some(x) => x
     }

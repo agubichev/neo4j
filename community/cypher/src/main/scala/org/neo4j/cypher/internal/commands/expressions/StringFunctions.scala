@@ -25,7 +25,7 @@ import org.neo4j.graphdb.{PropertyContainer, Relationship, Node}
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.spi.QueryContext
-import org.neo4j.cypher.internal.commands.values.KeyToken
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, KeyToken}
 import org.neo4j.cypher.internal.pipes.QueryState
 import org.neo4j.cypher.internal.commands.TernaryPredicate
 
@@ -63,6 +63,7 @@ trait StringHelper {
     case x: String          => "\"" + x + "\""
     case v: KeyToken        => v.name
     case Some(x)            => x.toString
+    case IsUnbound          => "<null>"
     case null               => "<null>"
     case x                  => x.toString
   }

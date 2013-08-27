@@ -27,7 +27,7 @@ import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.cypher.internal.executionplan.builders.PatternGraphBuilder
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
 
 case class PatternPredicate(pathPattern: Seq[Pattern], predicate:Predicate = True()) extends Predicate
   with PathExtractor
@@ -46,7 +46,7 @@ case class PatternPredicate(pathPattern: Seq[Pattern], predicate:Predicate = Tru
     val returnNull = interestingPoints.exists(key => ctx.get(key) match {
       case None       => throw new ThisShouldNotHappenError("Andres", "This execution plan should not exist.")
       case Some(null) => true
-      case Some(x)    => IsUnknown(x)
+      case Some(x)    => IsUnbound(x) || IsUnknown(x)
     })
 
     if (returnNull) {

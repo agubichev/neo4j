@@ -1394,10 +1394,12 @@ order by a.COL1
     relate(a, b)
     val result = parseAndExecute( """START n=node(1)
 MATCH n-->x0-[?]->x1
-WHERE has(x1.type) AND x1.type="http://dbpedia.org/ontology/Film" AND has(x1.`label`) AND x1.`label`="Reservoir Dogs"
+WHERE x1.type="http://dbpedia.org/ontology/Film"
 RETURN x0.name""")
     assert(List(Map("x0.name" -> null)) === result.toList)
   }
+
+  //  has(x1.type) AND x1.type="http://dbpedia.org/ontology/Film" AND has(x1.`label`) AND x1.`label`="Reservoir Dogs"
 
   @Test def shouldBeAbleToHandleMultipleOptionalRelationshipsAndMultipleStartPoints() {
     val a = createNode("A")

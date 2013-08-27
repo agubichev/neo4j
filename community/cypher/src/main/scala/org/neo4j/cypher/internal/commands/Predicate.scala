@@ -19,14 +19,18 @@
  */
 package org.neo4j.cypher.internal.commands
 
-import org.neo4j.cypher.internal.commands.expressions.{Literal, Expression}
+import org.neo4j.cypher.internal.commands.expressions.Expression
 import org.neo4j.graphdb._
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.CypherTypeException
 import org.neo4j.cypher.internal.helpers.{CastSupport, IsCollection, CollectionSupport}
 import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.commands.values._
+import org.neo4j.cypher.internal.commands.expressions.Literal
+import scala.Some
+import org.neo4j.cypher.internal.symbols.AnyType
+import org.neo4j.cypher.internal.symbols.SymbolTable
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.{IsFalse, Ternary, IsUnknown, KeyToken}
 
 abstract class Predicate extends Expression {
   def apply(ctx: ExecutionContext)(implicit state: QueryState): Boolean = isMatch(ctx)
@@ -75,7 +79,7 @@ object Predicate {
 
 case class NullablePredicate(inner: Predicate, exp: Seq[(Expression, Boolean)]) extends TernaryPredicate {
   override def ternaryIsMatch(m: ExecutionContext)(implicit state: QueryState): Ternary =  {
-    val nullable = exp.find { case (e, res) => IsUnknown.orNull(e(m)) }
+    val nullable = exp.find { case (e, res) => IsUnbound.orNull(e(m)) }
     nullable match {
       case Some((_, res)) => Ternary(res)
       case _              => inner.ternaryIsMatch(m)
@@ -193,7 +197,7 @@ case class HasRelationshipTo(from: Expression, to: Expression, dir: Direction, r
       return IsFalse
     }
 
-    if (IsUnknown(fromVal) || IsUnknown(toVal)) {
+    if (IsUnbound(fromVal) || IsUnbound(toVal)) {
       return IsUnknown
     }
 
@@ -221,7 +225,7 @@ case class HasRelationship(from: Expression, dir: Direction, relType: Seq[String
     case null =>
       IsFalse
 
-    case IsUnknown =>
+    case IsUnbound =>
       IsUnknown
 
     case fromNode: Node =>
@@ -240,11 +244,7 @@ case class HasRelationship(from: Expression, dir: Direction, relType: Seq[String
 }
 
 case class IsNull(expression: Expression) extends Predicate {
-  def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = expression(m) match {
-    case null      => true
-    case IsUnknown => true
-    case _         => false
-  }
+  def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = IsUnbound.orNull(expression(m))
 
   override def toString(): String = expression + " IS NULL"
   def containsIsNull = true
@@ -273,7 +273,7 @@ case class Has(identifier: Expression, propertyKey: KeyToken) extends TernaryPre
     case pc: Relationship =>
       Ternary(propertyKey.getOptId(state.query).exists(state.query.relationshipOps.hasProperty(pc, _)))
     case null             => IsFalse
-    case IsUnknown        => IsUnknown
+    case IsUnbound        => IsUnknown
     case _                => throw new CypherTypeException("Expected " + identifier + " to be a property container.")
   }
 
@@ -362,7 +362,7 @@ case class HasLabel(entity: Expression, label: KeyToken)  extends TernaryPredica
 
   override def ternaryIsMatch(m: ExecutionContext)(implicit state: QueryState): Ternary = entity(m) match {
 
-    case IsUnknown =>
+    case IsUnbound =>
       IsUnknown
 
     case null =>

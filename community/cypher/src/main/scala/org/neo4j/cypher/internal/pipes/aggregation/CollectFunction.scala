@@ -23,7 +23,7 @@ import collection.mutable.ListBuffer
 import org.neo4j.cypher.internal.commands.expressions.Expression
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
 
 
 class CollectFunction(value:Expression) extends AggregationFunction {
@@ -31,9 +31,8 @@ class CollectFunction(value:Expression) extends AggregationFunction {
 
   def apply(data: ExecutionContext)(implicit state:QueryState) {
     value(data) match {
-      case null         =>
-      case IsUnknown =>
-      case v            => collection += v
+      case v if IsUnbound.orNull(v) =>
+      case v                        => collection += v
     }
   }
 

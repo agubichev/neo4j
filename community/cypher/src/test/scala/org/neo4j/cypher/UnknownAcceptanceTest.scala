@@ -381,7 +381,19 @@ class UnknownAcceptanceTest extends ExecutionEngineHelper {
   }
 
   @Test
-  def should_reveal_unknown_value_through_str_function() {
+  def should_not_reveal_unknown_value_through_str_function() {
+    // given
+    createLabeledNode(Map("key1" -> "value1"), "Person")
+
+    // when
+    val result = parseAndExecute("START n=node(*) MATCH (n:Person)-[r?]-(m) RETURN STR(m=n) as result" )
+
+    // then
+    assert( List("unknown") === result.columnAs[Node]("result").toList)
+  }
+
+  @Test
+  def should_not_reveal_unbound_value_through_str_function() {
     // given
     createLabeledNode(Map("key1" -> "value1"), "Person")
 
@@ -389,7 +401,7 @@ class UnknownAcceptanceTest extends ExecutionEngineHelper {
     val result = parseAndExecute("START n=node(*) MATCH (n:Person)-[r?]-(m) RETURN STR(m) as result" )
 
     // then
-    assert( List("unknown") === result.columnAs[Node]("result").toList)
+    assert( List("<null>") === result.columnAs[Node]("result").toList)
   }
 
   @Test

@@ -35,6 +35,9 @@ object IsKnown {
   def unapply(v: Any) = Ternary(v).toKnownOption
 }
 
+/**
+ * This represents truth in ternary (3-valued) logic
+ */
 case object IsTrue extends Ternary(isKnown = true, isTrue = true, isFalse = false) {
   override val negated: Ternary = IsFalse
 
@@ -45,6 +48,9 @@ case object IsTrue extends Ternary(isKnown = true, isTrue = true, isFalse = fals
   override def toString() = "true"
 }
 
+/**
+ * This represents falsehood in ternary (3-valued) logic
+ */
 case object IsFalse extends Ternary(isKnown = true, isTrue = false, isFalse = true) {
   override val negated: Ternary = IsTrue
 
@@ -56,10 +62,7 @@ case object IsFalse extends Ternary(isKnown = true, isTrue = false, isFalse = tr
 }
 
 /**
- * This singleton value represents unbound entities inside expressions or predicates.
- *
- * It currently only may occur due to patterns containing optional relationships which may introduce
- * unbound identifiers.  It mainly serves to differentiate this situation from plain null values.
+ *  This represents unknown information or a maybe truth value in ternary (3-valued) logic
  */
 case object IsUnknown extends Ternary(isKnown = false, isTrue = false, isFalse = false) {
   override val negated: Ternary = IsUnknown
@@ -70,8 +73,6 @@ case object IsUnknown extends Ternary(isKnown = false, isTrue = false, isFalse =
   override def xor(other: Ternary): Ternary = IsUnknown
   override def apply(other: Any): Boolean = IsUnknown == other
   override def toString() = "unknown"
-
-  def orNull(v: Any): Boolean = null == v || IsUnknown(v)
 }
 
 object Ternary {

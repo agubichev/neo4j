@@ -124,6 +124,7 @@ class TernaryTest extends Assertions {
     assert(IsFalse === Ternary(v = IsFalse))
     assert(IsUnknown === Ternary(v = IsUnknown))
     assert(IsUnknown === Ternary(v = null))
+    assert(IsUnknown === Ternary(v = IsUnbound))
     assert(IsUnknown === Ternary(v = someValue))
   }
 

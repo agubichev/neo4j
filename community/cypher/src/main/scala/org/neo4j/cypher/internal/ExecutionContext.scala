@@ -23,7 +23,7 @@ import mutation.UpdateAction
 import pipes.MutableMaps
 import collection.{immutable, Iterator}
 import collection.mutable.{Queue, Map => MutableMap}
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.IsUnbound
 
 object ExecutionContext {
   def empty = new ExecutionContext()
@@ -74,7 +74,7 @@ case class ExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty,
     createWithNewMap(MutableMaps.create(this.m) += newEntry)
 
   def newWithUnknownEntries(newEntries: Iterable[String]): ExecutionContext =
-    createWithNewMap(MutableMaps.create(this.m) ++= newEntries.map(_ -> IsUnknown))
+    createWithNewMap(MutableMaps.create(this.m) ++= newEntries.map(_ -> IsUnbound))
 
   override def clone(): ExecutionContext = newFrom(m)
 

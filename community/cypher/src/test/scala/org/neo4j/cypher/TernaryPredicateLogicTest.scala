@@ -24,14 +24,14 @@ import org.neo4j.cypher.internal.commands.expressions.Identifier
 import org.neo4j.cypher.internal.ExecutionContext
 import org.junit.{Ignore, Test}
 import org.neo4j.cypher.internal.commands.Equals
-import org.neo4j.cypher.internal.commands.values.IsUnknown
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown}
 
 class TernaryPredicateLogicTest extends Assertions {
 
   @Test @Ignore
   def should_evaluate_equal_of_unknowns_as_unknown() {
     // given
-    val ctx = ExecutionContext.from("a" -> IsUnknown, "b" -> IsUnknown)
+    val ctx = ExecutionContext.from("a" -> IsUnbound, "b" -> IsUnbound)
 
     // when
     val predicate = Equals(Identifier("a"), Identifier("b"))

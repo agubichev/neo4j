@@ -25,7 +25,7 @@ import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.helpers.CollectionSupport
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
-import org.neo4j.cypher.internal.commands.values.{IsUnknown, Ternary}
+import org.neo4j.cypher.internal.commands.values.{IsUnbound, IsUnknown, Ternary}
 
 abstract class InCollection(collection: Expression, id: String, predicate: Predicate)
   extends TernaryPredicate
@@ -34,11 +34,15 @@ abstract class InCollection(collection: Expression, id: String, predicate: Predi
 
   def seqMethod[U](f: Seq[U])(p: (U) => Ternary): Ternary
 
-  override def ternaryIsMatch(m: ExecutionContext)(implicit state: QueryState): Ternary = collection(m) match {
-    case IsUnknown => IsUnknown
-    case coll      =>
-      val seq = makeTraversable(coll).toSeq
-      seqMethod(seq)(item => predicate.ternaryIsMatch(m.newWith(id -> item)))
+  override def ternaryIsMatch(m: ExecutionContext)(implicit state: QueryState): Ternary = {
+    val value = collection(m)
+    value match {
+      case IsUnbound => IsUnknown
+      case IsUnknown => IsUnknown
+      case coll      =>
+        val seq = makeTraversable(coll).toSeq
+        seqMethod(seq)(item => predicate.ternaryIsMatch(m.newWith(id -> item)))
+    }
   }
 
   def name: String
