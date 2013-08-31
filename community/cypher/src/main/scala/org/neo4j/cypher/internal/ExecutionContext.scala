@@ -19,10 +19,9 @@
  */
 package org.neo4j.cypher.internal
 
-import mutation.UpdateAction
 import pipes.MutableMaps
 import collection.{immutable, Iterator}
-import collection.mutable.{Queue, Map => MutableMap}
+import collection.mutable.{Map => MutableMap}
 
 object ExecutionContext {
   def empty = new ExecutionContext()
@@ -30,9 +29,9 @@ object ExecutionContext {
   def from(x: (String, Any)*) = new ExecutionContext().newWith(x)
 }
 
-case class ExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty,
-                            mutationCommands: Queue[UpdateAction] = Queue.empty)
+case class ExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty)
   extends MutableMap[String, Any] {
+
   def get(key: String): Option[Any] = m.get(key)
 
   def iterator: Iterator[(String, Any)] = m.iterator
@@ -45,15 +44,8 @@ case class ExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty,
     m.foreach(f)
   }
 
-  def +=(kv: (String, Any)) = {
-    m += kv
-    this
-  }
-
-  def -=(key: String) = {
-    m -= key
-    this
-  }
+  def +=(kv: (String, Any)) = ???
+  def -=(key: String) = ???
 
   override def toMap[T, U](implicit ev: (String, Any) <:< (T, U)): immutable.Map[T, U] = m.toMap(ev)
 
@@ -63,16 +55,13 @@ case class ExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty,
   def newWith(newEntries: scala.collection.Map[String, Any]) =
     createWithNewMap(MutableMaps.create(this.m) ++= newEntries)
 
-  def newFrom(newEntries: Seq[(String, Any)]) =
-    createWithNewMap(MutableMaps.create(newEntries: _*))
-
   def newFrom(newEntries: scala.collection.Map[String, Any]) =
     createWithNewMap(MutableMaps.create(newEntries))
 
   def newWith(newEntry: (String, Any)) =
     createWithNewMap(MutableMaps.create(this.m) += newEntry)
 
-  override def clone(): ExecutionContext = newFrom(m)
+  override def clone(): ExecutionContext = new ExecutionContext(m.clone())
 
   protected def createWithNewMap(newMap: MutableMap[String, Any]) = {
     copy(m = newMap)

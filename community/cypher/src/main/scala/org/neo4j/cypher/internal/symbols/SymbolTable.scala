@@ -21,13 +21,14 @@ package org.neo4j.cypher.internal.symbols
 
 import org.neo4j.cypher.{CypherException, CypherTypeException, SyntaxException}
 import collection.Map
+import org.neo4j.cypher.internal.Slot
 
-case class SymbolTable(identifiers: Map[String, CypherType] = Map.empty) {
-  def hasIdentifierNamed(name: String): Boolean = identifiers.contains(name)
+case class SymbolTable(identifiers: Map[Slot, CypherType] = Map.empty) {
+  def hasIdentifierNamed(name: Slot): Boolean = identifiers.contains(name)
   def size: Int = identifiers.size
   def isEmpty: Boolean = identifiers.isEmpty
 
-  def add(key: String, typ: CypherType): SymbolTable = identifiers.get(key) match {
+  def add(key: Slot, typ: CypherType): SymbolTable = identifiers.get(key) match {
     case Some(existingType) if typ.isAssignableFrom(existingType) =>
       SymbolTable(identifiers + (key -> typ.mergeDown(existingType)))
     case Some(existingType)                                       =>
@@ -36,31 +37,30 @@ case class SymbolTable(identifiers: Map[String, CypherType] = Map.empty) {
       SymbolTable(identifiers + (key -> typ))
   }
 
-  def add(value: Map[String, CypherType]): SymbolTable = {
+  def add(value: Map[Slot, CypherType]): SymbolTable = {
     checkNoOverlapsExist(value)
 
     SymbolTable(identifiers ++ value)
   }
 
-
-  private def checkNoOverlapsExist(value: Map[String, CypherType]) {
+  private def checkNoOverlapsExist(value: Map[Slot, CypherType]) {
     value.foreach {
       case (id, t) => add(id, t)
     }
   }
 
-  def filter(f: String => Boolean): SymbolTable = SymbolTable(identifiers.filterKeys(f))
-  def keys: Seq[String] = identifiers.map(_._1).toSeq
+  def filter(f: Slot => Boolean): SymbolTable = SymbolTable(identifiers.filterKeys(f))
+  def keys: Seq[Slot] = identifiers.map(_._1).toSeq
   def missingSymbolTableDependencies(x: TypeSafe) = x.symbolTableDependencies.filterNot( dep => identifiers.exists(_._1 == dep))
 
-    def evaluateType(name: String, expectedType: CypherType): CypherType = identifiers.get(name) match {
-    case Some(typ) if (expectedType.isAssignableFrom(typ)) => typ
-    case Some(typ) if (typ.isAssignableFrom(expectedType)) => typ
-    case Some(typ)                                         => throw new CypherTypeException("Expected `%s` to be a %s but it was a %s".format(name, expectedType, typ))
-    case None                                              => throw new SyntaxException("Unknown identifier `%s`.".format(name))
-  }
+    def evaluateType(name: Slot, expectedType: CypherType): CypherType = identifiers.get(name) match {
+      case Some(typ) if expectedType.isAssignableFrom(typ) => typ
+      case Some(typ) if typ.isAssignableFrom(expectedType) => typ
+      case Some(typ)                                       => throw new CypherTypeException("Expected `%s` to be a %s but it was a %s".format(name, expectedType, typ))
+      case None                                            => throw new SyntaxException("Unknown identifier `%s`.".format(name))
+    }
 
-  def checkType(name: String, expectedType: CypherType): Boolean = try {
+  def checkType(name: Slot, expectedType: CypherType): Boolean = try {
     evaluateType(name, expectedType)
     true
   } catch {

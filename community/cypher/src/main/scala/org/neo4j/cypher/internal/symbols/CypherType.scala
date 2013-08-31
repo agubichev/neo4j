@@ -21,6 +21,7 @@ package org.neo4j.cypher.internal.symbols
 
 import org.neo4j.cypher.CypherTypeException
 import org.neo4j.cypher.internal.helpers.{IsCollection, IsMap}
+import org.neo4j.cypher.internal.Slot
 
 trait CypherType {
   def isAssignableFrom(other: CypherType): Boolean = this.getClass.isAssignableFrom(other.getClass)
@@ -69,9 +70,9 @@ trait TypeSafe {
     symbolTableDependencies.forall(name => check(symbols, name))
   }
 
-  def symbolTableDependencies: Set[String]
+  def symbolTableDependencies: Set[Slot]
 
-  private def check(symbols: SymbolTable, name: String): Boolean = symbols.identifiers.contains(name)
+  private def check(symbols: SymbolTable, name: Slot): Boolean = symbols.identifiers.contains(name)
 }
 
 

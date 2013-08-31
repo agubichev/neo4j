@@ -23,10 +23,10 @@ import collection.Seq
 import expressions.{Closure, Expression}
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.helpers.CollectionSupport
-import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.{Slot, ExecutionContext}
 import org.neo4j.cypher.internal.pipes.QueryState
 
-abstract class InCollection(collection: Expression, id: String, predicate: Predicate)
+abstract class InCollection(collection: Expression, id: Slot, predicate: Predicate)
   extends Predicate
   with CollectionSupport
   with Closure {
@@ -36,7 +36,7 @@ abstract class InCollection(collection: Expression, id: String, predicate: Predi
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Boolean = {
     val seq = makeTraversable(collection(m)).toSeq
 
-    seqMethod(seq)(item =>predicate.isMatch(m.newWith(id -> item)))
+    seqMethod(seq)(item => predicate.isMatch(m.newWith(id -> item)))
   }
 
   def name: String
