@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.pipes.matching
 
 import collection.Set
 import collection.mutable.{Map => MutableMap}
-import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.{Relationship, Node}
 import org.neo4j.cypher.internal.ExecutionContext
 
 /**
@@ -31,29 +31,32 @@ import org.neo4j.cypher.internal.ExecutionContext
  * It's also used to emit the subgraph when the whole pattern has been matched (that's the toMap method)
  */
 abstract class History {
-  val seen : Set[MatchingPair]
+  def removeSeen(relationships: Set[PatternRelationship], includeOptionals : Boolean): Set[PatternRelationship] =
+    relationships.filterNot(r => !includeOptionals && r.optional || hasSeen(r))
 
-  def filter(relationships: Set[PatternRelationship], includeOptionals : Boolean): Set[PatternRelationship] = relationships.filterNot(r => includeOptionals == false && r.optional == true || matches(r))
-
-  def filter(relationships: Seq[GraphRelationship]): Seq[GraphRelationship] = relationships.filterNot(gr => gr match {
-    case SingleGraphRelationship(r) => matches(r)
-    case VariableLengthGraphRelationship(p) => matches(p)
+  def removeSeen(relationships: Seq[GraphRelationship]): Seq[GraphRelationship] = relationships.filterNot(gr => gr match {
+    case SingleGraphRelationship(r) => hasSeen(r)
+    case VariableLengthGraphRelationship(p) => hasSeen(p)
   })
 
-  def matches(p : Any) : Boolean
+  def hasSeen(p : Any): Boolean
 
   def add(pair: MatchingPair): History
 
   val toMap: ExecutionContext
 
   def contains(p : MatchingPair) : Boolean
-  override def toString: String = "History(%s)".format(seen.mkString("[", "], [", "]"))
+//  override def toString: String = "History(%s)".format(seen.mkString("[", "], [", "]"))
 }
 
-class InitialHistory(source : ExecutionContext) extends History {
-  val seen = Set.empty[MatchingPair]
+class InitialHistory(source : ExecutionContext, alreadySeen: Seq[Relationship]) extends History {
 
-  def matches(p: Any) = false
+  println(alreadySeen)
+
+  def hasSeen(p: Any) = p match {
+    case r: Relationship => alreadySeen.contains(r)
+    case _               => false
+  }
 
   def contains(p : MatchingPair) = false
 
@@ -63,9 +66,7 @@ class InitialHistory(source : ExecutionContext) extends History {
 }
 
 class AddedHistory(val parent : History, val pair : MatchingPair) extends History {
-  lazy val seen = parent.seen + pair
-
-  def matches(p: Any) = pair.matches(p) || parent.matches(p)
+  def hasSeen(p: Any) = pair.matches(p) || parent.hasSeen(p)
 
   def contains(p : MatchingPair) = pair == p || parent.contains(p)
 

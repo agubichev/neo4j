@@ -41,11 +41,18 @@ class PatterMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predicat
     } else {
       val boundRels: Seq[Map[String, MatchingPair]] = createListOfBoundRelationshipsWithHangingNodes(undirectedBoundRelationships, bindings)
 
-      boundRels.map(relMap => createPatternMatcher(relMap ++ boundPairs, false, sourceRow, state)).reduceLeft(_ ++ _)
+      boundRels.
+        flatMap(relMap => createPatternMatcher(relMap ++ boundPairs, includeOptionals = false, sourceRow, state))
     }
 
+    println("apa " + mandatoryPattern)
+
+
     if (patternGraph.containsOptionalElements)
-      mandatoryPattern.flatMap(innerMatch => createPatternMatcher(extractBoundMatchingPairs(innerMatch), true, sourceRow, state))
+      mandatoryPattern.flatMap {
+        innerMatch =>
+          val pairs: Map[String, MatchingPair] = extractBoundMatchingPairs(innerMatch)
+          createPatternMatcher(pairs, includeOptionals = true, sourceRow, state)}
     else
       mandatoryPattern
   }
@@ -102,29 +109,29 @@ class PatterMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predicat
         case rel: Relationship => {
           val pr = element.asInstanceOf[PatternRelationship]
 
-          val x = pr.dir match {
-            case Direction.OUTGOING => Some((pr.startNode, pr.endNode))
-            case Direction.INCOMING => Some((pr.endNode, pr.startNode))
-            case Direction.BOTH     => None
+          def extractMatchingPairs(startNode:PatternNode, endNode:PatternNode): Seq[(String, MatchingPair)] = {
+            val t1 = a.key -> MatchingPair(a, rel.getStartNode)
+            val t2 = b.key -> MatchingPair(b, rel.getEndNode)
+            val t3 = pr.key -> MatchingPair(pr, rel)
+
+            Seq(t1, t2, t3)
           }
 
           //We only want directed bound relationships. Undirected relationship patterns
           //have to be treated a little differently
-          x match {
-            case Some((a, b)) => {
-              val t1 = a.key -> MatchingPair(a, rel.getStartNode)
-              val t2 = b.key -> MatchingPair(b, rel.getEndNode)
-              val t3 = pr.key -> MatchingPair(pr, rel)
-
-              Seq(t1, t2, t3)
-            }
-            case None         => Nil
+          val x: Seq[(String, MatchingPair)] = pr.dir match {
+            case Direction.OUTGOING => extractMatchingPairs((pr.startNode, pr.endNode))
+            case Direction.INCOMING => extractMatchingPairs((pr.endNode, pr.startNode))
+            case Direction.BOTH     => Seq(pr.key->pr.)
           }
+
+
+          x.toMap
         }
       }
 
 
-    case _ => Nil
+    case (key, _) => println(key);Nil
   }
 }
 
