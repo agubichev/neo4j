@@ -46,7 +46,7 @@ case class PathExpression(pathPattern: Seq[Pattern], predicate:Predicate=True())
     val returnNull = interestingPoints.exists(key => ctx.get(key) match {
       case None       => throw new ThisShouldNotHappenError("Andres", "This execution plan should not exist.")
       case Some(null) => true
-      case Some(x)    => false
+      case Some(_)    => false
     })
 
     if (returnNull) {
