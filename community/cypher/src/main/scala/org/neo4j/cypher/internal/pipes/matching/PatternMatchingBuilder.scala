@@ -25,7 +25,7 @@ import collection.Map
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
 
-class PatternMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predicate]) extends MatcherBuilder {
+class PatternMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predicate], identifiersInClause: Seq[String]) extends MatcherBuilder {
   def getMatches(sourceRow: ExecutionContext, state:QueryState): Traversable[ExecutionContext] = {
     val bindings: Map[String, Any] = sourceRow.filter(_._2.isInstanceOf[PropertyContainer])
     val boundPairs: Map[String, MatchingPair] = extractBoundMatchingPairs(bindings)
@@ -88,9 +88,9 @@ class PatternMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predica
 
   private def createPatternMatcher(boundPairs: Map[String, MatchingPair], includeOptionals: Boolean, source: ExecutionContext, state:QueryState): Traversable[ExecutionContext] = {
     val patternMatcher = if (patternGraph.hasDoubleOptionals)
-      new DoubleOptionalPatternMatcher(boundPairs, predicates, includeOptionals, source, state, patternGraph.doubleOptionalPaths)
+      new DoubleOptionalPatternMatcher(boundPairs, predicates, includeOptionals, source, state, patternGraph.doubleOptionalPaths, identifiersInClause)
     else
-      new PatternMatcher(boundPairs, predicates, includeOptionals, source, state)
+      new PatternMatcher(boundPairs, predicates, includeOptionals, source, state, identifiersInClause)
 
     if (includeOptionals)
       patternMatcher.map(matchedGraph => matchedGraph ++ createNullValuesForOptionalElements(matchedGraph))

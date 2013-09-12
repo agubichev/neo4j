@@ -58,7 +58,7 @@ class MatchingContext(boundIdentifiers: SymbolTable,
     if(SimplePatternMatcherBuilder.canHandle(patternGraph)) {
       new SimplePatternMatcherBuilder(patternGraph, predicates, symbols)
     } else {
-      new PatternMatchingBuilder(patternGraph, predicates)
+      new PatternMatchingBuilder(patternGraph, predicates, Seq.empty)
     }
   }
 }

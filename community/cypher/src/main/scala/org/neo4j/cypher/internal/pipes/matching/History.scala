@@ -46,7 +46,7 @@ abstract class History {
   val toMap: ExecutionContext
 
   def contains(p : MatchingPair) : Boolean
-//  override def toString: String = "History(%s)".format(seen.mkString("[", "], [", "]"))
+
 }
 
 class InitialHistory(source : ExecutionContext, alreadySeen: Seq[Relationship]) extends History {
@@ -75,14 +75,14 @@ class AddedHistory(val parent : History, val pair : MatchingPair) extends Histor
 
   def toSeq(p: MatchingPair) : Seq[(String,Any)] = {
     p match {
-      case MatchingPair(pe: PatternNode, entity: Node) => Seq(pe.key -> entity)
-      case MatchingPair(pe: PatternRelationship, entity: SingleGraphRelationship) => Seq(pe.key -> entity.rel)
-      case MatchingPair(pe: VariableLengthPatternRelationship, null) => Seq(pe.key -> null) ++ pe.relIterable.map( _ -> null)
-      case MatchingPair(pe: PatternRelationship, null) => Seq(pe.key -> null)
+      case MatchingPair(pe: PatternNode, entity: Node)                                                  => Seq(pe.key -> entity)
+      case MatchingPair(pe: PatternRelationship, entity: SingleGraphRelationship)                       => Seq(pe.key -> entity.rel)
+      case MatchingPair(pe: VariableLengthPatternRelationship, null)                                    => Seq(pe.key -> null) ++ pe.relIterable.map(_ -> null)
+      case MatchingPair(pe: PatternRelationship, null)                                                  => Seq(pe.key -> null)
       case MatchingPair(pe: VariableLengthPatternRelationship, entity: VariableLengthGraphRelationship) => {
         relationshipIterable(pe, entity) match {
           case Some(aPair) => Seq(pe.key -> entity.path, aPair)
-          case None => Seq(pe.key -> entity.path)
+          case None        => Seq(pe.key -> entity.path)
         }
 
       }

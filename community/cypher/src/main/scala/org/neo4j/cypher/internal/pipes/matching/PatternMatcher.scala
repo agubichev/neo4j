@@ -29,7 +29,8 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
                      predicates: Seq[Predicate],
                      includeOptionals: Boolean,
                      source:ExecutionContext,
-                     state:QueryState)
+                     state:QueryState,
+                     identifiersInClause: Seq[String])
   extends Traversable[ExecutionContext] {
   val boundNodes: Map[String, MatchingPair] = bindings.filter(_._2.patternElement.isInstanceOf[PatternNode])
   val boundRels: Map[String, MatchingPair] = bindings.filter(_._2.patternElement.isInstanceOf[PatternRelationship])
@@ -44,7 +45,7 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
   def createInitialHistory: InitialHistory = {
 
     val relationshipsInContextButNotInPattern = source.collect {
-      case (key, r: Relationship) if !boundRels.contains(key) => r
+      case (key, r: Relationship) if !boundRels.contains(key) && identifiersInClause.contains(key) => r
     }.toSeq
 
     new InitialHistory(source, relationshipsInContextButNotInPattern)
