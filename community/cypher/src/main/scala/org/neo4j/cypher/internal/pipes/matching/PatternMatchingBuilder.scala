@@ -25,7 +25,9 @@ import collection.Map
 import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryState
 
-class PatternMatchingBuilder(patternGraph: PatternGraph, predicates: Seq[Predicate], identifiersInClause: Seq[String]) extends MatcherBuilder {
+class PatternMatchingBuilder(patternGraph: PatternGraph,
+                             predicates: Seq[Predicate],
+                             identifiersInClause: Seq[String]) extends MatcherBuilder {
   def getMatches(sourceRow: ExecutionContext, state:QueryState): Traversable[ExecutionContext] = {
     val bindings: Map[String, Any] = sourceRow.filter(_._2.isInstanceOf[PropertyContainer])
     val boundPairs: Map[String, MatchingPair] = extractBoundMatchingPairs(bindings)

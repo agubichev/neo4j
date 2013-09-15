@@ -39,7 +39,7 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
     val r2 = RelatedTo("b", "c", "r2", Seq.empty, Direction.BOTH)
 
     val patternGraph = buildPatternGraph(symbols, Seq(r1, r2))
-    val matcher = new SimplePatternMatcherBuilder(patternGraph, Seq(), symbols)
+    val matcher = new SimplePatternMatcherBuilder(patternGraph, Seq(), symbols, Seq("a", "r1", "b", "r2", "c"))
     val n0 = createNode()
     val n1 = createNode()
     relate(n0, n1)
@@ -53,11 +53,12 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
 
   @Test def should_exclude_matches_overlapping_previously_found_relationships() {
     // Given MATCH (a)-[r1]-(b)-[r2]-(c)
+    // This matcher is responsible for (b)-[r2]-(c), and needs to check the result from previous steps
     val r2 = RelatedTo("b", "c", "r2", Seq.empty, Direction.BOTH)
 
     val symbolTable = symbols.add("b", NodeType()).add("r", RelationshipType())
     val patternGraph: PatternGraph = buildPatternGraph(symbolTable, Seq(r2))
-    val matcher = new SimplePatternMatcherBuilder(patternGraph, Seq(), symbolTable)
+    val matcher = new SimplePatternMatcherBuilder(patternGraph, Seq(), symbolTable, Seq("a", "r", "b", "r2", "c"))
     val n0 = createNode()
     val n1 = createNode()
     val rel = relate(n0, n1)
@@ -69,5 +70,26 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
 
     // Then
     assert(result === List.empty)
+  }
+
+  @Test def should_ignore_earlier_matches_overlapping_previously_found_relationships() {
+    // Given MATCH (b)-[r2]-(c), with a and r1 already in scope
+    // This matcher is responsible for (b)-[r2]-(c), and needs to check the result from previous steps
+    val r2 = RelatedTo("b", "c", "r2", Seq.empty, Direction.BOTH)
+
+    val symbolTable = symbols.add("b", NodeType()).add("r", RelationshipType())
+    val patternGraph: PatternGraph = buildPatternGraph(symbolTable, Seq(r2))
+    val matcher = new SimplePatternMatcherBuilder(patternGraph, Seq(), symbolTable, Seq("b", "r2", "c"))
+    val n0 = createNode()
+    val n1 = createNode()
+    val rel = relate(n0, n1)
+
+    val startingState = ExecutionContext.empty.newWith(Map("a" -> n0, "b" -> n1, "r" -> rel))
+
+    // When
+    val result = matcher.getMatches(startingState, queryState).toList
+
+    // Then
+    assert(result === List(Map("a" -> n0, "b" -> n1, "r" -> rel, "r2" -> rel, "c" -> n0)))
   }
 }

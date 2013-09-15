@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.executionplan.builders
 import org.neo4j.cypher.internal.pipes.{MatchPipe, Pipe}
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.executionplan.{PlanBuilder, ExecutionPlanInProgress}
-import org.neo4j.cypher.internal.symbols.{SymbolTable, NodeType}
+import org.neo4j.cypher.internal.symbols.SymbolTable
 import org.neo4j.cypher.internal.pipes.matching.{PatternRelationship, PatternNode, PatternGraph}
 import org.neo4j.cypher.SyntaxException
 import org.neo4j.cypher.internal.commands.ShortestPath
@@ -82,10 +82,6 @@ trait PatternGraphBuilder {
   def buildPatternGraph(symbols: SymbolTable, patterns: Seq[Pattern]): PatternGraph = {
     val patternNodeMap: scala.collection.mutable.Map[String, PatternNode] = scala.collection.mutable.Map()
     val patternRelMap: scala.collection.mutable.Map[String, PatternRelationship] = scala.collection.mutable.Map()
-
-    symbols.identifiers.
-      filter(_._2 == NodeType()). //Find all bound nodes...
-      foreach(id => patternNodeMap(id._1) = new PatternNode(id._1)) //...and create patternNodes for them
 
     patterns.foreach(_ match {
       case RelatedTo(left, right, rel, relType, dir, optional) => {

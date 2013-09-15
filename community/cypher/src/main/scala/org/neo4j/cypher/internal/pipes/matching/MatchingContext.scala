@@ -56,7 +56,7 @@ class MatchingContext(boundIdentifiers: SymbolTable,
 
   private def decideWhichMatcherToUse(): MatcherBuilder = {
     if(SimplePatternMatcherBuilder.canHandle(patternGraph)) {
-      new SimplePatternMatcherBuilder(patternGraph, predicates, symbols)
+      new SimplePatternMatcherBuilder(patternGraph, predicates, symbols, Seq.empty)
     } else {
       new PatternMatchingBuilder(patternGraph, predicates, Seq.empty)
     }
