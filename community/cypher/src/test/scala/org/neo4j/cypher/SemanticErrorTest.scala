@@ -35,7 +35,7 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
 
   @Test def defineNodeAndTreatItAsARelationship() {
     test("start r=node(0) match a-[r]->b return r",
-      vLegacy -> "Some identifiers are used as both relationships and nodes: r",
+      vLegacy -> "Expected `r` to be a Relationship but it was a Node",
       v2_0    -> "Type mismatch: r already defined with conflicting type Node (expected Relationship) (line 1, column 26)"
     )
   }
