@@ -280,7 +280,7 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
 
   def toLegacyPatterns(makeOutgoing: Boolean) = Seq(toLegacyNode)
 
-  def toLegacyNode = commands.SingleNode(legacyName, labels.map(x => UnresolvedLabel(x.name)))
+  def toLegacyNode = commands.SingleNode(legacyName, labels.map(x => UnresolvedLabel(x.name)), properties = legacyProps)
 
   def toLegacyCreates = {
     val (_, _, labels, bare) = legacyDetails
@@ -367,7 +367,7 @@ sealed abstract class RelationshipPattern extends AstNode {
           types.map(_.name).distinct, dir, relIterator, optional)
       }
       case None             => commands.RelatedTo(left.toLegacyNode, right.toLegacyNode, legacyName,
-        types.map(_.name).distinct, dir, optional)
+        types.map(_.name).distinct, dir, optional, toLegacyProperties)
     }
   }
 

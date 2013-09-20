@@ -25,6 +25,7 @@ import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.commands.{Pattern => LegacyPattern}
 import org.neo4j.graphdb.Direction
 import org.neo4j.cypher.internal.parser.v2_0.ast
+import org.neo4j.cypher.internal.commands.expressions.Literal
 
 class PatternPartTest extends ParserTest[ast.PatternPart, Seq[LegacyPattern]] with Patterns with Expressions {
   implicit val parserToTest = PatternPart ~ EOI
@@ -34,6 +35,34 @@ class PatternPartTest extends ParserTest[ast.PatternPart, Seq[LegacyPattern]] wi
   @Test def label_literal_list_parsing() {
     parsing("(a)-[r:FOO|BAR]->(b)") or
     parsing("a-[r:FOO|:BAR]->b") shouldGive
-      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "r", Seq("FOO", "BAR"), Direction.OUTGOING, optional = false))
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "r", Seq("FOO", "BAR"), Direction.OUTGOING, optional = false, Map.empty))
+  }
+
+  @Test def properties_in_node_patterns() {
+    parsing("(a {foo:'bar'})") shouldGive
+      Seq(SingleNode("a", properties = Map("foo" -> Literal("bar"))))
+
+    parsing("(a {foo:'bar', bar:'baz'})") shouldGive
+      Seq(SingleNode("a", properties = Map("foo" -> Literal("bar"), "bar" -> Literal("baz"))))
+
+    parsing("(a {})") shouldGive
+      Seq(SingleNode("a", properties = Map.empty))
+  }
+
+  @Test def properties_in_relationship_patterns() {
+    parsing("(a)-[{foo:'bar'}]->(b)") shouldGive
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "  UNNAMED3", Seq.empty, Direction.OUTGOING, properties = Map("foo" -> Literal("bar"))))
+
+    parsing("(a)-[{}]->(b)") shouldGive
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "  UNNAMED3", Seq.empty, Direction.OUTGOING, optional = false, properties = Map.empty))
+
+    parsing("(a)-[? {foo:'bar'}]->(b)") shouldGive
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "  UNNAMED3", Seq.empty, Direction.OUTGOING, optional = true, properties = Map("foo" -> Literal("bar"))))
+
+    parsing("(a)-[r {foo:'bar'}]->(b)") shouldGive
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "r", Seq.empty, Direction.OUTGOING, optional = false, properties = Map("foo" -> Literal("bar"))))
+
+    parsing("(a)-[r {foo:'bar', bar:'baz'}]->(b)") shouldGive
+      Seq(RelatedTo(SingleNode("a"), SingleNode("b"), "r", Seq.empty, Direction.OUTGOING, optional = false, properties = Map("foo" -> Literal("bar"), "bar" -> Literal("baz"))))
   }
 }

@@ -86,7 +86,7 @@ trait PatternGraphBuilder {
     val patternRelMap: scala.collection.mutable.Map[String, PatternRelationship] = scala.collection.mutable.Map()
 
     patterns.foreach(_ match {
-      case RelatedTo(left, right, rel, relType, dir, optional) => {
+      case RelatedTo(left, right, rel, relType, dir, optional, _) => {
         val leftNode: PatternNode = patternNodeMap.getOrElseUpdate(left.name, new PatternNode(left))
         val rightNode: PatternNode = patternNodeMap.getOrElseUpdate(right.name, new PatternNode(right))
 

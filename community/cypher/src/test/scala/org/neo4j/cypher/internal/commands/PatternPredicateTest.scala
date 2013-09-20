@@ -68,7 +68,15 @@ class PatternPredicateTest extends GraphDatabaseTestBase with Assertions {
 
     relate(a, b)
 
-    val pattern = RelatedTo(SingleNode("a"), SingleNode("  UNNAMED1", Seq(UnresolvedLabel("Foo"))), "  UNNAMED2", Seq.empty, Direction.OUTGOING, false)
+    val pattern = RelatedTo(
+      left = SingleNode("a"),
+      right = SingleNode("  UNNAMED1", Seq(UnresolvedLabel("Foo"))),
+      relName = "  UNNAMED2",
+      relTypes = Seq.empty,
+      direction = Direction.OUTGOING,
+      optional = false,
+      properties = Map.empty)
+
     val expression = PatternPredicate(Seq(pattern))
     val m = createExecutionContext(Map("a" -> a))
 
@@ -86,7 +94,15 @@ class PatternPredicateTest extends GraphDatabaseTestBase with Assertions {
 
     relate(a, b)
 
-    val pattern = RelatedTo(SingleNode("a"), SingleNode("  UNNAMED1", Seq(UnresolvedLabel("Foo"))), "  UNNAMED2", Seq.empty, Direction.OUTGOING, false)
+    val pattern = RelatedTo(
+      left = SingleNode("a"),
+      right = SingleNode("  UNNAMED1", Seq(UnresolvedLabel("Foo"))),
+      relName = "  UNNAMED2",
+      relTypes = Seq.empty,
+      direction = Direction.OUTGOING,
+      optional = false,
+      properties = Map.empty)
+
     val expression = PatternPredicate(Seq(pattern))
     val m = createExecutionContext(Map("a" -> a))
 

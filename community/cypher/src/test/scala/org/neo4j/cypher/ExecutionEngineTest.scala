@@ -145,38 +145,27 @@ foreach(x in [1,2,3] |
   }
 
   @Test def shouldFilterOutBasedOnNodePropName() {
-    val name = "Andres"
     val start: Node = createNode()
-    val a1: Node = createNode(Map("name" -> "Someone Else"))
-    val a2: Node = createNode(Map("name" -> name))
-    relate(start, a1, "x")
-    relate(start, a2, "x")
+    val a1: Node = createNode(Map("name" -> "Bar"))
+    val a2: Node = createNode(Map("name" -> "Foo"))
+    relate(start, a1)
+    relate(start, a2)
 
-    val query = Query.
-      start(NodeById("start", start.getId)).
-      matches(RelatedTo("start", "a", "rel", "x", Direction.BOTH)).
-      where(Equals(Property(Identifier("a"), PropertyKey("name")), Literal(name))).
-      returns(ReturnItem(Identifier("a"), "a"))
+    val result = parseAndExecute("start a=node(1) match (a)-->(b) where b.name = 'Foo' return b")
 
-    val result = execute(query)
-    assertEquals(List(a2), result.columnAs[Node]("a").toList)
+    assertEquals(List(a2), result.columnAs[Node]("b").toList)
   }
 
   @Test def shouldFilterBasedOnRelPropName() {
-    val start: Node = createNode()
-    val a: Node = createNode()
-    val b: Node = createNode()
-    relate(start, a, "KNOWS", Map("name" -> "monkey"))
-    relate(start, b, "KNOWS", Map("name" -> "woot"))
+    val a = createNode()
+    val b1 = createNode()
+    val b2 = createNode()
+    relate(a, b1, "KNOWS", name = "monkey")
+    relate(a, b2, "KNOWS", name = "woot")
 
-    val query = Query.
-      start(NodeById("start", start.getId)).
-      matches(RelatedTo("start", "a", "r", "KNOWS", Direction.BOTH)).
-      where(Equals(Property(Identifier("r"), PropertyKey("name")), Literal("monkey"))).
-      returns(ReturnItem(Identifier("a"), "a"))
+    val result = parseAndExecute("start a=node(1) match (a)-[r]->(b) where r.name = 'monkey' return b")
 
-    val result = execute(query)
-    assertEquals(List(a), result.columnAs[Node]("a").toList)
+    assertEquals(List(b1), result.columnAs[Node]("b").toList)
   }
 
   @Test def shouldOutputTheCartesianProductOfTwoNodes() {
@@ -197,12 +186,7 @@ foreach(x in [1,2,3] |
     val n2: Node = createNode()
     relate(n1, n2, "KNOWS")
 
-    val query = Query.
-      start(NodeById("n1", n1.getId)).
-      matches(RelatedTo("n1", "n2", "rel", "KNOWS", Direction.OUTGOING)).
-      returns(ReturnItem(Identifier("n1"), "n1"), ReturnItem(Identifier("n2"), "n2"))
-
-    val result = execute(query)
+    val result = parseAndExecute("start n1=node(1) match n1-[rel:KNOWS]->n2 return n1, n2")
 
     assertEquals(List(Map("n1" -> n1, "n2" -> n2)), result.toList)
   }
@@ -214,40 +198,9 @@ foreach(x in [1,2,3] |
     relate(n1, n2, "KNOWS")
     relate(n1, n3, "KNOWS")
 
-    val query = Query.
-      start(NodeById("start", n1.getId)).
-      matches(RelatedTo("start", "x", "rel", "KNOWS", Direction.OUTGOING)).
-      returns(ReturnItem(Identifier("x"), "x"))
+    val result = parseAndExecute("start n1=node(1) match n1-[:KNOWS]->n2 return n2")
 
-    val result = execute(query)
-
-    assertEquals(List(Map("x" -> n2), Map("x" -> n3)), result.toList)
-  }
-
-  @Test def executionResultTextualOutput() {
-    val n1: Node = createNode()
-    val n2: Node = createNode()
-    val n3: Node = createNode()
-    relate(n1, n2, "KNOWS")
-    relate(n1, n3, "KNOWS")
-
-    val query = Query.
-      start(NodeById("start", n1.getId)).
-      matches(RelatedTo("start", "x", "rel", "KNOWS", Direction.OUTGOING)).
-      returns(ReturnItem(Identifier("x"), "x"), ReturnItem(Identifier("start"), "start"))
-
-    val result = execute(query)
-
-    val textOutput = result.dumpToString()
-  }
-
-  @Test def doesNotFailOnVisualizingEmptyOutput() {
-    val query = Query.
-      start(NodeById("start", refNode.getId)).
-      where(Equals(Literal(1), Literal(0))).
-      returns(ReturnItem(Identifier("start"), "start"))
-
-    val result = execute(query)
+    assertEquals(List(Map("n2" -> n2), Map("n2" -> n3)), result.toList)
   }
 
   @Test def shouldGetRelatedToRelatedTo() {

@@ -99,8 +99,14 @@ trait MatchClause extends Base with ParserPattern {
 
   def matchRelation(transform: TransformType): PartialFunction[AbstractPattern, Maybe[Any]] = {
     case ParsedRelation(name, props, left, right, relType, dir, optional) =>
-      transform(left, right, props, (l, r) => RelatedTo(left = l.asSingleNode, right = r.asSingleNode, relName = name, relTypes = relType,
-        direction = dir, optional = optional))
+      transform(left, right, props, (l, r) => RelatedTo(
+        left = l.asSingleNode,
+        right = r.asSingleNode,
+        relName = name,
+        relTypes = relType,
+        direction = dir,
+        optional = optional,
+        properties = Map.empty))
   }
 
   def matchVarLengthRelation(transform: TransformType): PartialFunction[AbstractPattern, Maybe[Any]] = {

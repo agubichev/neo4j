@@ -86,13 +86,14 @@ object MarkOptionalNodes {
 
   private def markOptionals(boundNames: Set[String])(part: Pattern): Pattern = part match {
 
-    case p@RelatedTo(left, right, relName, _, _, _) if !boundNames(relName) && !boundNames(right.name) && !boundNames(left.name) =>
+    case p@RelatedTo(left, right, relName, _, _, _, _)
+      if !boundNames(relName) && !boundNames(right.name) && !boundNames(left.name) =>
       p.copy(left = left.copy(optional = true), right = right.copy(optional = true), optional = true)
 
-    case p@RelatedTo(_, right, _, _, _, true) if !boundNames(right.name) =>
+    case p@RelatedTo(_, right, _, _, _, true, _) if !boundNames(right.name) =>
       p.copy(right = right.copy(optional = true))
 
-    case p@RelatedTo(left, _, _, _, _, true) if !boundNames(left.name) =>
+    case p@RelatedTo(left, _, _, _, _, true, _) if !boundNames(left.name) =>
       p.copy(left = left.copy(optional = true))
 
     case p@VarLengthRelatedTo(_, left, right, _, _, _, _, _, _) if !boundNames(left.name) && !boundNames(right.name) =>
