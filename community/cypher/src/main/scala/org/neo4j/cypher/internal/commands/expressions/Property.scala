@@ -28,7 +28,6 @@ import org.neo4j.cypher.internal.commands.values.KeyToken
 
 import org.neo4j.graphdb.NotFoundException
 import org.neo4j.cypher.EntityNotFoundException
-import scala.runtime.ScalaRunTime
 
 object Property {
   def apply(mapExpr: Expression, propertyKey: KeyToken) = new Property(mapExpr, propertyKey, true)
@@ -58,7 +57,7 @@ class Property(val mapExpr: Expression,
   }
   override def hashCode() = this.mapExpr.hashCode * this.propertyKey.hashCode
 
-  override def toString = ScalaRunTime._toString(this)
+  override def toString = "Property(" + mapExpr + ", " + propertyKey.name + ")"
 
   def apply(ctx: ExecutionContext)(implicit state: QueryState): Any = mapExpr(ctx) match {
     case null           => null
