@@ -29,6 +29,7 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.pipes.QueryStateHelper
 import org.junit.Assert._
 import org.neo4j.cypher.internal.symbols.SymbolTable
+import org.neo4j.cypher.internal.commands.expressions.Literal
 
 class ScalaPatternMatchingTest extends ExecutionEngineHelper with PatternGraphBuilder {
   val symbols = new SymbolTable(Map("a" -> NodeType()))
@@ -164,4 +165,81 @@ class ScalaPatternMatchingTest extends ExecutionEngineHelper with PatternGraphBu
     assertEquals(Set(Map("a" -> n1, "b" -> n2, "c" -> n3, "pr1" -> r0, "pr2" -> r1),
       Map("a" -> n2, "b" -> n1, "c" -> null, "pr1" -> r0, "pr2" -> null)), result.toSet)
   }
+
+  @Test def should_handle_a_single_relationship_with_node_with_properties_no_matches() {
+    // Given pattern MATCH (a)-[]->(b {prop: 42})
+    val nodeWithProps = rightNode.copy(properties = Map("prop" -> Literal(42)))
+    val patternRelWithNodeProps = patternRelationship.copy(right = nodeWithProps)
+    val patternGraph = buildPatternGraph(symbols, Seq(patternRelWithNodeProps))
+    val matcher = new PatternMatchingBuilder(patternGraph, Seq.empty, Set("a", "r", "b"))
+
+    // Given graph
+    val aNode = createNode()
+    val bNode = createNode()
+    relate(aNode, bNode)
+
+    // When
+    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+
+    // Then
+    assert(result === List.empty)
+  }
+
+  @Test def should_handle_a_single_relationship_with_node_with_properties_no_matches2() {
+    // Given pattern MATCH (a)-[]->(b {prop: 42})
+    val nodeWithProps = rightNode.copy(properties = Map("prop" -> Literal(42)))
+    val patternRelWithNodeProps = patternRelationship.copy(right = nodeWithProps)
+    val patternGraph = buildPatternGraph(symbols, Seq(patternRelWithNodeProps))
+    val matcher = new PatternMatchingBuilder(patternGraph, Seq.empty, Set("a", "r", "b"))
+
+    // Given graph
+    val aNode = createNode()
+    val bNode = createNode("prop" -> 666)
+    relate(aNode, bNode)
+
+    // When
+    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+
+    // Then
+    assert(result === List.empty)
+  }
+
+  @Test def should_handle_a_single_relationship_with_node_with_properties_no_matches3() {
+    // Given pattern MATCH (a)-[]->(b {prop: 42})
+    val nodeWithProps = rightNode.copy(properties = Map("prop" -> Literal(42)))
+    val patternRelWithNodeProps = patternRelationship.copy(right = nodeWithProps)
+    val patternGraph = buildPatternGraph(symbols, Seq(patternRelWithNodeProps))
+    val matcher = new PatternMatchingBuilder(patternGraph, Seq.empty, Set("a", "r", "b"))
+
+    // Given graph
+    val aNode = createNode("prop" -> 666) //Set the property on the wrong node, to make sure the property id exists on the graph
+    val bNode = createNode()
+    relate(aNode, bNode)
+
+    // When
+    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+
+    // Then
+    assert(result === List.empty)
+  }
+
+  @Test def should_handle_a_single_relationship_with_node_with_properties_1_match() {
+    // Given pattern MATCH (a)-[]->(b {prop: 42})
+    val nodeWithProps = rightNode.copy(properties = Map("prop" -> Literal(42)))
+    val patternRelWithNodeProps = patternRelationship.copy(right = nodeWithProps)
+    val patternGraph = buildPatternGraph(symbols, Seq(patternRelWithNodeProps))
+    val matcher = new PatternMatchingBuilder(patternGraph, Seq.empty, Set("a", "r", "b"))
+
+    // Given graph
+    val aNode = createNode()
+    val bNode = createNode("prop" -> 42)
+    val rel = relate(aNode, bNode)
+
+    // When
+    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+
+    // Then
+    assert(result === List(Map("a" -> aNode, "b" -> bNode, "r" -> rel)))
+  }
+
 }
