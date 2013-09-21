@@ -76,14 +76,14 @@ case class MapPropertySetAction(element: Expression, mapExpression: Expression)
     /*Set all map values on the property container*/
     for ( (k, v) <- map) {
       if (null == v)
-        ops.removeProperty(target, k)
+        ops.removeProperty(id(target), k)
       else
-        ops.setProperty(target, k, makeValueNeoSafe(v))
+        ops.setProperty(id(target), k, makeValueNeoSafe(v))
     }
 
     /*Remove all other properties from the property container*/
-    for ( propertyKeyId <- ops.propertyKeyIds(target) if !map.contains(propertyKeyId) ) {
-      ops.removeProperty(target, propertyKeyId)
+    for ( propertyKeyId <- ops.propertyKeyIds(id(target)) if !map.contains(propertyKeyId) ) {
+      ops.removeProperty(id(target), propertyKeyId)
     }
   }
 
@@ -99,5 +99,11 @@ case class MapPropertySetAction(element: Expression, mapExpression: Expression)
   }
 
   def symbolTableDependencies = element.symbolTableDependencies ++ mapExpression.symbolTableDependencies
+
+  private def id(x: PropertyContainer) = x match {
+    case n: Node         => n.getId
+    case r: Relationship => r.getId
+  }
+
 }
 
