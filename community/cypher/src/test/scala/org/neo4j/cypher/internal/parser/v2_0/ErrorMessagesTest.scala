@@ -17,15 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher
+package org.neo4j.cypher.internal.parser.v2_0
 
 import org.scalatest.Assertions
 import org.hamcrest.CoreMatchers._
 import org.junit.Assert._
 import org.junit.Test
-import org.neo4j.cypher.CypherVersion._
+import org.neo4j.cypher._
 import org.neo4j.cypher.internal.commands.expressions.StringHelper
-import com.sun.tools.javac.resources.legacy
 
 class ErrorMessagesTest extends ExecutionEngineHelper with Assertions with StringHelper {
   @Test def noReturnColumns() {
@@ -204,20 +203,6 @@ class ErrorMessagesTest extends ExecutionEngineHelper with Assertions with Strin
     expectError(
       "START p=node(0) MATCH p-[r*]->() WHERE r.foo = 'apa' RETURN r",
       "Type mismatch: r already defined with conflicting type Collection<Relationship> (expected Map) (line 1, column 40)"
-    )
-  }
-
-  @Test def error_when_using_properties_on_relationships_in_match() {
-    expectError(
-      "START p=node(0) MATCH p-[r {a:'foo'}]->() RETURN r",
-      "Relationship properties cannot be specified in this context (line 1, column 28)"
-    )
-  }
-
-  @Test def error_when_using_properties_on_relationships_in_match2() {
-    expectError(
-      "START p=node(0) MATCH p-[r]->({a:'foo'}) RETURN r",
-      "Node properties cannot be specified in this context (line 1, column 31)"
     )
   }
 

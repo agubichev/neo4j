@@ -269,12 +269,8 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
     } then checkProperties(ctx)
 
   def checkProperties(ctx: SemanticContext): SemanticCheck =
-    if (properties.isDefined && ctx != SemanticContext.Update) {
-      SemanticError("Node properties cannot be specified in this context", properties.get.token)
-    } else {
-      properties.semanticCheck(Expression.SemanticContext.Simple) then
-        properties.constrainType(MapType())
-    }
+    properties.semanticCheck(Expression.SemanticContext.Simple) then
+      properties.constrainType(MapType())
 
   def legacyName: String
 
@@ -332,9 +328,7 @@ sealed abstract class RelationshipPattern extends AstNode {
   val properties : Option[Expression]
 
   def semanticCheck(ctx: SemanticContext): SemanticCheck =
-    if (properties.isDefined && ctx != SemanticContext.Update) {
-      SemanticError("Relationship properties cannot be specified in this context", properties.get.token)
-    } else if (optional && ctx == SemanticContext.Expression) {
+    if (optional && ctx == SemanticContext.Expression) {
       SemanticError("Optional relationships cannot be specified in this context", token)
     } else {
       properties.semanticCheck(Expression.SemanticContext.Simple) then
