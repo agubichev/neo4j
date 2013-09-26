@@ -23,11 +23,9 @@ import org.junit.Assert._
 import org.neo4j.graphdb.Direction
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import org.junit.Ignore
 import org.scalatest.Assertions
 import org.hamcrest.CoreMatchers.equalTo
 import org.neo4j.cypher._
-import org.neo4j.cypher.CypherVersion._
 import org.neo4j.cypher.internal.parser.{ParsedVarLengthRelation, ParsedEntity, ParsedRelation}
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.commands.expressions._
