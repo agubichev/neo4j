@@ -113,7 +113,7 @@ trait MatchClause extends Base with ParserPattern {
     case ParsedVarLengthRelation(name, props, left, right, relType, dir, optional, min, max, relIterator) =>
       transform(left, right, props, (l, r) => VarLengthRelatedTo(pathName = name, left = l.asSingleNode,
         right = r.asSingleNode, minHops = min, maxHops = max, relTypes = relType, direction = dir,
-        relIterator = relIterator, optional = optional))
+        relIterator = relIterator, optional = optional, properties = Map.empty))
   }
 
   def matchShortestPath(transform: TransformType): PartialFunction[AbstractPattern, Maybe[Any]] = {

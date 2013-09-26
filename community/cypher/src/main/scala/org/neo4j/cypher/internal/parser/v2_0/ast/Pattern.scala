@@ -358,7 +358,7 @@ sealed abstract class RelationshipPattern extends AstNode {
           case _                                  => None
         }
         commands.VarLengthRelatedTo(pathName, left.toLegacyNode, right.toLegacyNode, min, max,
-          types.map(_.name).distinct, dir, relIterator, optional)
+          types.map(_.name).distinct, dir, relIterator, optional, properties = toLegacyProperties)
       }
       case None             => commands.RelatedTo(left.toLegacyNode, right.toLegacyNode, legacyName,
         types.map(_.name).distinct, dir, optional, toLegacyProperties)

@@ -884,7 +884,7 @@ class CypherParserTest extends JUnitSuite with Assertions {
       Query.
         start(NodeById("a", 0)).
         matches(VarLengthRelatedTo("  UNNAMED3", SingleNode("a"), SingleNode("x"), Some(3), Some(3), Seq(),
-        Direction.OUTGOING, None, optional = false)).
+        Direction.OUTGOING, None, optional = false, Map.empty)).
         returns(ReturnItem(Identifier("x"), "x"))
     )
   }
@@ -1437,7 +1437,7 @@ class CypherParserTest extends JUnitSuite with Assertions {
       "start a=node(0) match a -[r?*1..3]-> x return x",
       Query.
         start(NodeById("a", 0)).
-        matches(VarLengthRelatedTo("  UNNAMED3", SingleNode("a"), SingleNode("x"), Some(1), Some(3), Seq(), Direction.OUTGOING, Some("r"), optional = true)).
+        matches(VarLengthRelatedTo("  UNNAMED3", SingleNode("a"), SingleNode("x"), Some(1), Some(3), Seq(), Direction.OUTGOING, Some("r"), optional = true, Map.empty)).
         returns(ReturnItem(Identifier("x"), "x")))
   }
 
