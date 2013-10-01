@@ -125,13 +125,13 @@ case class Match(pattern: Pattern, hints: Seq[Hint], where: Option[Where], token
   }
 }
 
-case class Merge(patterns: Seq[PatternPart], actions: Seq[MergeAction], token: InputToken) extends UpdateClause {
+case class Merge(pattern: Pattern, actions: Seq[MergeAction], token: InputToken) extends UpdateClause {
   def name = "MERGE"
 
-  def semanticCheck = patterns.semanticCheck(Pattern.SemanticContext.Update)
+  def semanticCheck: SemanticCheck = pattern.semanticCheck(Pattern.SemanticContext.Update)
 
-  def legacyUpdateActions = toCommand.nextStep
-  def toCommand = commands.MergeAst(patterns.flatMap(_.toAbstractPatterns), actions.map(_.toAction))
+  def legacyUpdateActions = toCommand.nextStep()
+  def toCommand = commands.MergeAst(pattern.toAbstractPatterns, actions.map(_.toAction))
 
   def addToLegacyQuery(builder: commands.QueryBuilder) = {
     val updates = builder.updates ++ legacyUpdateActions

@@ -44,16 +44,13 @@ object Pattern {
 }
 import Pattern._
 
-object PatternPart {
-  implicit class SemanticCheckablePatternTraversable(patterns: TraversableOnce[PatternPart]) {
-    def semanticCheck(context: SemanticContext): SemanticCheck =
-      patterns.foldLeft(SemanticCheckResult.success) { (f, p) => f then p.semanticCheck(context) }
-  }
-}
-
-
 case class Pattern(patternParts: Seq[PatternPart], token: InputToken) extends AstNode {
-  def semanticCheck(context: SemanticContext): SemanticCheck = patternParts.semanticCheck(context)
+  def semanticCheck(ctx: SemanticContext): SemanticCheck =
+    semanticCheckPatternParts(_.declareIdentifiers(ctx)) then
+    semanticCheckPatternParts(_.semanticCheck(ctx))
+  
+  private def semanticCheckPatternParts(check: PatternPart => SemanticCheck) =
+    patternParts.foldLeft(SemanticCheckResult.success) { (f, p) => f then check(p) }
 
   def toLegacyPatterns: Seq[commands.Pattern] = patternParts.flatMap(_.toLegacyPatterns)
   def toLegacyNamedPaths: Seq[commands.NamedPath] = patternParts.flatMap(_.toLegacyNamedPath)
@@ -63,7 +60,8 @@ case class Pattern(patternParts: Seq[PatternPart], token: InputToken) extends As
 
 
 sealed abstract class PatternPart extends AstNode {
-  def semanticCheck(context: SemanticContext): SemanticCheck
+  def declareIdentifiers(ctx: SemanticContext): SemanticCheck
+  def semanticCheck(ctx: SemanticContext): SemanticCheck
 
   def toLegacyPatterns: Seq[commands.Pattern]
   def toLegacyNamedPath: Option[commands.NamedPath]
@@ -72,7 +70,8 @@ sealed abstract class PatternPart extends AstNode {
 }
 
 case class NamedPatternPart(identifier: Identifier, patternPart: AnonymousPatternPart, token: InputToken) extends PatternPart {
-  def semanticCheck(context: SemanticContext) = patternPart.semanticCheck(context) then identifier.declare(PathType())
+  def declareIdentifiers(ctx: SemanticContext) = patternPart.declareIdentifiers(ctx) then identifier.declare(PathType())
+  def semanticCheck(ctx: SemanticContext) = patternPart.semanticCheck(ctx)
 
   lazy val toLegacyPatterns = patternPart.toLegacyPatterns(Some(identifier.name))
   lazy val toLegacyNamedPath = patternPart.toLegacyNamedPath(identifier.name)
@@ -92,8 +91,10 @@ sealed trait AnonymousPatternPart extends PatternPart {
   def toAbstractPatterns(pathName: Option[String]): Seq[AbstractPattern]
 }
 
-case class RelationshipsPattern(element: RelationshipChain, token: InputToken) extends PatternPart {
-  def semanticCheck(context: SemanticContext) = element.semanticCheck(context)
+case class RelationshipsPattern(element: RelationshipChain, token: InputToken) extends AstNode {
+  def semanticCheck(ctx: SemanticContext): SemanticCheck =
+    element.declareIdentifiers(ctx) then
+    element.semanticCheck(ctx)
 
   lazy val toLegacyPatterns = element.toLegacyPatterns(true)
   val toLegacyNamedPath = None
@@ -105,10 +106,11 @@ case class RelationshipsPattern(element: RelationshipChain, token: InputToken) e
 case class EveryPath(element: PatternElement) extends AnonymousPatternPart {
   def token = element.token
 
-  def semanticCheck(ctx: SemanticContext) = (element, ctx) match {
-    case (n: NamedNodePattern, Update) => n.identifier.declare(NodeType()) then element.semanticCheck(ctx)
-    case _                             => element.semanticCheck(ctx)
+  def declareIdentifiers(ctx: SemanticContext) = (element, ctx) match {
+    case (n: NamedNodePattern, Update) => n.identifier.declare(NodeType()) then element.declareIdentifiers(ctx)
+    case _                             => element.declareIdentifiers(ctx)
   }
+  def semanticCheck(ctx: SemanticContext) = element.semanticCheck(ctx)
 
   def toLegacyPatterns(pathName: Option[String]) = element.toLegacyPatterns(pathName.isEmpty)
   def toLegacyNamedPath(pathName: String) = Some(commands.NamedPath(pathName, element.toAbstractPatterns:_*))
@@ -126,29 +128,35 @@ abstract class ShortestPath(element: PatternElement, token: InputToken) extends 
   val name: String
   val single: Boolean
 
-  def semanticCheck(ctx: SemanticContext) = ctx match {
-    case Update => SemanticError("shortestPath cannot be used to CREATE", token, element.token)
-    case _      => checkContainsSingle(ctx) then checkNoMinimalLength
+  def declareIdentifiers(ctx: SemanticContext) =
+    element.declareIdentifiers(ctx)
+
+  def semanticCheck(ctx: SemanticContext) =
+    checkContext(ctx) then
+    checkContainsSingle(ctx) then
+    checkNoMinimalLength then
+    element.semanticCheck(ctx)
+
+  private def checkContext(ctx: SemanticContext) = ctx match {
+    case Update => Some(SemanticError("shortestPath cannot be used to CREATE", token, element.token))
+    case _      => None
   }
 
   private def checkContainsSingle(ctx: SemanticContext): SemanticCheck = element match {
-    case RelationshipChain(l: NamedNodePattern, _, r: NamedNodePattern, _) => {
-      element.semanticCheck(ctx)
-    }
+    case RelationshipChain(l: NamedNodePattern, _, r: NamedNodePattern, _) => None
     case RelationshipChain(l: NodePattern, _, _, _)                        =>
-      SemanticError(s"shortestPath(...) requires named nodes", token, l.token)
+      Some(SemanticError(s"shortestPath(...) requires named nodes", token, l.token))
     case _                                                                 =>
-      SemanticError(s"shortestPath(...) requires a pattern containing a single relationship", token, element.token)
+      Some(SemanticError(s"shortestPath(...) requires a pattern containing a single relationship", token, element.token))
   }
 
   private def checkNoMinimalLength: SemanticCheck = element match {
     case RelationshipChain(_, rel, _, _) => rel.length match {
       case Some(Some(Range(Some(_), _, _))) =>
-        SemanticError(s"shortestPath(...) does not support a minimal length", token, element.token)
-      case _                                =>
-        SemanticCheckResult.success
+        Some(SemanticError(s"shortestPath(...) does not support a minimal length", token, element.token))
+      case _                                => None
     }
-    case _                               => SemanticCheckResult.success
+    case _                               => None
   }
 
   def toLegacyPatterns(maybePathName: Option[String]) : Seq[commands.ShortestPath] = {
@@ -185,6 +193,7 @@ case class AllShortestPaths(element: PatternElement, token: InputToken) extends 
 
 
 sealed abstract class PatternElement extends AstNode {
+  def declareIdentifiers(ctx: SemanticContext): SemanticCheck
   def semanticCheck(ctx: SemanticContext): SemanticCheck
 
   def toLegacyPatterns(makeOutgoing: Boolean) : Seq[commands.Pattern]
@@ -193,7 +202,12 @@ sealed abstract class PatternElement extends AstNode {
 }
 
 case class RelationshipChain(element: PatternElement, relationship: RelationshipPattern, rightNode: NodePattern, token: InputToken) extends PatternElement {
-  def semanticCheck(ctx: SemanticContext) =
+  def declareIdentifiers(ctx: SemanticContext): SemanticCheck =
+    element.declareIdentifiers(ctx) then
+    relationship.declareIdentifiers(ctx) then
+    rightNode.declareIdentifiers(ctx)
+
+  def semanticCheck(ctx: SemanticContext): SemanticCheck =
     element.semanticCheck(ctx) then
     relationship.semanticCheck(ctx) then
     rightNode.semanticCheck(ctx)
@@ -263,14 +277,14 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
   val properties: Option[Expression]
   val naked: Boolean
 
+  def declareIdentifiers(ctx: SemanticContext): SemanticCheck = SemanticCheckResult.success
+
   def semanticCheck(ctx: SemanticContext): SemanticCheck =
     when (naked && (!labels.isEmpty || properties.isDefined)) {
       SemanticError("Parenthesis are required to identify nodes in patterns", token)
-    } then checkProperties(ctx)
-
-  def checkProperties(ctx: SemanticContext): SemanticCheck =
+    } then
     properties.semanticCheck(Expression.SemanticContext.Simple) then
-      properties.constrainType(MapType())
+    properties.constrainType(MapType())
 
   def legacyName: String
 
@@ -308,9 +322,9 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
 }
 
 case class NamedNodePattern(identifier: Identifier, labels: Seq[Identifier], properties: Option[Expression], naked: Boolean, token: InputToken) extends NodePattern {
-  override def semanticCheck(context: SemanticContext) =
+  override def declareIdentifiers(ctx: SemanticContext) =
     identifier.implicitDeclaration(NodeType()) then
-    super.semanticCheck(context)
+    super.declareIdentifiers(ctx)
 
   val legacyName = identifier.name
 }
@@ -320,20 +334,21 @@ case class AnonymousNodePattern(labels: Seq[Identifier], properties: Option[Expr
 }
 
 
-sealed abstract class RelationshipPattern extends AstNode {
+sealed abstract class RelationshipPattern extends AstNode with SemanticChecking {
   val direction : Direction
   val types : Seq[Identifier]
   val length : Option[Option[Range]]
   val optional : Boolean
   val properties : Option[Expression]
 
+  def declareIdentifiers(ctx: SemanticContext): SemanticCheck = SemanticCheckResult.success
+
   def semanticCheck(ctx: SemanticContext): SemanticCheck =
-    if (optional && ctx == SemanticContext.Expression) {
+    when (optional && ctx == SemanticContext.Expression) {
       SemanticError("Optional relationships cannot be specified in this context", token)
-    } else {
-      properties.semanticCheck(Expression.SemanticContext.Simple) then
-      properties.constrainType(MapType())
-    }
+    } then
+    properties.semanticCheck(Expression.SemanticContext.Simple) then
+    properties.constrainType(MapType())
 
   def legacyName : String
 
@@ -394,17 +409,15 @@ case class NamedRelationshipPattern(
     length: Option[Option[Range]],
     optional: Boolean,
     properties : Option[Expression],
-    token: InputToken) extends RelationshipPattern
-{
-  override def semanticCheck(ctx: SemanticContext) = {
+    token: InputToken) extends RelationshipPattern {
+
+  override def declareIdentifiers(ctx: SemanticContext) = {
     val possibleType = if (length.isEmpty) RelationshipType() else CollectionType(RelationshipType())
 
-    val identifierCheck = ctx match {
+    (ctx match {
       case Update => identifier.declare(possibleType)
       case _      => identifier.implicitDeclaration(possibleType)
-    }
-
-    super.semanticCheck(ctx) then identifierCheck
+    }) then super.declareIdentifiers(ctx)
   }
 
   val legacyName = identifier.name

@@ -19,7 +19,6 @@
  */
 package org.neo4j.cypher.internal.parser.v2_0.ast
 
-import org.neo4j.cypher.internal.parser.v2_0._
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.commands.{expressions => commandexpressions}
 import org.neo4j.cypher.internal.commands.expressions.{Expression => CommandExpression}
@@ -29,9 +28,10 @@ case class ShortestPathExpression(pattern: ShortestPath) extends Expression with
   def token = pattern.token
   protected def possibleTypes = Set(CollectionType(PathType()))
 
-  override def semanticCheck(ctx: SemanticContext) = {
-    pattern.semanticCheck(Pattern.SemanticContext.Expression) then super.semanticCheck(ctx)
-  }
+  override def semanticCheck(ctx: SemanticContext) =
+    pattern.declareIdentifiers(Pattern.SemanticContext.Expression) then
+    pattern.semanticCheck(Pattern.SemanticContext.Expression) then
+    super.semanticCheck(ctx)
 
   def toCommand: CommandExpression = commandexpressions.ShortestPathExpression(pattern.toLegacyPatterns(None).head)
 }

@@ -172,7 +172,8 @@ case class PatternExpression(pattern: RelationshipsPattern) extends Expression w
   protected def possibleTypes = Set(CollectionType(PathType()))
 
   override def semanticCheck(ctx: SemanticContext) =
-    pattern.semanticCheck(Pattern.SemanticContext.Expression) then super.semanticCheck(ctx)
+    pattern.semanticCheck(Pattern.SemanticContext.Expression) then
+    super.semanticCheck(ctx)
 
   def toCommand = commands.PatternPredicate(pattern.toLegacyPatterns)
 }
