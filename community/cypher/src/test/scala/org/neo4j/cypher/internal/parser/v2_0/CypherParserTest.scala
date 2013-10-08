@@ -23,11 +23,15 @@ import org.junit.Assert._
 import org.neo4j.graphdb.Direction
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import org.junit.Ignore
 import org.scalatest.Assertions
 import org.hamcrest.CoreMatchers.equalTo
 import org.neo4j.cypher._
+import org.neo4j.cypher.internal.parser.v1_9.CypherParserImpl
+
+<<<<<<< HEAD
 import org.neo4j.cypher.internal.compiler.v2_0.CypherCompiler
+=======
+>>>>>>> The Query command object now knows if it is optional or not
 import org.neo4j.cypher.internal.parser.{ParsedVarLengthRelation, ParsedEntity, ParsedRelation}
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.commands.expressions._
@@ -2811,6 +2815,14 @@ class CypherParserTest extends JUnitSuite with Assertions {
 
     assert(compacted.tail.isEmpty, "wasn't compacted enough")
     assert(compacted.start.size === 7, "lost create commands")
+  }
+
+  @Test def should_handle_optional_match() {
+    test(
+      "OPTIONAL MATCH n RETURN n",
+      Query.
+        optionalMatches(SingleNode("n")).
+        returns(ReturnItem(Identifier("n"), "n")))
   }
 
   @Test

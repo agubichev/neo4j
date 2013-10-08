@@ -26,6 +26,7 @@ class QueryBuilder(var startItems: Seq[StartItem] = Seq()) {
   var updates = Seq[UpdateAction]()
   var matching: Seq[Pattern] = Seq()
   var where: Predicate = True()
+  var optional: Boolean = false
   var aggregation: Option[Seq[AggregationExpression]] = None
   var orderBy: Seq[SortItem] = Seq()
   var skip: Option[Expression] = None
@@ -41,6 +42,14 @@ class QueryBuilder(var startItems: Seq[StartItem] = Seq()) {
 
   def matches(patterns: Pattern*): QueryBuilder = store {
     matching = patterns
+  }
+
+  def makeOptional() = store {
+    optional = true
+  }
+
+  def isOptional(opt:Boolean) = store {
+    optional = opt
   }
 
   def updates(cmds: UpdateAction*): QueryBuilder = store {
@@ -110,5 +119,6 @@ class QueryBuilder(var startItems: Seq[StartItem] = Seq()) {
   }
 
   def returns(returnItems: ReturnColumn*): Query =
-    Query(Return(columns(returnItems), returnItems: _*), startItems, updates, matching, using, where, aggregation, orderBy, slice, namedPaths, tail)
+    Query(Return(columns(returnItems), returnItems: _*), startItems, updates, matching, optional,
+      using, where, aggregation, orderBy, slice, namedPaths, tail)
 }
