@@ -400,15 +400,16 @@ class CypherParserTest extends JUnitSuite with Assertions {
 
   @Test def twoDoubleOptionalWithFourHalfs() {
     test(
-      "START a=node(1), b=node(2) MATCH a-[r1?]->X<-[r2?]-b, a<-[r3?]-Z-[r4?]->b return r1,r2,r3,r4 order by id(r1),id(r2),id(r3),id(r4)",
+      "START a=node(1), b=node(2) OPTIONAL MATCH a-[r1]->X<-[r2]-b, a<-[r3]-Z-[r4]->b return r1,r2,r3,r4 order by id(r1),id(r2),id(r3),id(r4)",
       Query.
-        start(NodeById("a", 1), NodeById("b", 2)).
-        matches(
-        RelatedTo(SingleNode("a"), SingleOptionalNode("X"), "r1", Seq(), Direction.OUTGOING, true),
-        RelatedTo(SingleNode("b"), SingleOptionalNode("X"), "r2", Seq(), Direction.OUTGOING, true),
-        RelatedTo(SingleOptionalNode("Z"), SingleNode("a"), "r3", Seq(), Direction.OUTGOING, true),
-        RelatedTo(SingleOptionalNode("Z"), SingleNode("b"), "r4", Seq(), Direction.OUTGOING, true)
-      ).orderBy(
+      start(NodeById("a", 1), NodeById("b", 2)).
+      matches(
+        RelatedTo(SingleNode("a"), SingleNode("X"), "r1", Seq(), Direction.OUTGOING, false),
+        RelatedTo(SingleNode("b"), SingleNode("X"), "r2", Seq(), Direction.OUTGOING, false),
+        RelatedTo(SingleNode("Z"), SingleNode("a"), "r3", Seq(), Direction.OUTGOING, false),
+        RelatedTo(SingleNode("Z"), SingleNode("b"), "r4", Seq(), Direction.OUTGOING, false)
+      ).makeOptional().
+      orderBy(
         SortItem(IdFunction(Identifier("r1")), true),
         SortItem(IdFunction(Identifier("r2")), true),
         SortItem(IdFunction(Identifier("r3")), true),
@@ -928,40 +929,44 @@ class CypherParserTest extends JUnitSuite with Assertions {
 
   @Test def optionalRelationship() {
     test(
-      "start a = node(1) match a -[?]-> (b) return b",
+      "start a = node(1) optional match a --> (b) return b",
       Query.
         start(NodeById("a", 1)).
-        matches(RelatedTo(SingleNode("a"), SingleOptionalNode("b"), "  UNNAMED26", Seq(), Direction.OUTGOING, true)).
+        matches(RelatedTo(SingleNode("a"), SingleNode("b"), "  UNNAMED35", Seq(), Direction.OUTGOING, false)).
+        makeOptional().
         returns(ReturnItem(Identifier("b"), "b"))
     )
   }
 
   @Test def optionalTypedRelationship() {
     test(
-      "start a = node(1) match a -[?:KNOWS]-> (b) return b",
+      "start a = node(1) optional match a -[:KNOWS]-> (b) return b",
       Query.
         start(NodeById("a", 1)).
-        matches(RelatedTo(SingleNode("a"), SingleOptionalNode("b"), "  UNNAMED26", Seq("KNOWS"), Direction.OUTGOING, true)).
+        matches(RelatedTo("a", "b", "  UNNAMED35", Seq("KNOWS"), Direction.OUTGOING)).
+        makeOptional().
         returns(ReturnItem(Identifier("b"), "b"))
     )
   }
 
   @Test def optionalTypedAndNamedRelationship() {
     test(
-      "start a = node(1) match a -[r?:KNOWS]-> (b) return b",
+      "start a = node(1) optional match a -[r:KNOWS]-> (b) return b",
       Query.
         start(NodeById("a", 1)).
-        matches(RelatedTo(SingleNode("a"), SingleOptionalNode("b"), "r", Seq("KNOWS"), Direction.OUTGOING, optional = true)).
+        matches(RelatedTo(SingleNode("a"), SingleNode("b"), "r", Seq("KNOWS"), Direction.OUTGOING, optional = false)).
+        makeOptional().
         returns(ReturnItem(Identifier("b"), "b"))
     )
   }
 
   @Test def optionalNamedRelationship() {
     test(
-      "start a = node(1) match a -[r?]-> (b) return b",
+      "start a = node(1) optional match a -[r]-> (b) return b",
       Query.
         start(NodeById("a", 1)).
-        matches(RelatedTo(SingleNode("a"), SingleOptionalNode("b"), "r", Seq(), Direction.OUTGOING, optional = true)).
+        matches(RelatedTo("a", "b", "r", Seq(), Direction.OUTGOING)).
+        makeOptional().
         returns(ReturnItem(Identifier("b"), "b"))
     )
   }
@@ -1495,10 +1500,11 @@ class CypherParserTest extends JUnitSuite with Assertions {
 
   @Test def variable_length_path_with_collection_for_relationships() {
     test(
-      "start a=node(0) match a -[r?*1..3]-> x return x",
+      "start a=node(0) optional match a -[r*1..3]-> x return x",
       Query.
         start(NodeById("a", 0)).
-        matches(VarLengthRelatedTo("  UNNAMED24", SingleNode("a"), SingleOptionalNode("x"), Some(1), Some(3), Seq(), Direction.OUTGOING, Some("r"), optional = true)).
+        matches(VarLengthRelatedTo("  UNNAMED33", SingleNode("a"), SingleNode("x"), Some(1), Some(3), Seq(), Direction.OUTGOING, Some("r"), optional = false)).
+        makeOptional().
         returns(ReturnItem(Identifier("x"), "x"))
     )
   }
@@ -2101,11 +2107,12 @@ class CypherParserTest extends JUnitSuite with Assertions {
   @Test def optional_shortest_path() {
     test(
       """start a  = node(1), x = node(2,3)
-         match p = shortestPath(a -[?*]-> x)
+         optional match p = shortestPath(a -[*]-> x)
          return *""",
       Query.
         start(NodeById("a", 1),NodeById("x", 2,3)).
-        matches(ShortestPath("p", SingleNode("a"), SingleNode("x"), Seq(), Direction.OUTGOING, None, optional = true, single = true, relIterator = None)).
+        matches(ShortestPath("p", SingleNode("a"), SingleNode("x"), Seq(), Direction.OUTGOING, None, optional = false, single = true, relIterator = None)).
+        makeOptional().
         returns(AllIdentifiers())
     )
   }

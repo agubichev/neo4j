@@ -114,7 +114,7 @@ case class Query(returns: Return,
   override def toString: String =  "\n" +
     includeIfNotEmpty("start  : ", start) +
       includeIfNotEmpty("updates: ", updatedCommands) +
-      includeIfNotEmpty("match  : ", matching) +
+      includeIfNotEmpty((if(optional) "optional " else "") + "match  : ", matching) +
       includeIfNotEmpty("paths  : ", namedPaths) +
       includeIfNotEmpty("hints  : ", hints) +
       (if (where == True()) "" else where.toString) +

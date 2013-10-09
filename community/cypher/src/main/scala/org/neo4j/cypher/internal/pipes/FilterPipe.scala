@@ -27,7 +27,8 @@ import org.neo4j.cypher.internal.ExecutionContext
 class FilterPipe(source: Pipe, val predicate: Predicate) extends PipeWithSource(source) {
   val symbols = source.symbols
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext],state: QueryState) = input.filter(ctx => predicate.isMatch(ctx)(state))
+  protected def internalCreateResults(input: Iterator[ExecutionContext],state: QueryState) =
+    input.filter(ctx => predicate.isMatch(ctx)(state))
 
   override def executionPlanDescription =
     source.executionPlanDescription.andThen(this, "Filter", "pred" -> SimpleVal.fromStr(predicate))
