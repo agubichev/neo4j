@@ -24,6 +24,8 @@ import org.neo4j.cypher.internal.spi.UpdateCountingQueryContext
 import org.neo4j.cypher.internal.spi.QueryContext
 import org.neo4j.kernel.GraphDatabaseAPI
 import org.neo4j.cypher.ParameterNotFoundException
+import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.pipes.optional.Listener
 
 case class QueryState(db: GraphDatabaseService,
                       inner: QueryContext,
@@ -31,6 +33,8 @@ case class QueryState(db: GraphDatabaseService,
                       decorator: PipeDecorator,
                       var transaction: Option[Transaction] = None,
                       timeReader: TimeReader = new TimeReader) {
+  var listener: Listener[ExecutionContext] = null
+
   def readTimeStamp(): Long = timeReader.getTime
 
 
