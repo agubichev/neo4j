@@ -24,14 +24,17 @@ import org.neo4j.cypher.internal.ExecutionContext
 import org.neo4j.cypher.internal.symbols.SymbolTable
 import org.neo4j.cypher.PlanDescription
 
-case class NullInsertingPipe(in: Pipe, builder: Pipe => PipeWithSource, nullableIdentifiers: Seq[String])
-  extends Pipe {
+case class NullInsertingPipe(in: Pipe, builder: Pipe => Pipe) extends Pipe {
   val listenerPipe: ListenerPipe = new ListenerPipe(in)
-  val innerPipe: PipeWithSource = builder(listenerPipe)
-  val nulls = nullableIdentifiers.map(_ -> null).toMap
+  val innerPipe: Pipe = builder(listenerPipe)
+
+  def identifiersAfterMatch: Set[String] = innerPipe.symbols.identifiers.map(_._1).toSet
+  def identifiersBeforeMatch: Set[String] = in.symbols.identifiers.map(_._1).toSet
+  def addedIdentifiers: Seq[String] = (identifiersAfterMatch -- identifiersBeforeMatch).toSeq
+  def nulls = addedIdentifiers.map(_ -> null).toMap
   val nullF = (in: ExecutionContext) => in.newWith(nulls)
 
-  def symbols: SymbolTable = in.symbols
+  def symbols: SymbolTable = innerPipe.symbols
 
   def executionPlanDescription: PlanDescription = ???
 

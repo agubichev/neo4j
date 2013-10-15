@@ -25,7 +25,7 @@ import org.scalatest.Assertions
 import org.junit.Test
 import org.junit.runners.Parameterized.Parameters
 import org.neo4j.cypher.internal.pipes._
-import org.neo4j.cypher.internal.symbols.{SymbolTable, NumberType}
+import org.neo4j.cypher.internal.symbols.{StringType, SymbolTable, NumberType}
 import org.neo4j.cypher.PlanDescription
 import org.neo4j.cypher.internal.ExecutionContext
 
@@ -40,19 +40,19 @@ class NullInsertingPipeTest(name: String,
     val sourcePipe = new FakePipe(sourceIter, "x" -> NumberType())
     val builder = (source: Pipe) => MapPipe(source, mapF)
 
-    val nullInsertingPipe = new NullInsertingPipe(sourcePipe, builder, Seq("z"))
+    val nullInsertingPipe = new NullInsertingPipe(sourcePipe, builder)
     val results = nullInsertingPipe.createResults(QueryStateHelper.empty).toList
 
     assert(expected === results)
   }
 
   case class MapPipe(sourcePipe: Pipe, mapF: Iterator[ExecutionContext] => Iterator[ExecutionContext]) extends PipeWithSource(sourcePipe) {
-    def symbols = sourcePipe.symbols
+    def symbols = sourcePipe.symbols.add("z", StringType())
 
     def throwIfSymbolsMissing(symbols: SymbolTable) {}
 
     protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) =
-      mapF(input).map(m => m.newWith("z"->   m("x").toString))
+      mapF(input).map(m => m.newWith("z" -> m("x").toString))
 
     def executionPlanDescription: PlanDescription = ???
   }

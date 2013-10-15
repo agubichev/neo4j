@@ -118,7 +118,17 @@ class QueryBuilder(var startItems: Seq[StartItem] = Seq()) {
     this
   }
 
-  def returns(returnItems: ReturnColumn*): Query =
+  def returns(returnItems: ReturnColumn*): Query = if (optional && startItems.nonEmpty) {
+    val allIdentifierss = Seq[ReturnColumn](AllIdentifiers())
+
+    val secondPart = Query(Return(columns(returnItems), returnItems: _*), Seq.empty, updates, matching, optional,
+      using, where, aggregation, orderBy, slice, namedPaths, tail)
+
+    Query.empty.copy(
+      returns = Return(columns(allIdentifierss), allIdentifierss:_*),
+      start = startItems,
+      tail = Some(secondPart))
+  } else
     Query(Return(columns(returnItems), returnItems: _*), startItems, updates, matching, optional,
       using, where, aggregation, orderBy, slice, namedPaths, tail)
 }

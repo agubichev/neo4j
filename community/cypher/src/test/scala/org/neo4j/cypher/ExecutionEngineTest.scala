@@ -404,8 +404,7 @@ foreach(x in [1,2,3] |
     relate(a, b, "rel", "r")
     relate(b, c, "rel", "r2")
 
-    val result = execute("start r=rel(0) match (a)-[r]-(b) optional match (b)--(c) return a,b,c")
-
+    val result = execute("start r=rel(0) match (a)-[r]-(b) optional match (b)-[r2]-(c) where r<>r2 return a,b,c")
     assertEquals(List(Map("a" -> a, "b" -> b, "c" -> c), Map("a" -> b, "b" -> a, "c" -> null)), result.toList)
   }
 
@@ -1000,7 +999,7 @@ return x, p""").toList
 
     val result = execute( """
 start a  = node(1)
-match p = a-->b-[?*]->c
+optional match p = a-->b-[*]->c
 return p""")
 
     assert(List(
@@ -1427,7 +1426,7 @@ RETURN x0.name""")
   @Test def functions_should_return_null_if_they_get_path_containing_unbound() {
     createNode()
 
-    val result = execute("start a=node(1) match p=a-[r?]->() return length(p), id(r), type(r), nodes(p), rels(p)").toList
+    val result = execute("start a=node(1) optional match p=a-[r]->() return length(p), id(r), type(r), nodes(p), rels(p)").toList
 
     assert(List(Map("length(p)" -> null, "id(r)" -> null, "type(r)" -> null, "nodes(p)" -> null, "rels(p)" -> null)) === result)
   }
@@ -1895,7 +1894,7 @@ RETURN x0.name""")
 
   @Test
   def empty_collect_should_not_contain_null() {
-    val result = execute("START n=node(0) MATCH n-[?:NOT_EXIST]->x RETURN n, collect(x)")
+    val result = execute("START n=node(0) OPTIONAL MATCH n-[:NOT_EXIST]->x RETURN n, collect(x)")
 
     assert(result.toList === List(Map("n" -> refNode, "collect(x)" -> List())))
   }

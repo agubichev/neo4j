@@ -2844,12 +2844,22 @@ class CypherParserTest extends JUnitSuite with Assertions {
     assert(lastQ.returns.columns === List("a1", "a4"), "Lost the tail while compacting")
   }
 
+  @Test def should_handle_optional_match_following_optional_match() {
+    val last = Query.matches(RelatedTo("c", "n", "r2", Seq.empty, Direction.OUTGOING)).makeOptional().returns(AllIdentifiers())
+    val second = Query.matches(RelatedTo("n", "b", "r1", Seq.empty, Direction.OUTGOING)).makeOptional().tail(last).returns(AllIdentifiers())
+    val first = Query.matches(SingleNode("n")).tail(second).returns(AllIdentifiers())
+
+    test(
+      "MATCH (n) OPTIONAL MATCH (n)-[r1]->(b) OPTIONAL MATCH (n)<-[r2]-(c) RETURN *",
+      first)
+  }
+
   val parser = CypherParser()
 
   private def test(query: String, expectedQuery: AbstractQuery) {
     val ast = parser.parseToQuery(query)
     try {
-      assertThat(ast, equalTo(expectedQuery))
+      assertThat(query, ast, equalTo(expectedQuery))
     } catch {
       case x: AssertionError => throw new AssertionError(x.getMessage.replace("WrappedArray", "List"))
     }
