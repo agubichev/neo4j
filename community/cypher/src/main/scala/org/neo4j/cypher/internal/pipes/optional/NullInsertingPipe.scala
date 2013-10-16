@@ -35,10 +35,10 @@ case class NullInsertingPipe(in: Pipe, builder: Pipe => Pipe) extends Pipe {
 
   def symbols: SymbolTable = innerPipe.symbols
 
-  def executionPlanDescription: PlanDescription =
-    in.executionPlanDescription.
-    andThen(this, "NullableMatch").
-    andThen(innerPipe.executionPlanDescription)
+  def executionPlanDescription: PlanDescription = {
+    val innerPlanDescription = innerPipe.executionPlanDescription
+    in.executionPlanDescription.andThenWrap(in, "NullableMatch", innerPlanDescription)
+  }
 
   def throwIfSymbolsMissing(symbols: SymbolTable) {}
 

@@ -178,7 +178,10 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
       val state = new QueryState(graph, queryContext, params, decorator)
       val results: Iterator[collection.Map[String, Any]] = pipe.createResults(state)
       val closingIterator = new ClosingIterator(results, queryContext)
-      val descriptor = () => decorator.decorate(pipe.executionPlanDescription, closingIterator.isEmpty)
+      val descriptor = { () =>
+        val result = decorator.decorate(pipe.executionPlanDescription, closingIterator.isEmpty)
+        result
+      }
       (state, closingIterator, descriptor)
     }
     catch {

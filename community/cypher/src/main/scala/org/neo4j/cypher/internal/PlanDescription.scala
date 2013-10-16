@@ -46,7 +46,7 @@ trait PlanDescription extends cypher.PlanDescription {
    */
   def andThen(pipe: Pipe, name: String, args: (String, SimpleVal)*): PlanDescription
 
-  def andThen(inner: PlanDescription): PlanDescription
+  def andThenWrap(pipe: Pipe, name: String, inner: PlanDescription, args: (String, SimpleVal)*): PlanDescription
 
   def mapArgs(f: (PlanDescription => Seq[(String, SimpleVal)])): PlanDescription
 
@@ -66,8 +66,9 @@ class PlanDescriptionImpl(val pipe: Pipe,
   def andThen(pipe: Pipe, name: String, args: (String, SimpleVal)*): PlanDescription =
     new PlanDescriptionImpl(pipe, name, Seq(this), args)
 
-  def andThen(inner: PlanDescription): PlanDescription =
-    new PlanDescriptionImpl(inner.pipe, inner.name, Seq(inner), inner.args)
+  def andThenWrap(pipe: Pipe, name: String,
+                  inner: PlanDescription, args: (String, SimpleVal)*): PlanDescription =
+    new PlanDescriptionImpl(pipe, name, Seq(this), args)
 
   def withChildren(kids: PlanDescription*) =
     new PlanDescriptionImpl(pipe, name, kids, args)
@@ -202,4 +203,6 @@ object NullPlanDescription extends PlanDescription {
   def render(builder: StringBuilder, separator: String, levelSuffix: String) {}
 
   def andThen(inner: PlanDescription): PlanDescription = inner
+
+  def andThenWrap(pipe: Pipe, name: String, inner: PlanDescription, args: (String, SimpleVal)*): PlanDescription = ???
 }

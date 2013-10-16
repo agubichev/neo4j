@@ -22,6 +22,7 @@ package org.neo4j.cypher
 import javacompat.ProfilerStatistics
 import org.scalatest.Assertions
 import org.junit.Test
+import org.junit.Assert.assertNotNull
 
 class ProfilerAcceptanceTest extends ExecutionEngineHelper with Assertions {
   @Test
@@ -69,6 +70,16 @@ class ProfilerAcceptanceTest extends ExecutionEngineHelper with Assertions {
 
     //WHEN THEN
     assertDbHits(1)(result)("ColumnFilter", "Extract", "AllNodes")
+  }
+
+  @Test
+  def tracks_optional_matches() {
+    //GIVEN
+    val result: ExecutionResult = engine.profile("start n=node(*) optional match (n)-->(x) return x")
+
+    //WHEN THEN
+    val profile = result.executionPlanDescription()
+    assertNotNull(profile)
   }
 
   private def assertRows(expectedRows: Int)(result: ExecutionResult)(names: String*) {

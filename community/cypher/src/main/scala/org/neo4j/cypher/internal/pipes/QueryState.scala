@@ -32,8 +32,8 @@ case class QueryState(db: GraphDatabaseService,
                       params: Map[String, Any],
                       decorator: PipeDecorator,
                       var transaction: Option[Transaction] = None,
-                      timeReader: TimeReader = new TimeReader) {
-  var listener: Listener[ExecutionContext] = null
+                      timeReader: TimeReader = new TimeReader,
+                      var listener: Listener[ExecutionContext] = null) {
 
   def readTimeStamp(): Long = timeReader.getTime
 
