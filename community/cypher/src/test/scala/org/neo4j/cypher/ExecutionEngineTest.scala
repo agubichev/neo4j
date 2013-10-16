@@ -2583,4 +2583,13 @@ RETURN x0.name""")
     execute("match (n) where id(n) in [0,1] return n").toList
     // should not throw an exception
   }
+
+  @Test
+  def apa() {
+    createLabeledNode("Foo")
+    val result = engine.profile("match (n:Foo)-->(x) return x")
+    result.toList
+
+    println(result.executionPlanDescription())
+  }
 }
