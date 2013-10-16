@@ -68,7 +68,7 @@ class PlanDescriptionImpl(val pipe: Pipe,
 
   def andThenWrap(pipe: Pipe, name: String,
                   inner: PlanDescription, args: (String, SimpleVal)*): PlanDescription =
-    new PlanDescriptionImpl(pipe, name, Seq(this), args)
+    new PlanDescriptionImpl(pipe, name, Seq(inner), args)
 
   def withChildren(kids: PlanDescription*) =
     new PlanDescriptionImpl(pipe, name, kids, args)

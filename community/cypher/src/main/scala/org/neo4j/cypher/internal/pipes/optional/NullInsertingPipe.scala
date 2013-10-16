@@ -59,7 +59,6 @@ case class NullInsertingPipe(in: Pipe, builder: Pipe => Pipe) extends Pipe {
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
     val innerResult = innerPipe.createResults(state)
     val listener = state.listener
-    state.listener = null
     new NullInsertingIterator(listener, innerResult, nullF)
   }
 }
