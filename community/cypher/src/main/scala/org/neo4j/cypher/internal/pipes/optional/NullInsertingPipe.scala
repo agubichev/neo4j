@@ -20,9 +20,8 @@
 package org.neo4j.cypher.internal.pipes.optional
 
 import org.neo4j.cypher.internal.pipes.{QueryState, Pipe, PipeWithSource}
-import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.{PlanDescription, ExecutionContext}
 import org.neo4j.cypher.internal.symbols.SymbolTable
-import org.neo4j.cypher.PlanDescription
 
 case class NullInsertingPipe(in: Pipe, builder: Pipe => Pipe) extends Pipe {
   val listenerPipe: ListenerPipe = new ListenerPipe(in)
@@ -36,14 +35,17 @@ case class NullInsertingPipe(in: Pipe, builder: Pipe => Pipe) extends Pipe {
 
   def symbols: SymbolTable = innerPipe.symbols
 
-  def executionPlanDescription: PlanDescription = ???
+  def executionPlanDescription: PlanDescription =
+    in.executionPlanDescription.
+    andThen(this, "NullableMatch").
+    andThen(innerPipe.executionPlanDescription)
 
   def throwIfSymbolsMissing(symbols: SymbolTable) {}
 
   case class ListenerPipe(source: Pipe) extends PipeWithSource(source) {
     def symbols: SymbolTable = source.symbols
 
-    def executionPlanDescription: PlanDescription = ???
+    def executionPlanDescription: PlanDescription = source.executionPlanDescription
 
     def throwIfSymbolsMissing(symbols: SymbolTable) {}
 

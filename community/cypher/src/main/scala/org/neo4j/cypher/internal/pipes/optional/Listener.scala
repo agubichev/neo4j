@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.pipes.optional
 
-class Listener[A](in: => Iterator[A]) extends Iterator[A] {
+class Listener[A](in: Iterator[A]) extends Iterator[A] {
   var seen: List[A] = List.empty
 
   def hasNext: Boolean = in.hasNext

@@ -26,8 +26,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized.Parameters
 import org.neo4j.cypher.internal.pipes._
 import org.neo4j.cypher.internal.symbols.{StringType, SymbolTable, NumberType}
-import org.neo4j.cypher.PlanDescription
-import org.neo4j.cypher.internal.ExecutionContext
+import org.neo4j.cypher.internal.{PlanDescription, ExecutionContext}
 
 @RunWith(value = classOf[Parameterized])
 class NullInsertingPipeTest(name: String,

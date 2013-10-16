@@ -26,12 +26,6 @@ import org.junit.Test
 import org.scalatest.Assertions
 import org.hamcrest.CoreMatchers.equalTo
 import org.neo4j.cypher._
-import org.neo4j.cypher.internal.parser.v1_9.CypherParserImpl
-
-<<<<<<< HEAD
-import org.neo4j.cypher.internal.compiler.v2_0.CypherCompiler
-=======
->>>>>>> The Query command object now knows if it is optional or not
 import org.neo4j.cypher.internal.parser.{ParsedVarLengthRelation, ParsedEntity, ParsedRelation}
 import org.neo4j.cypher.internal.commands._
 import org.neo4j.cypher.internal.commands.expressions._

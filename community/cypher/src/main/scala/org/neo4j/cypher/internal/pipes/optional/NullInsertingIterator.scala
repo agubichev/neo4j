@@ -19,31 +19,26 @@
  */
 package org.neo4j.cypher.internal.pipes.optional
 
-// THIS CLASS CAN NOT RUN CONCURRENTLY!
+// THIS CLASS IS NOT THREAD SAFE
 class NullInsertingIterator[ExecutionContext](listener: Listener[ExecutionContext],
-                                              inputIterator: Iterator[ExecutionContext],
+                                              inner: Iterator[ExecutionContext],
                                               nullF: ExecutionContext => ExecutionContext)
   extends Iterator[ExecutionContext] {
   var buffer: List[ExecutionContext] = List.empty
 
-  private def fillBuffer(): Boolean = {
-    val inputIteratorHasNext = inputIterator.hasNext
-    val passedThrough: List[ExecutionContext] = listener.seen.map(nullF)
+  private def fillBuffer() = {
+    val innerHasNext = inner.hasNext
+    val seenByListener: List[ExecutionContext] = listener.seen
 
-    if (!inputIteratorHasNext && passedThrough.isEmpty)
-      return false
+    if (innerHasNext || seenByListener.nonEmpty) {
+      buffer = if (innerHasNext) {
+        seenByListener.dropRight(1).map(nullF) :+ inner.next()
+      } else {
+        seenByListener.map(nullF)
+      }
 
-    buffer = if (inputIteratorHasNext) {
-      val nextResult = inputIterator.next()
-      passedThrough.dropRight(1) :+ nextResult
+      listener.clear()
     }
-    else {
-      passedThrough
-    }
-
-    listener.clear()
-
-    true
   }
 
   def hasNext: Boolean = {
