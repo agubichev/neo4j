@@ -204,38 +204,6 @@ class MatchTest extends DocumentingTestBase {
     )
   }
 
-  @Test def optionalRelationship() {
-    testQuery(
-      title = "Optional relationship",
-      text = "If a relationship is optional, use the +OPTIONAL+ +MATCH+ clause. This is similar to how a SQL outer join " +
-        "works. If the relationship is there, it is returned. If it's not, +null+ is returned in it's place. ",
-      queryText = """start a=node(%WallStreet%) optional match a-->x return x""",
-      returns = """Returns +null+, since the node has no outgoing relationships.""",
-      assertions = (p) => assertEquals(List(Map("x" -> null)), p.toList)
-    )
-  }
-
-  @Test def nodePropertyFromOptionalNode() {
-    testQuery(
-      title = "Properties on optional elements",
-      text = "Returning a property from an optional element that is +null+ will also return +null+.",
-      queryText = "start a=node(%WallStreet%) optional match (a)-->(x) return x, x.name",
-      returns = """Returns the element x (`null` in this query), and `null` as its name.""",
-      assertions = (p) => assertEquals(List(Map("x" -> null, "x.name" -> null)), p.toList)
-    )
-  }
-
-  @Test def optionalTypedRelationship() {
-    testQuery(
-      title = "Optional typed and named relationship",
-      text = "Just as with a normal relationship, you can decide which identifier it goes into, and what relationship type " +
-        "you need.",
-      queryText = """start a=node(%WallStreet%) optional match (a)-[r:ACTS_IN]->() return r""",
-      returns = """This returns a node, and +null+, since the node has no outgoing `ACTS_IN` relationships.""",
-      assertions = (p) => assertEquals(List(Map("r" -> null)), p.toList)
-    )
-  }
-
   @Test def shortestPathBetweenTwoNodes() {
     testQuery(
       title = "Shortest path",
