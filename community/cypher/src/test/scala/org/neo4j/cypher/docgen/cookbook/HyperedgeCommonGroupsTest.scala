@@ -78,15 +78,15 @@ To return +Group1+ and +Group2+ as +User1+ and +User2+ share at least one common
                """,
         queryText =
           "match " +
-          "u1-[:hasRoleInGroup]->hyperEdge1-[:hasGroup]->group, " +
+          "u1-[:hasRoleInGroup]->hyperEdge1-[:hasGroup]->userGroup, " +
           "hyperEdge1-[:hasRole]->role, " +
-          "u2-[:hasRoleInGroup]->hyperEdge2-[:hasGroup]->group, " +
+          "u2-[:hasRoleInGroup]->hyperEdge2-[:hasGroup]->userGroup, " +
           "hyperEdge2-[:hasRole]->role " +
           "where u1.name = 'User1' and u2.name = 'User2' " +
-          "return group.name, count(role) " +
-          "order by group.name ASC",
+          "return userGroup.name, count(role) " +
+          "order by userGroup.name ASC",
         returns = "The groups where +User1+ and +User2+ share at least one common role:",
-        assertions = (p) => assertEquals(List(Map("group.name" -> "Group1", "count(role)" -> 1), Map("group.name" -> "Group2", "count(role)" -> 1)), p.toList))
+        assertions = (p) => assertEquals(List(Map("userGroup.name" -> "Group1", "count(role)" -> 1), Map("userGroup.name" -> "Group2", "count(role)" -> 1)), p.toList))
     }
 
   
