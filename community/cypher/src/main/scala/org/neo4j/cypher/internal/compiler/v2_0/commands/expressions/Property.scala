@@ -28,6 +28,7 @@ import org.neo4j.cypher.internal.helpers._
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.graphdb.NotFoundException
 import scala.runtime.ScalaRunTime
+import org.neo4j.cypher.internal.compiler.v2_0.helpers.IsMap
 
 object Property {
   def apply(mapExpr: Expression, propertyKey: KeyToken) = new Property(mapExpr, propertyKey, true)

@@ -27,6 +27,7 @@ import org.neo4j.cypher.{ExecutionPlan, SyntaxException}
 import org.neo4j.cypher.internal
 import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundPlanContext
 import org.neo4j.graphdb.GraphDatabaseService
+import org.neo4j.cypher.internal.spi.QueryContext
 
 case class CypherCompiler(
   graph: GraphDatabaseService,
@@ -36,7 +37,7 @@ case class CypherCompiler(
   val verifiers = Seq(HintVerifier, OptionalPatternWithoutStartVerifier)
 
   @throws(classOf[SyntaxException])
-  def prepare(query: String, context: TransactionBoundPlanContext): ExecutionPlan = {
+  def prepare(query: String, context: TransactionBoundPlanContext): ExecutionPlan[QueryContext] = {
     val cachedQuery = queryCache(query, {
       val parsedQuery = parser.parseToQuery(query)
       parsedQuery.verifySemantics()
