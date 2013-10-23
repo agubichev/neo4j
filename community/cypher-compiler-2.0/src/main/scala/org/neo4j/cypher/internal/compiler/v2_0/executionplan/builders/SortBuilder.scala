@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.SortPipe
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Identifier, CachedExpression, Expression}
 import org.neo4j.cypher.CypherTypeException
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class SortBuilder extends PlanBuilder with SortingPreparations {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext) = {

@@ -33,7 +33,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.CreateNodeStartItem
 import org.neo4j.cypher.internal.compiler.v2_0.commands.CreateRelationshipStartItem
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.CreateNode
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.ForeachAction
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class CreateNodesAndRelationshipsBuilder(db: GraphDatabaseService)
   extends PlanBuilder with UpdateCommandExpander with GraphElementPropertyFunctions {

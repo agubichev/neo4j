@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.ExtractPipe
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{ExecutionPlanInProgress, PlanBuilder}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Identifier, CachedExpression, Expression}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.AllIdentifiers
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 /**
  * This builder will materialize expression results down to the result map, so they can be seen by the user

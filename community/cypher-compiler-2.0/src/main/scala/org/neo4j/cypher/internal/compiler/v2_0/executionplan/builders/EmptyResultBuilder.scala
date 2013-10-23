@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders
 
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress}
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.EmptyResultPipe
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 /**
  * This builder should make sure that the execution result is consumed, even if the user didn't ask for any results

@@ -20,7 +20,6 @@
 package org.neo4j.cypher.internal.compiler.v2_0.pipes
 
 import org.neo4j.kernel.{ThreadToStatementContextBridge, GraphDatabaseAPI}
-import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundExecutionContext
 
 object QueryStateHelper {
   def empty = new QueryState(null, null, Map.empty, NullDecorator)

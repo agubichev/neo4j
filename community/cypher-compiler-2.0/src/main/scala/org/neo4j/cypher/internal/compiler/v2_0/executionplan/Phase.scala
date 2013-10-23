@@ -19,8 +19,8 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.executionplan
 
-import org.neo4j.cypher.internal.spi.PlanContext
 import org.neo4j.cypher.InternalException
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 trait Phase {
 

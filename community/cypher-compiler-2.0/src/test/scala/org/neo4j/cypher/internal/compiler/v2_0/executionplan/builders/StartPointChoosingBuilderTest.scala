@@ -29,7 +29,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.values.{KeyToken, TokenT
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.PartiallySolvedQuery
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.UpdateAction
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.FakePipe
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.NodeType
 import org.neo4j.graphdb.Direction
 import org.neo4j.kernel.impl.api.index.IndexDescriptor

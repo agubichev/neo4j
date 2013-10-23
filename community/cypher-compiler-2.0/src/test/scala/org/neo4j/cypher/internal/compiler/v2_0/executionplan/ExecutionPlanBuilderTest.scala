@@ -26,9 +26,8 @@ import commands.values.TokenType.{Label, PropertyKey}
 import mutation._
 import pipes._
 import symbols._
-import org.neo4j.cypher.internal.spi.PlanContext
-import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundExecutionContext
-import org.neo4j.cypher.{GraphDatabaseTestBase, InternalException}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
+import org.neo4j.cypher.InternalException
 import org.neo4j.graphdb.{DynamicLabel, GraphDatabaseService}
 import scala.collection.Seq
 import org.junit.Test

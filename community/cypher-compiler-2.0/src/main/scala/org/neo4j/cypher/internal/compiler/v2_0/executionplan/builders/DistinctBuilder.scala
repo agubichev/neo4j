@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, Execu
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.DistinctPipe
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{CachedExpression, Expression}
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.{SymbolTable, CypherType, AnyType}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 
 class DistinctBuilder extends PlanBuilder {

@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.profiler
 import org.neo4j.cypher.internal.compiler.v2_0._
 import data.PrimVal
 import pipes.{QueryState, Pipe, PipeDecorator}
-import org.neo4j.cypher.internal.spi.{DelegatingOperations, Operations, QueryContext, DelegatingQueryContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{DelegatingOperations, Operations, QueryContext, DelegatingQueryContext}
 import org.neo4j.cypher.ProfilerStatisticsNotReadyException
 import org.neo4j.graphdb.{PropertyContainer, Direction, Relationship, Node}
 import collection.mutable

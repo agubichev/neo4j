@@ -19,37 +19,34 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0
 
-import commands.AbstractQuery
-import executionplan.ExecutionPlanBuilder
-import executionplan.verifiers.{OptionalPatternWithoutStartVerifier, HintVerifier}
-import parser.CypherParser
-import org.neo4j.cypher.{ExecutionPlan, SyntaxException}
-import org.neo4j.cypher.internal
-import org.neo4j.graphdb.GraphDatabaseService
-import org.neo4j.cypher.internal.compiler.v2_0.spi.{PlanContext, QueryContext}
 
-case class CypherCompiler(
-  graph: GraphDatabaseService,
-  queryCache: (String, => Object) => Object) extends internal.CypherCompiler
+case class CypherCompiler()
 {
-  val parser = CypherParser()
-  val verifiers = Seq(HintVerifier, OptionalPatternWithoutStartVerifier)
 
-  @throws(classOf[SyntaxException])
-  def prepare(query: String, context: PlanContext): ExecutionPlan = {
-    val cachedQuery = queryCache(query, {
-      val parsedQuery = parser.parseToQuery(query)
-      parsedQuery.verifySemantics()
-      verify(parsedQuery)
-      parsedQuery
-    }).asInstanceOf[AbstractQuery]
-
-    val planBuilder = new ExecutionPlanBuilder(graph)
-    planBuilder.build(context, cachedQuery)
-  }
-
-  def verify(query: AbstractQuery) {
-    for (verifier <- verifiers)
-      verifier.verify(query)
-  }
 }
+
+//case class CypherCompiler(
+//  graph: GraphDatabaseService,
+//  queryCache: (String, => Object) => Object) extends internal.CypherCompiler
+//{
+//  val parser = CypherParser()
+//  val verifiers = Seq(HintVerifier, OptionalPatternWithoutStartVerifier)
+//
+//  @throws(classOf[SyntaxException])
+//  def prepare(query: String, context: PlanContext): ExecutionPlan = {
+//    val cachedQuery = queryCache(query, {
+//      val parsedQuery = parser.parseToQuery(query)
+//      parsedQuery.verifySemantics()
+//      verify(parsedQuery)
+//      parsedQuery
+//    }).asInstanceOf[AbstractQuery]
+//
+//    val planBuilder = new ExecutionPlanBuilder(graph)
+//    planBuilder.build(context, cachedQuery)
+//  }
+//
+//  def verify(query: AbstractQuery) {
+//    for (verifier <- verifiers)
+//      verifier.verify(query)
+//  }
+//}

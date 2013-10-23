@@ -24,7 +24,7 @@ import org.neo4j.graphdb.GraphDatabaseService
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.{Pipe, ExecuteUpdateCommandsPipe}
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.UpdateAction
 import org.neo4j.cypher.internal.compiler.v2_0.commands.{UpdatingStartItem, StartItem}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class UpdateActionBuilder(db: GraphDatabaseService) extends PlanBuilder with UpdateCommandExpander {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext) = {

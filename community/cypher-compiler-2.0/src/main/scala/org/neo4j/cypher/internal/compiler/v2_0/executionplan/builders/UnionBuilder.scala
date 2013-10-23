@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.{Query, Union}
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.{DistinctPipe, UnionPipe, Pipe}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Identifier, Expression}
 import org.neo4j.cypher.SyntaxException
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 
 class UnionBuilder(queryBuilder: {def buildQuery(q: Query, context:PlanContext): (Pipe, Boolean)}) {

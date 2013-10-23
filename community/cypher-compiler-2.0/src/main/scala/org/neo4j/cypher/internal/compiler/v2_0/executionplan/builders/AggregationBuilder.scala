@@ -25,7 +25,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{CachedExpre
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.commands.ReturnItem
 import java.util.UUID
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 
 /*

@@ -24,8 +24,7 @@ import commands.expressions.Expression
 import pipes.QueryState
 import symbols._
 import org.neo4j.cypher.CypherTypeException
-import org.neo4j.cypher.internal.helpers._
-import org.neo4j.cypher.internal.spi.{QueryContext, Operations}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{QueryContext, Operations}
 import org.neo4j.graphdb.{Node, Relationship, PropertyContainer}
 import collection.Map
 import org.neo4j.cypher.internal.compiler.v2_0.helpers.{IsMap, MapSupport}

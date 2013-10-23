@@ -20,7 +20,7 @@
 package org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.prepare
 
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PartiallySolvedQuery, ExecutionPlanInProgress, PlanBuilder}
-import org.neo4j.cypher.internal.spi.{TokenContext, PlanContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{TokenContext, PlanContext}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Expression
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
 

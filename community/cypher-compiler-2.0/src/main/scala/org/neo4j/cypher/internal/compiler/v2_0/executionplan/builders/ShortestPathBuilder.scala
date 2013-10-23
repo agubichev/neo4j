@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.ShortestPath
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress}
 import collection.Seq
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.{ShortestPathPipe, Pipe}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class ShortestPathBuilder extends PlanBuilder {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext) = {

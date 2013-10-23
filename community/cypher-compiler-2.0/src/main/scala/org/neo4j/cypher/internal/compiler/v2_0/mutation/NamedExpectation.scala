@@ -25,7 +25,7 @@ import commands.values.KeyToken
 import pipes.QueryState
 import symbols._
 import org.neo4j.cypher.internal.helpers._
-import org.neo4j.cypher.internal.spi.Operations
+import org.neo4j.cypher.internal.compiler.v2_0.spi.Operations
 import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import collection.Map
 import org.neo4j.cypher.internal.compiler.v2_0.helpers.IsMap

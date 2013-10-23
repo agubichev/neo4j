@@ -30,7 +30,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.{Trail, TraversalM
 import org.neo4j.cypher.internal.compiler.v2_0.commands.NodeByIndex
 import org.neo4j.cypher.internal.compiler.v2_0.commands.NodeByIndexQuery
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.{NodeType, SymbolTable}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext): ExecutionPlanInProgress =

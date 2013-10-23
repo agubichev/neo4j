@@ -25,9 +25,7 @@ import commands.expressions._
 import pipes.NullPipe
 import executionplan.{ExecutionPlanInProgress, PartiallySolvedQuery}
 import parser.CypherParser
-import org.neo4j.cypher.internal.spi.PlanContext
-import org.neo4j.cypher.internal.spi.gdsimpl.TransactionBoundPlanContext
-import org.neo4j.cypher.GraphDatabaseTestBase
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.graphdb.Transaction
 import org.junit.{After, Before, Test}
 import org.scalatest.Assertions

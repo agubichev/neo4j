@@ -24,7 +24,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols.{RelationshipType, NodeTy
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress, PartiallySolvedQuery}
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.{MutableMaps, Pipe, NullPipe, FakePipe}
 import org.junit.Assert._
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.commands.Query
 
 trait BuilderTest extends Assertions {

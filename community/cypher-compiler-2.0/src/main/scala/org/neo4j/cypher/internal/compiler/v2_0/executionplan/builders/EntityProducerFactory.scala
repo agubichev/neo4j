@@ -28,7 +28,7 @@ import pipes.{EntityProducer, QueryState}
 import org.neo4j.cypher.internal.helpers._
 import org.neo4j.cypher.{EntityNotFoundException, IndexHintException, InternalException}
 import org.neo4j.graphdb.{PropertyContainer, Relationship, Node}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class EntityProducerFactory extends GraphElementPropertyFunctions {
 

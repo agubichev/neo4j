@@ -24,7 +24,7 @@ import java.util.{Map => JavaMap}
 import collection.JavaConverters._
 import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 import org.neo4j.helpers.ThisShouldNotHappenError
-import org.neo4j.cypher.internal.spi.{Operations, QueryContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{Operations, QueryContext}
 import org.neo4j.cypher.EntityNotFoundException
 
 object IsMap extends MapSupport {

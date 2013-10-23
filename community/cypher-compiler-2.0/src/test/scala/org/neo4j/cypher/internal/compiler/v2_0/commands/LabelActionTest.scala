@@ -23,8 +23,7 @@ import expressions.Literal
 import values.{TokenType, KeyToken}
 import org.neo4j.cypher.internal.compiler.v2_0._
 import pipes.{NullDecorator, QueryState}
-import org.neo4j.cypher.internal.spi.{IdempotentResult, LockingQueryContext, QueryContext}
-import org.neo4j.cypher.GraphDatabaseTestBase
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{IdempotentResult, LockingQueryContext, QueryContext}
 import org.neo4j.graphdb.{Direction, Node}
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
 import org.scalatest.Assertions

@@ -23,8 +23,8 @@ import org.neo4j.cypher.internal.compiler.v2_0._
 import commands.{RelationshipById, StartItem}
 import executionplan._
 import pipes.{EntityProducer, QueryState, RelationshipStartPipe}
-import org.neo4j.cypher.internal.spi.PlanContext
-import org.neo4j.graphdb.{Relationship, GraphDatabaseService}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
+import org.neo4j.graphdb.Relationship
 import collection.Seq
 import GetGraphElements.getElements
 

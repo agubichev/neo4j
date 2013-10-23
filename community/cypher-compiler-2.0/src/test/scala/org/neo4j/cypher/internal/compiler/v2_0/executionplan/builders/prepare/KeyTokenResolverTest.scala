@@ -25,7 +25,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.executionplan.PlanBuilder
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.{KeyToken, TokenType, UnresolvedLabel}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Identifier
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.scalatest.mock.MockitoSugar
 import org.mockito.Mockito._
 import org.neo4j.graphdb.Direction

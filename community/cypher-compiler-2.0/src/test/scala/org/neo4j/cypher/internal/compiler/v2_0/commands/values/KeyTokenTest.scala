@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.commands.values
 
-import org.neo4j.cypher.internal.spi.{QueryContext, TokenContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{QueryContext, TokenContext}
 import org.junit.Test
 import org.scalatest.Assertions
 

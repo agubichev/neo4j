@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0._
 import commands._
 import commands.expressions.{Expression, Identifier, Property}
 import executionplan._
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class IndexLookupBuilder extends PlanBuilder {
   def canWorkWith(plan: ExecutionPlanInProgress, ctx: PlanContext) =

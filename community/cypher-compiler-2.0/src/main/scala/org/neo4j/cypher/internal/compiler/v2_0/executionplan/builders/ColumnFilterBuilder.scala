@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.{Pipe, ColumnFilterPipe}
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, PartiallySolvedQuery, ExecutionPlanInProgress}
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.commands.{AllIdentifiers, ReturnItem, ReturnColumn}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 /**
  * This class should get rid of any extra columns built up while building the execution plan, that weren't in the

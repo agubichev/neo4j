@@ -24,7 +24,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, Execu
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Add
 import org.neo4j.cypher.internal.compiler.v2_0.commands.Slice
 import org.neo4j.helpers.ThisShouldNotHappenError
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class TopPipeBuilder extends PlanBuilder with SortingPreparations {
   def apply(plan: ExecutionPlanInProgress, ctx: PlanContext) = {

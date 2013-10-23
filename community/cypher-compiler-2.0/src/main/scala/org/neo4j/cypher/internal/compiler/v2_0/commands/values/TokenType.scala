@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.commands.values
 
-import org.neo4j.cypher.internal.spi.{TokenContext, QueryContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{TokenContext, QueryContext}
 
 object TokenType extends Enumeration {
   case object Label extends TokenType {

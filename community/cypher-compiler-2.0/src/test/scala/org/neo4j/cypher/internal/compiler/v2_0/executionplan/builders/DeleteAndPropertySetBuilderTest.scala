@@ -25,7 +25,7 @@ import org.junit.Assert._
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.DeleteEntityAction
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Identifier
 import org.mockito.Mockito
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 class DeleteAndPropertySetBuilderTest extends BuilderTest {
   val builder = new UpdateActionBuilder(null)

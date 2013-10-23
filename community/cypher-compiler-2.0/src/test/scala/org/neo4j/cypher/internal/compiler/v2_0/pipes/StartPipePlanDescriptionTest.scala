@@ -20,7 +20,7 @@
 package org.neo4j.cypher.internal.compiler.v2_0.pipes
 
 import org.junit.{Before, Test}
-import org.neo4j.cypher.internal.spi.PlanContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Literal

@@ -23,7 +23,6 @@ package org.neo4j.cypher.internal.compiler.v2_0.spi
 import org.neo4j.graphdb._
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
 import org.neo4j.kernel.api.constraints.UniquenessConstraint
-import org.neo4j.cypher.internal.compiler.v2_0.spi.TokenContext
 
 /*
  * Developer note: This is an attempt at an internal graph database API, which defines a clean cut between

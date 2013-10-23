@@ -28,9 +28,9 @@ import pipes._
 import pipes.optional.NullInsertingPipe
 import profiler.Profiler
 import symbols.SymbolTable
-import org.neo4j.cypher.internal.spi.{PlanContext, QueryContext}
-import org.neo4j.cypher.{SyntaxException, ExecutionPlan, ExecutionResult}
+import org.neo4j.cypher.{SyntaxException, ExecutionResult}
 import org.neo4j.graphdb.GraphDatabaseService
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{QueryContext, PlanContext}
 
 class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuilder {
 

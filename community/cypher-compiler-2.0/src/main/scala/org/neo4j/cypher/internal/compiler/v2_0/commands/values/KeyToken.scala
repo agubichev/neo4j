@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compiler.v2_0._
 import commands.expressions.Expression
 import pipes.QueryState
 import symbols._
-import org.neo4j.cypher.internal.spi.{TokenContext, QueryContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{TokenContext, QueryContext}
 
 /*
 KeyTokens are things with name and id. KeyTokens makes it possible to look up the id
