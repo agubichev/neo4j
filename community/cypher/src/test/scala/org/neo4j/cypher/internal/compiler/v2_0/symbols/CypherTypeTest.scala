@@ -45,6 +45,11 @@ class CypherTypeTest extends Assertions {
     assertCorrectTypeMergeUp(BooleanType(), CollectionType(AnyType()), Some(BooleanType()))
   }
 
+  @Test def should_allow_optionality_to_spread() {
+     assert(DoubleType(optional = true) === (DoubleType(optional = true) mergeDown DoubleType(optional = false)))
+     assert(DoubleType(optional = true) === (DoubleType(optional = false) mergeDown DoubleType(optional = true)))
+  }
+
   private def assertCorrectTypeMergeUp(a: CypherType, b: CypherType, result: Option[CypherType]) {
     val simpleMergedType: Option[CypherType] = a mergeUp b
     assert(simpleMergedType === result)

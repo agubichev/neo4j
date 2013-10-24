@@ -11,6 +11,9 @@ it all.
          \            \      /      /        /
           \------------Any---------/--------/
 
+
+          MATCH n RETURN n.foo + 12
+
 All expressions have a type. Some expressions type depend on other expressions types -
 e.g. LAST(x) will have type T, given that x has type Iterable<T>.
 

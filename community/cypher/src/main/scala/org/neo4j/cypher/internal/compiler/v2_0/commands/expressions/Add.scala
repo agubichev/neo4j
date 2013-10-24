@@ -38,8 +38,6 @@ case class Add(a: Expression, b: Expression) extends Expression with TypeSafeMat
       case (IsCollection(x), IsCollection(y)) => x ++ y
       case (IsCollection(x), y)               => x ++ Seq(y)
       case (x, IsCollection(y))               => Seq(x) ++ y
-      case (x: String, y: Number)             => x + y.toString
-      case (x: Number, y: String)             => x.toString + y
       case _                                  => throw new CypherTypeException("Don't know how to add `" + aVal.toString + "` and `" + bVal.toString + "`")
     }
   }

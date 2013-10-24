@@ -338,6 +338,13 @@ class ErrorMessagesTest extends ExecutionEngineHelper with Assertions with Strin
     )
   }
 
+  @Test def match_should_not_be_able_to_build_on_top_of_optinal_match() {
+    expectError(
+      "match (n) optional match (n)-->(m) match (m)-->(x) return x",
+      "xxx"
+    )
+  }
+
   def expectError(query: String, expectedError: String) {
     val error = intercept[CypherException](executeQuery(query))
     assertThat(error.getMessage, containsString(expectedError))

@@ -43,17 +43,17 @@ object Expression {
       option.fold(SemanticCheckResult.success) { _.constrainType(possibleTypes) }
   }
 
-  implicit class SemanticCheckableExpressionTraversable[A <: Expression](traversable: TraversableOnce[A]) extends SemanticChecking {
+  implicit class SemanticCheckableExpressionTraversable[A <: Expression](expressions: TraversableOnce[A]) extends SemanticChecking {
     def semanticCheck(ctx: SemanticContext) : SemanticCheck =
-      traversable.foldLeft(SemanticCheckResult.success) { (f, o) => f then o.semanticCheck(ctx) }
+      expressions.foldLeft(SemanticCheckResult.success) { (f, o) => f then o.semanticCheck(ctx) }
   }
 
-  implicit class InferrableTypeTraversableOnce[A <: Expression](traversable: TraversableOnce[A]) {
+  implicit class InferrableTypeTraversableOnce[A <: Expression](expressions: TraversableOnce[A]) {
     def mergeDownTypes : TypeGenerator =
-      (state: SemanticState) => traversable.map { _.types(state) } reduce { _ mergeDown _ }
+      (state: SemanticState) => expressions.map { _.types(state) } reduce { _ mergeDown _ }
 
     def constrainType(possibleType: CypherType, possibleTypes: CypherType*) : SemanticCheck =
-      traversable.foldLeft(SemanticCheckResult.success) {
+      expressions.foldLeft(SemanticCheckResult.success) {
         (f, e) => f then e.constrainType(possibleType, possibleTypes:_*)
       }
   }

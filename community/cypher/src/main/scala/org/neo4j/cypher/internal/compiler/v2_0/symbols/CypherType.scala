@@ -35,8 +35,8 @@ trait CypherType {
   def iteratedType: CypherType = throw new CypherTypeException("This is not a collection type")
 
   def mergeDown(other: CypherType): CypherType =
-    if (this.isAssignableFrom(other)) this
-    else if (other.isAssignableFrom(this)) other
+    if (this.isAssignableFrom(other)) this.makeCopyOfWithOptionality(mergeOptionality(this, other))
+    else if (other.isAssignableFrom(this)) other.makeCopyOfWithOptionality(mergeOptionality(other, this))
     else parentType mergeDown other.parentType
 
   def mergeUp(other: CypherType): Option[CypherType] =
@@ -49,6 +49,12 @@ trait CypherType {
   val isCollection: Boolean = false
 
   def rewrite(f: CypherType => CypherType) = f(this)
+
+  val isOptional: Boolean = false
+
+  def makeCopyOfWithOptionality(optional: Boolean): CypherType = this
+
+  private def mergeOptionality(a: CypherType, b: CypherType): Boolean = a.isOptional || b.isOptional
 }
 
 /*

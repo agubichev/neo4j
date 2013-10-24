@@ -20,14 +20,21 @@
 package org.neo4j.cypher.internal.compiler.v2_0.symbols
 
 object DoubleType {
-  lazy val instance = new DoubleType()
-
-  def apply() = instance
+  def apply(optional: Boolean = false) = new DoubleType(optional)
 }
 
-class DoubleType extends NumberType {
+class DoubleType(optional: Boolean) extends NumberType {
   override def parentType:CypherType = NumberType()
-  override def toString = "Double"
+  override def toString = "Double " + optional
+
+  override val isOptional = optional
+
+  override def equals(other: Any) = other match {
+    case o: DoubleType => isOptional == o.isOptional
+    case _             => false
+  }
+
+  override def makeCopyOfWithOptionality(newOptional: Boolean) = new DoubleType(newOptional)
 }
 
 
