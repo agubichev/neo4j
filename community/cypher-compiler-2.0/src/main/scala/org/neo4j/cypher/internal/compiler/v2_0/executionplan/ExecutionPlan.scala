@@ -19,11 +19,10 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.executionplan
 
-import org.neo4j.cypher.internal.compiler.v2_0.spi.TokenContext
+import org.neo4j.cypher.internal.compiler.v2_0.spi.QueryContext
+import org.neo4j.cypher.ExecutionResult
 
-abstract class ExecutionPlan[-T <: TokenContext]
-{
-  def execute(queryContext: T, params: Map[String, Any])
-  def profile(queryContext: T, params: Map[String, Any])
-
+abstract class ExecutionPlan {
+  def execute(queryContext: QueryContext, params: Map[String, Any]):ExecutionResult
+  def profile(queryContext: QueryContext, params: Map[String, Any]):ExecutionResult
 }

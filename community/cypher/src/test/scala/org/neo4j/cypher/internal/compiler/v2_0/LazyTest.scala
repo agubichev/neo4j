@@ -22,10 +22,9 @@ package org.neo4j.cypher.internal.compiler.v2_0
 import commands.expressions.{Literal, Identifier}
 import commands.{GreaterThan, True}
 import pipes._
-import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryStateHelper.queryStateFrom
 import pipes.matching._
 import symbols.IntegerType
-import org.neo4j.cypher.internal.LRUCache
+import org.neo4j.cypher.internal.{ExecutionPlan, LRUCache}
 import org.neo4j.cypher._
 import org.neo4j.graphdb._
 import org.neo4j.graphdb.Traverser.Order
@@ -88,7 +87,7 @@ class LazyTest extends ExecutionEngineHelper with Assertions with MockitoSugar {
     val ctx = ExecutionContext().newWith("a" -> monitoredNode)
 
     //When:
-    val iter = matcher.findMatchingPaths(queryStateFrom(graph), ctx)
+    val iter = matcher.findMatchingPaths(QueryStateHelper.queryStateFrom(graph), ctx)
 
     //Then:
     assert(limiter.count === 0)
@@ -186,7 +185,7 @@ class LazyTest extends ExecutionEngineHelper with Assertions with MockitoSugar {
     when(bridge.statement()).thenReturn(fakeStatement)
     when(fakeStatement.readOperations()).thenReturn(fakeReadStatement)
     when(fakeStatement.dataWriteOperations()).thenReturn(fakeDataStatement)
-    when(fakeReadStatement.schemaStateGetOrCreate[ExecutionEngine,LRUCache[String, ExecutionPlan[QueryContext]]](anyObject(), anyObject())).thenReturn(new LRUCache[String, ExecutionPlan[QueryContext]](1))
+    when(fakeReadStatement.schemaStateGetOrCreate[ExecutionEngine,LRUCache[String, ExecutionPlan]](anyObject(), anyObject())).thenReturn(new LRUCache[String, ExecutionPlan](1))
     when(fakeGraph.getDependencyResolver).thenReturn(dependencies)
     when(dependencies.resolveDependency(classOf[ThreadToStatementContextBridge])).thenReturn(bridge)
     when(dependencies.resolveDependency(classOf[NodeManager])).thenReturn(nodeManager)
@@ -210,7 +209,7 @@ class LazyTest extends ExecutionEngineHelper with Assertions with MockitoSugar {
     val traversalMatchPipe = createTraversalMatcherPipe(limiter)
 
     //When:
-    val result = traversalMatchPipe.createResults(queryStateFrom(graph))
+    val result = traversalMatchPipe.createResults(QueryStateHelper.queryStateFrom(graph))
 
     //Then:
     assert(limiter.count === 0)

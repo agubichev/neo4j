@@ -28,6 +28,7 @@ import org.scalatest.junit.JUnitSuite
 import org.scalatest.mock.MockitoSugar
 import org.neo4j.cypher.internal.helpers.DynamicIterable
 import org.neo4j.kernel.api._
+import org.neo4j.cypher.internal.spi.v2_0.TransactionBoundExecutionContext
 
 class TransactionBoundExecutionContextTest extends JUnitSuite with Assertions with MockitoSugar {
 

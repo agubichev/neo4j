@@ -21,8 +21,6 @@ package org.neo4j.cypher
 
 import org.neo4j.cypher.internal.{ExecutionPlan, CypherCompiler, LRUCache}
 import internal.prettifier.Prettifier
-import internal.spi.gdsimpl.{TransactionBoundExecutionContext, TransactionBoundPlanContext}
-import internal.spi.{ExceptionTranslatingQueryContext, QueryContext}
 import org.neo4j.kernel.{ThreadToStatementContextBridge, GraphDatabaseAPI, InternalAbstractGraphDatabase}
 import org.neo4j.graphdb.{Transaction, GraphDatabaseService}
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
@@ -30,19 +28,21 @@ import org.neo4j.kernel.impl.util.StringLogger
 import org.neo4j.kernel.api.Statement
 import scala.collection.JavaConverters._
 import java.util.{Map => JavaMap}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.ExceptionTranslatingQueryContext
+import org.neo4j.cypher.internal.spi.v2_0.TransactionBoundExecutionContext
 
 class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = StringLogger.DEV_NULL) {
 
   require(graph != null, "Can't work with a null graph database")
 
   val compiler = createCorrectCompiler()
+  private def graphAPI = graph.asInstanceOf[GraphDatabaseAPI]
 
   @throws(classOf[SyntaxException])
   def profile(query: String, params: Map[String, Any]): ExecutionResult = {
     logger.debug(query)
-    prepare(query, { (plan: ExecutionPlan[QueryContext], queryContext: QueryContext) =>
-      plan.profile(queryContext, params)
-    })
+    val (plan, tx, statement) = prepare(query)
+    plan.profile(graphAPI, tx, statement, params)
   }
 
   @throws(classOf[SyntaxException])
@@ -58,16 +58,15 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
   @throws(classOf[SyntaxException])
   def execute(query: String, params: Map[String, Any]): ExecutionResult = {
     logger.debug(query)
-    prepare(query, { (plan: ExecutionPlan[QueryContext], queryContext: QueryContext) =>
-      plan.execute(queryContext, params)
-    })
+    val (plan, tx, statement) = prepare(query)
+    plan.profile(graphAPI, tx, statement, params)
   }
 
   @throws(classOf[SyntaxException])
   def execute(query: String, params: JavaMap[String, Any]): ExecutionResult = execute(query, params.asScala.toMap)
 
   @throws(classOf[SyntaxException])
-  def prepare[T](query: String, run: (ExecutionPlan[QueryContext], QueryContext) => T): T =  {
+  private def prepare(query: String): (ExecutionPlan, Transaction, Statement)=  {
 
     var n = 0
     while (n < ExecutionEngine.PLAN_BUILDING_TRIES) {
@@ -77,13 +76,12 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
       val statement = txBridge.statement()
       val plan = try {
         // fetch plan cache
-        val planCache = getOrCreateFromSchemaState(statement, new LRUCache[String, ExecutionPlan[QueryContext]](getPlanCacheSize))
+        val planCache = getOrCreateFromSchemaState(statement, new LRUCache[String, ExecutionPlan](getPlanCacheSize))
 
         // get plan or build it
         planCache.getOrElseUpdate(query, {
           touched = true
-          val planContext = new TransactionBoundPlanContext(statement, graph)
-          compiler.prepare(query, planContext)
+          compiler.prepare(query, graph, statement)
         })
       }
       catch {
@@ -104,7 +102,7 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
         // close the old statement reference after the statement has been "upgraded"
         // to either a schema data or a schema statement, so that the locks are "handed over".
         statement.close()
-        return run(plan, queryContext)
+        return (plan, tx, statement)
       }
 
       n += 1
@@ -114,9 +112,9 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
   }
 
   private def executionContext(tx: Transaction) =
-    new ExceptionTranslatingQueryContext(new TransactionBoundExecutionContext(graph.asInstanceOf[GraphDatabaseAPI], tx, txBridge.statement()))
+    new ExceptionTranslatingQueryContext(new TransactionBoundExecutionContext(graphAPI, tx, txBridge.statement()))
 
-  private def txBridge = graph.asInstanceOf[GraphDatabaseAPI]
+  private val txBridge = graph.asInstanceOf[GraphDatabaseAPI]
     .getDependencyResolver
     .resolveDependency(classOf[ThreadToStatementContextBridge])
 

@@ -2286,7 +2286,6 @@ RETURN x0.name""")
 
     //WHEN
     val result = execute("MATCH (n:Person)-->() USING INDEX n:Person(name) WHERE n.name = 'Jacob' RETURN n")
-    println(result.executionPlanDescription())
 
     //THEN
     assert(result.toList === List(Map("n"->jake)))

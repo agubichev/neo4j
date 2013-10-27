@@ -30,6 +30,7 @@ import org.mockito.stubbing.Answer
 import org.mockito.invocation.InvocationOnMock
 import org.neo4j.kernel.api.constraints.UniquenessConstraint
 import org.neo4j.kernel.impl.api.index.IndexDescriptor
+import org.neo4j.cypher.internal.compiler.v2_0.spi.{IdempotentResult, Operations, UpdateCountingQueryContext, QueryContext}
 
 class UpdateCountingQueryContextTest extends MockitoSugar with Assertions {
   @Test def create_node() {
