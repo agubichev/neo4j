@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_0
 import commands.expressions.{Literal, Identifier}
 import commands.{GreaterThan, True}
 import pipes._
-import pipes.QueryStateHelper.queryStateFrom
+import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryStateHelper.queryStateFrom
 import pipes.matching._
 import symbols.IntegerType
 import org.neo4j.cypher.internal.LRUCache

@@ -95,6 +95,7 @@
       <dependency>
           <groupId>org.neo4j</groupId>
           <artifactId>neo4j-cypher-commons</artifactId>
+          <scope>provided</scope>
           <version>${project.version}</version>
       </dependency>
       <dependency>
