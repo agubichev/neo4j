@@ -189,6 +189,21 @@ case class PartiallySolvedQuery(returns: Seq[QueryToken[ReturnColumn]],
   }
 
   def containsUpdates = start.exists(_.token.mutating) || updates.nonEmpty
+
+  // Returns all the query parts in a Seq. They still have their tails linking to each other
+  def toSeq: Seq[PartiallySolvedQuery] = this +: tail.toSeq.flatMap(_.toSeq)
+
+  // Pushes a Query to the very end of this query
+  def newFinalTail(q: PartiallySolvedQuery): PartiallySolvedQuery = copy(tail = this.tail match {
+    case None               => Some(q)
+    case Some(existingTail) => Some(existingTail.newFinalTail(q))
+  })
+
+  /*
+  This methods is used to rewrite the queries from the end of the query line to the beginning of it
+   */
+  def rewriteFromTheTail(f: PartiallySolvedQuery => PartiallySolvedQuery): PartiallySolvedQuery =
+    f(copy(tail = tail.map(_.rewriteFromTheTail(f))))
 }
 
 case class ExecutionPlanInProgress(query: PartiallySolvedQuery, pipe: Pipe, isUpdating: Boolean = false) {
