@@ -161,4 +161,14 @@ class Fake_Database_That_Has_All_Indexes extends GraphDatabaseService with Index
   def unregisterKernelEventHandler(handler: KernelEventHandler): KernelEventHandler = null
 
   def unregisterTransactionEventHandler[T](handler: TransactionEventHandler[T]): TransactionEventHandler[T] = null
+
+  def createNode(labels: Label*) = ???
+
+  def findNodesByLabelAndProperty(label: Label, key: String, value: scala.Any) = ???
+
+  def schema() = ???
+
+  def traversalDescription() = ???
+
+  def bidirectionalTraversalDescription() = ???
 }

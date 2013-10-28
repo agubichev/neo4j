@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v1_9.executionplan
 
 import org.junit.{Before, Test}
 import org.scalatest.Assertions
-import org.neo4j.cypher.CypherParser
+import org.neo4j.cypher.internal.compiler.v1_9.parser.CypherParser
 
 class RowSizerTest extends Assertions {
   var sizer: RowSizer = null
@@ -70,7 +70,7 @@ class RowSizerTest extends Assertions {
     assert(sizer.maxSize === 2 )
   }
 
-  val parser = new CypherParser()
+  val parser = CypherParser()
 
   def parse(s: String): PartiallySolvedQuery = PartiallySolvedQuery(parser.parse(s))
 }

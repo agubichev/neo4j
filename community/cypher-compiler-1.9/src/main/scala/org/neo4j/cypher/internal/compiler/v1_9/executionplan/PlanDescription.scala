@@ -19,12 +19,15 @@
  */
 package org.neo4j.cypher.internal.compiler.v1_9.executionplan
 
-import javacompat.{PlanDescription => JPlanDescription, ProfilerStatistics}
 import scala.collection.JavaConverters._
 import java.util
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.Pipe
 import org.neo4j.cypher.internal.compiler.v1_9.data.{MapVal, SimpleVal}
 import org.neo4j.cypher.internal.helpers.StringRenderingSupport
+import org.neo4j.cypher.javacompat.ProfilerStatistics
+import org.neo4j.cypher.ProfilerStatisticsNotReadyException
+import org.neo4j.cypher.javacompat.{PlanDescription => JPlanDescription}
+import org.neo4j.cypher
 
 /**
  * Abstract description of an execution plan
@@ -36,7 +39,7 @@ import org.neo4j.cypher.internal.helpers.StringRenderingSupport
 class PlanDescription(val pipe: Pipe,
                       val name: String,
                       val children: Seq[PlanDescription],
-                      val args: Seq[(String, SimpleVal)]) extends StringRenderingSupport {
+                      val args: Seq[(String, SimpleVal)]) extends cypher.PlanDescription with StringRenderingSupport {
 
   lazy val argsMap: MapVal = MapVal(args.toMap)
 

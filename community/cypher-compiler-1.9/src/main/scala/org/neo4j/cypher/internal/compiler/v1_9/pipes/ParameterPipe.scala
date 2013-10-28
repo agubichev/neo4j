@@ -22,6 +22,7 @@ package org.neo4j.cypher.internal.compiler.v1_9.pipes
 import org.neo4j.cypher.internal.compiler.v1_9.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
 import org.neo4j.cypher.PlanDescription
+import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
 
 class ParameterPipe() extends Pipe {
   protected def internalCreateResults(state: QueryState) = Iterator.single(ExecutionContext())

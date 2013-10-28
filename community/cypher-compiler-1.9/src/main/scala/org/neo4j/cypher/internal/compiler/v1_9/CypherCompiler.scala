@@ -17,22 +17,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v1_9.pipes
+package org.neo4j.cypher.internal.compiler.v1_9
 
-import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
-import org.neo4j.cypher.internal.compiler.v1_9.symbols.SymbolTable
-import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
+import org.neo4j.graphdb.GraphDatabaseService
+import org.neo4j.cypher.SyntaxException
+import org.neo4j.cypher.internal.compiler.v1_9.executionplan.{ExecutionPlanImpl, ExecutionPlan}
+import org.neo4j.cypher.internal.compiler.v1_9.parser.CypherParser
+import org.neo4j.cypher.internal.compiler.v1_9.commands.Query
 
-case class EagerPipe(src: Pipe) extends PipeWithSource(src) {
-  def symbols: SymbolTable = src.symbols
 
-  def executionPlanDescription: PlanDescription = src.executionPlanDescription.andThen(this, "Eager")
+case class CypherCompiler(graph: GraphDatabaseService, queryCache: (String, => Object) => Object) {
+  val parser = CypherParser()
 
-  def throwIfSymbolsMissing(symbols: SymbolTable) {
+  @throws(classOf[SyntaxException])
+  def prepare(query: String): ExecutionPlan = {
+    val cachedQuery = queryCache(query, {
+      val parsedQuery = parser.parse(query)
+      parsedQuery
+    }).asInstanceOf[Query]
+
+    new ExecutionPlanImpl(cachedQuery, graph)
   }
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    input.toList.toIterator
-
-  override def isLazy = false
 }

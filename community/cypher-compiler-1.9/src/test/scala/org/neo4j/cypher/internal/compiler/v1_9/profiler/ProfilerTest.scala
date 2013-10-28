@@ -22,11 +22,11 @@ package org.neo4j.cypher.internal.compiler.v1_9.profiler
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.{NullPipe, QueryState, Pipe, PipeWithSource}
 import org.neo4j.cypher.internal.compiler.v1_9.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
-import org.neo4j.cypher.PlanDescription
 import org.junit.Test
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.Assertions
 import org.neo4j.cypher.internal.compiler.v1_9.spi.QueryContext
+import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
 
 
 class ProfilerTest extends Assertions with MockitoSugar {

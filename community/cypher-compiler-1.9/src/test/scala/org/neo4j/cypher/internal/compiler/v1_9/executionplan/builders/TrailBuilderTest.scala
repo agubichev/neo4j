@@ -25,14 +25,13 @@ import expressions.{Identifier, Literal, Property}
 import org.neo4j.graphdb.Direction
 import org.scalatest.Assertions
 import org.neo4j.graphdb.DynamicRelationshipType.withName
-import org.neo4j.cypher.GraphDatabaseTestBase
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.matching._
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.matching.EndPoint
 import org.neo4j.cypher.internal.compiler.v1_9.commands.Equals
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.matching.SingleStepTrail
 import org.neo4j.cypher.internal.compiler.v1_9.commands.True
 
-class TrailBuilderTest extends GraphDatabaseTestBase with Assertions with BuilderTest {
+class TrailBuilderTest extends Assertions with BuilderTest {
   val A = withName("A")
   val B = withName("B")
   val C = withName("C")

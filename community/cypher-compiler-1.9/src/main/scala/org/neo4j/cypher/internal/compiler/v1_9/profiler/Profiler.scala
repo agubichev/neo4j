@@ -23,9 +23,10 @@ import org.neo4j.cypher.internal.compiler.v1_9.pipes.{QueryState, Pipe, PipeDeco
 import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
 import org.neo4j.cypher.internal.compiler.v1_9.spi.{DelegatingOperations, Operations, QueryContext, DelegatingQueryContext}
 import collection.mutable
-import org.neo4j.cypher.{ProfilerStatisticsNotReadyException, PlanDescription}
+import org.neo4j.cypher.ProfilerStatisticsNotReadyException
 import org.neo4j.graphdb.{PropertyContainer, Direction, Relationship, Node}
 import org.neo4j.cypher.internal.compiler.v1_9.data.PrimVal
+import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
 
 class Profiler extends PipeDecorator {
 

@@ -17,22 +17,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v1_9.pipes
+package org.neo4j.cypher.internal.compiler.v1_9.parser
 
-import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
-import org.neo4j.cypher.internal.compiler.v1_9.symbols.SymbolTable
-import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
+import org.neo4j.cypher.internal.compiler.v1_9.commands.expressions.{Literal, Expression}
 
-case class EagerPipe(src: Pipe) extends PipeWithSource(src) {
-  def symbols: SymbolTable = src.symbols
+trait SkipLimitClause extends Base {
+  def skip: Parser[Expression] = ignoreCase("skip") ~> numberOrParam ^^ (x => x)
 
-  def executionPlanDescription: PlanDescription = src.executionPlanDescription.andThen(this, "Eager")
+  def limit: Parser[Expression] = ignoreCase("limit") ~> numberOrParam ^^ (x => x)
 
-  def throwIfSymbolsMissing(symbols: SymbolTable) {
-  }
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    input.toList.toIterator
-
-  override def isLazy = false
+  private def numberOrParam: Parser[Expression] =
+    (positiveNumber ^^ (x => Literal(x.toInt))
+      | parameter ^^ (x => x)
+      | failure("expected positive integer or parameter"))
 }
+
+
+
+
+

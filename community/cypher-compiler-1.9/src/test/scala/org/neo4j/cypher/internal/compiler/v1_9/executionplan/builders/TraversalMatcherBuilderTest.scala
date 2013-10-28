@@ -22,17 +22,18 @@ package org.neo4j.cypher.internal.compiler.v1_9.executionplan.builders
 import org.junit.{Before, Test}
 import org.neo4j.cypher.internal.compiler.v1_9.commands._
 import org.scalatest.Assertions
-import org.neo4j.cypher.GraphDatabaseTestBase
 import org.neo4j.cypher.internal.compiler.v1_9.executionplan.{ExecutionPlanInProgress, PartiallySolvedQuery}
 import org.junit.Assert._
 import org.neo4j.cypher.internal.compiler.v1_9.commands.expressions.Literal
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.ParameterPipe
-import org.neo4j.cypher.internal.compiler.v1_9.parser.v1_9.CypherParserImpl
+import org.neo4j.cypher.internal.compiler.v1_9.parser.CypherParser
+import org.neo4j.test.ImpermanentGraphDatabase
 
-class TraversalMatcherBuilderTest extends GraphDatabaseTestBase with Assertions with BuilderTest {
+class TraversalMatcherBuilderTest extends Assertions with BuilderTest {
   var builder: TraversalMatcherBuilder = null
 
   @Before def init() {
+    val graph = new ImpermanentGraphDatabase()
     builder = new TraversalMatcherBuilder(graph)
   }
 
@@ -97,7 +98,7 @@ class TraversalMatcherBuilderTest extends GraphDatabaseTestBase with Assertions 
     }
   }
 
-  val parser = new CypherParserImpl
+  val parser = CypherParser()
 
   private def query(text: String): PartiallySolvedQuery = PartiallySolvedQuery(parser.parse(text))
 }

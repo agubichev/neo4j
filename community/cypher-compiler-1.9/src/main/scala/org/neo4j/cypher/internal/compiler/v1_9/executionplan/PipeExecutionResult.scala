@@ -27,7 +27,7 @@ import org.neo4j.graphdb.ResourceIterator
 import java.util
 import org.neo4j.cypher.internal.compiler.v1_9.{StringExtras, ClosingIterator}
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.QueryState
-import org.neo4j.cypher.{ExecutionResult, PlanDescription}
+import org.neo4j.cypher.{QueryStatistics, EntityNotFoundException, ExecutionResult}
 import org.neo4j.cypher.internal.compiler.v1_9.helpers.CollectionSupport
 import org.neo4j.cypher.internal.compiler.v1_9.commands.expressions.StringHelper
 
@@ -104,6 +104,7 @@ class PipeExecutionResult(result: ClosingIterator[Map[String, Any]],
     val result = eagerResult
     val columnSizes = calculateColumnSizes(result)
 
+    val statistics = queryStatistics()
     if (columns.nonEmpty) {
       val headers = columns.map((c) => Map[String, Any](c -> Some(c))).reduceLeft(_ ++ _)
       val headerLine: String = createString(columns, columnSizes, headers)
@@ -121,15 +122,15 @@ class PipeExecutionResult(result: ClosingIterator[Map[String, Any]],
 
       writer.println(---)
       writer.println(footer)
-      if (queryStatistics.containsUpdates) {
-        writer.print(queryStatistics.toString)
+      if (statistics.containsUpdates) {
+        writer.print(statistics.toString)
       }
     } else {
-      if (queryStatistics.containsUpdates) {
+      if (statistics.containsUpdates) {
         writer.println("+-------------------+")
         writer.println("| No data returned. |")
         writer.println("+-------------------+")
-        writer.print(queryStatistics.toString)
+        writer.print(statistics.toString)
       } else {
         writer.println("+--------------------------------------------+")
         writer.println("| No data returned, and nothing was changed. |")
@@ -159,7 +160,7 @@ class PipeExecutionResult(result: ClosingIterator[Map[String, Any]],
 
   def next(): ImmutableMap[String, Any] = result.next().toMap
 
-  def queryStatistics = QueryStatistics.empty
+  def queryStatistics() = QueryStatistics()
 
   def close() {
     result.close()

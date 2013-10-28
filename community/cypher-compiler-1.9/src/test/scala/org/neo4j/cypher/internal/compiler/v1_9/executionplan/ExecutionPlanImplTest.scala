@@ -25,10 +25,10 @@ import org.junit.Assert._
 import org.neo4j.cypher.internal.compiler.v1_9.commands.{NodeById, Query}
 import org.neo4j.graphdb.GraphDatabaseService
 import org.scalatest.Assertions
-import org.neo4j.cypher.internal.compiler.v1_9Exception
 import org.neo4j.cypher.internal.compiler.v1_9.commands.expressions.Identifier
 import java.util.concurrent._
 import org.neo4j.cypher.internal.compiler.v1_9.commands.ReturnItem
+import org.neo4j.cypher.InternalException
 
 class ExecutionPlanImplTest extends Assertions with Timed {
   @Test def should_not_go_into_never_ending_loop() {

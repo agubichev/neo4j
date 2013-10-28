@@ -17,22 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v1_9.pipes
+package org.neo4j.cypher.internal.compiler.v1_9.parser
 
-import org.neo4j.cypher.internal.compiler.v1_9.ExecutionContext
-import org.neo4j.cypher.internal.compiler.v1_9.symbols.SymbolTable
-import org.neo4j.cypher.internal.compiler.v1_9.executionplan.PlanDescription
+import org.neo4j.cypher.internal.compiler.v1_9.commands.expressions.Nullable
 
-case class EagerPipe(src: Pipe) extends PipeWithSource(src) {
-  def symbols: SymbolTable = src.symbols
-
-  def executionPlanDescription: PlanDescription = src.executionPlanDescription.andThen(this, "Eager")
-
-  def throwIfSymbolsMissing(symbols: SymbolTable) {
-  }
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    input.toList.toIterator
-
-  override def isLazy = false
+class ConsoleCypherParser extends CypherParser with ActualParser {
+  override def createProperty(entity: String, propName: String) = Nullable(super.createProperty(entity, propName))
 }

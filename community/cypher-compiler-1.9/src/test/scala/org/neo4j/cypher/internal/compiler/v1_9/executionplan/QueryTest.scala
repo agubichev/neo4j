@@ -23,7 +23,7 @@ import org.junit.Test
 import org.neo4j.cypher.internal.compiler.v1_9.commands.{AllIdentifiers, CreateNodeStartItem, Query}
 import org.neo4j.cypher.internal.compiler.v1_9.mutation.CreateNode
 import org.scalatest.Assertions
-import org.neo4j.cypher.CypherParser
+import org.neo4j.cypher.internal.compiler.v1_9.parser.CypherParser
 
 class QueryTest extends Assertions {
   @Test
@@ -50,7 +50,7 @@ class QueryTest extends Assertions {
 
   @Test
   def integrationTest() {
-    val parser = new CypherParser()
+    val parser = CypherParser()
     val q = parser.parse("create (a1) create (a2) create (a3) create (a4) create (a5) create (a6) create (a7)")
     assert(q.tail.nonEmpty, "wasn't compacted enough")
     val compacted = q.compact
@@ -61,7 +61,7 @@ class QueryTest extends Assertions {
 
   @Test
   def integrationTest2() {
-    val parser = new CypherParser()
+    val parser = CypherParser()
     val q = parser.parse("create (a1) create (a2) create (a3) with a1 create (a4) return a1, a4")
     val compacted = q.compact
     var lastQ = compacted
