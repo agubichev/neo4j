@@ -20,10 +20,10 @@
 package org.neo4j.visualization.graphviz;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.visualization.PropertyType;
 
 class DefaultNodeStyle implements NodeStyle
@@ -42,8 +42,7 @@ class DefaultNodeStyle implements NodeStyle
         config.emit( node, stream );
         stream.append( "    label = \"{"
                        + config.escapeLabel( config.getTitle( node ) ) );
-        ResourceIterator<Label> labels = node.getLabels()
-                .iterator();
+        Iterator<Label> labels = node.getLabels().iterator();
         if ( labels.hasNext() )
         {
             stream.append( ": " );

@@ -17,25 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher
+package org.neo4j.kernel.impl.nioneo.store;
 
-import org.scalatest.Assertions
-import org.junit.Test
-import org.neo4j.graphdb.Node
-
-// Delete this once the reference node is gone
-class ReferenceNodeAcceptanceTest extends ExecutionEngineHelper with Assertions with StatisticsChecker {
-  @Test
-  def merge_node_and_find_reference_node() {
-    // Given common database with reference node
-
-    // When
-    val result = execute("merge (a) return a")
-
-    // Then
-    val createdNodes = result.columnAs[Node]("a").toList
-
-    assertInTx(createdNodes === List(graph.getReferenceNode))
-    assertStats(result, nodesCreated = 0)
-  }
+public interface BrickElementFactory
+{
+    public static final BrickElementFactory DEFAULT = new BrickElementFactory()
+    {
+        @Override
+        public BrickElement create( int index )
+        {
+            return new BrickElement( index );
+        }
+    };
+    
+    BrickElement create( int index );
 }

@@ -19,16 +19,6 @@
  */
 package org.neo4j.cypher.export;
 
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.NotFoundException;
-import org.neo4j.graphdb.PropertyContainer;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterables;
-
 import java.io.PrintWriter;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -36,6 +26,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.helpers.collection.Iterables;
 
 public class SubGraphExporter
 {
@@ -48,7 +47,6 @@ public class SubGraphExporter
 
     public void export( PrintWriter out )
     {
-        init(out); // todo remove with reference node
         appendNodes(out);
         appendRelationships(out);
     }
@@ -70,37 +68,20 @@ public class SubGraphExporter
         return "`"+id+"`";
     }
 
-    private void init( PrintWriter out )
-    {
-        final Node node = getReferenceNode();
-        if ( node != null && (node.hasRelationship() || hasProperties(node)))
-        {
-            String id = identifier(node);
-            out.println( "start "+id+" = node("+node.getId()+") with "+id+" " );
-            String labels = labelString(node);
-            if (!labels.isEmpty())
-            {
-                out.print("set " + identifier(node) + " " + labels + " ");
-            }
-            appendPropertySetters( out, node );
-        }
-    }
-
     private boolean hasProperties(Node node) {
         return node.getPropertyKeys().iterator().hasNext();
     }
 
     private String labelString(Node node) {
-        try (ResourceIterator<Label> labels = node.getLabels().iterator()) {
-            if (!labels.hasNext()) return "";
-    
-            StringBuilder result=new StringBuilder();
-            while (labels.hasNext()) {
-                Label next = labels.next();
-                result.append(":").append(quote(next.name()));
-            }
-            return result.toString();
+        Iterator<Label> labels = node.getLabels().iterator();
+        if (!labels.hasNext()) return "";
+
+        StringBuilder result=new StringBuilder();
+        while (labels.hasNext()) {
+            Label next = labels.next();
+            result.append(":").append(quote(next.name()));
         }
+        return result.toString();
     }
 
     private String identifier(Node node) {
@@ -112,17 +93,6 @@ public class SubGraphExporter
         for ( String prop : node.getPropertyKeys() )
         {
             out.println( "set "+identifier(node)+"." + quote(prop) + "=" + toString(node.getProperty(prop)) );
-        }
-    }
-
-    private Node getReferenceNode()
-    {
-        try
-        {
-            return graph.getReferenceNode();
-        } catch ( NotFoundException nfe )
-        {
-            return null;
         }
     }
 
@@ -153,10 +123,6 @@ public class SubGraphExporter
     {
         for ( Node node : graph.getNodes() )
         {
-            if ( isReferenceNode( node ) )
-            {
-                continue;
-            }
             appendNode( out, node );
         }
     }

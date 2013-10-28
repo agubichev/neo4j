@@ -20,8 +20,8 @@
 package org.neo4j.cypher.internal.compiler.v2_0
 
 import commands.expressions.Literal
-import org.neo4j.cypher.ExecutionEngineHelper
 import org.scalatest.Assertions
+import org.neo4j.cypher.ExecutionEngineHelper
 import org.junit.Test
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.CreateNode
 

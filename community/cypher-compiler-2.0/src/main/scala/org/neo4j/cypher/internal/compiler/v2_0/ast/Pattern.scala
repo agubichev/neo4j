@@ -261,7 +261,7 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
 
   def semanticCheck(ctx: SemanticContext): SemanticCheck =
     when (naked && (!labels.isEmpty || properties.isDefined)) {
-      SemanticError("Parenthesis are required to identify nodes in patterns", token)
+      SemanticError("Parenthesises are required to identify nodes in patterns", token)
     } then checkProperties(ctx)
 
   def checkProperties(ctx: SemanticContext): SemanticCheck =
@@ -337,7 +337,7 @@ sealed abstract class RelationshipPattern extends AstNode with SemanticChecking 
 
   private def checkNoLegacyOptionals(ctx: SemanticContext) =
     when (optional) {
-      SemanticError("Question mark is not used for optional patterns any more. Please use OPTIONAL MATCH instead.", token)
+      SemanticError("Question mark is no longer used for optional patterns - use OPTIONAL MATCH instead", token)
     }
 
   private def checkPropertiesOnlyWhenUpdating(ctx: SemanticContext) =
@@ -400,7 +400,7 @@ sealed abstract class RelationshipPattern extends AstNode with SemanticChecking 
     val (from, to) = direction match {
       case Direction.OUTGOING => (fromEnd, toEnd)
       case Direction.INCOMING => (toEnd, fromEnd)
-      case Direction.BOTH     => throw new PatternException("Relationships need to have a direction when used to CREATE.")
+      case Direction.BOTH     => throw new PatternException("Only directed relationships are supported in CREATE, while MATCH allows to ignore direction.")
     }
     val typeName = types match {
       case Seq(i) => i.name

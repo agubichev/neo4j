@@ -17,22 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v2_0.symbols
+package org.neo4j.cypher.internal.compiler.v2_0.functions
 
-/*
- * Copyright (C) 2012 Neo Technology
- * All rights reserved
- */
+import org.neo4j.cypher.internal.compiler.v2_0._
+import org.neo4j.cypher.internal.compiler.v2_0.symbols._
+import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
 
-object LabelType {
-  val instance = new LabelType()
+case object Size extends Function {
+  def name = "size"
 
-  def apply(): LabelType = instance
+  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation) : SemanticCheck =
+    checkArgs(invocation, 1) then
+      invocation.arguments.constrainType(CollectionType(AnyType())) then
+      invocation.specifyType(LongType())
+
+  def toCommand(invocation: ast.FunctionInvocation) =
+    commandexpressions.LengthFunction(invocation.arguments(0).toCommand)
 }
-
-class LabelType extends AnyType {
-  override def parentType: CypherType = AnyType()
-  override def toString = "Label"
-}
-
-

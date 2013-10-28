@@ -19,10 +19,27 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.commands.expressions
 
+import org.neo4j.cypher.internal.compiler.v2_0._
+import pipes.QueryState
+import org.neo4j.cypher.ArithmeticException
+
 case class Divide(a: Expression, b: Expression) extends Arithmetics(a, b) {
   def operand = "/"
 
   def verb = "divide"
+
+  override def apply(ctx: ExecutionContext)(implicit state: QueryState) = {
+    val aVal = a(ctx)
+    val bVal = b(ctx)
+
+    (aVal, bVal) match {
+      case (_, 0) => throw new ArithmeticException("/ by zero")
+      case (null, _) => null
+      case (_, null) => null
+      case (x: Number, y: Number) => calc(x, y)
+      case _ => throwTypeError(bVal, aVal)
+    }
+  }
 
   def calc(a: Number, b: Number) = divide(a, b)
 

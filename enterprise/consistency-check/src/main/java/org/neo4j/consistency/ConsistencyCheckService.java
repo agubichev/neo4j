@@ -43,9 +43,9 @@ public class ConsistencyCheckService
     private final Date timestamp = new Date();
 
     public Result runFullConsistencyCheck( String storeDir,
-                                         Config tuningConfiguration,
-                                         ProgressMonitorFactory progressFactory,
-                                         StringLogger logger ) throws ConsistencyCheckIncompleteException
+                                           Config tuningConfiguration,
+                                           ProgressMonitorFactory progressFactory,
+                                           StringLogger logger ) throws ConsistencyCheckIncompleteException
     {
         Map<String, String> params = tuningConfiguration.getParams();
         params.put( GraphDatabaseSettings.store_dir.name(), storeDir );
@@ -72,6 +72,7 @@ public class ConsistencyCheckService
         }
         finally
         {
+            report.close();
             neoStore.close();
         }
 
@@ -98,8 +99,11 @@ public class ConsistencyCheckService
             if ( reportPath.isDirectory() )
             {
                 reportFile = new File( reportPath, defaultLogFileName() );
-            } else
+            }
+            else
+            {
                 reportFile = reportPath;
+            }
         }
         return reportFile;
     }
@@ -112,6 +116,18 @@ public class ConsistencyCheckService
 
     public enum Result
     {
-        FAILURE, SUCCESS
+        FAILURE( false ), SUCCESS( true );
+        
+        private boolean successful;
+
+        private Result( boolean successful )
+        {
+            this.successful = successful;
+        }
+        
+        public boolean isSuccessful()
+        {
+            return this.successful;
+        }
     }
 }

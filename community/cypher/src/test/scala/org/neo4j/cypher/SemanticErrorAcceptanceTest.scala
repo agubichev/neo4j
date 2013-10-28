@@ -17,15 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v2_0
+package org.neo4j.cypher
 
 import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.Assertions
 import org.hamcrest.CoreMatchers.equalTo
-import org.neo4j.cypher.{CypherException, ExecutionEngineHelper}
 
-class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
+class SemanticErrorAcceptanceTest extends ExecutionEngineHelper with Assertions {
   @Test def returnNodeThatsNotThere() {
     test(
       "start x=node(0) return bar",
@@ -57,7 +56,7 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
   @Test def cantUseLENGTHOnNodes() {
     test(
       "start n=node(0) return length(n)",
-      "Type mismatch: n already defined with conflicting type Node (expected Collection<Any>) (line 1, column 31)"
+      "Type mismatch: n already defined with conflicting type Node (expected Collection<Any>, Path or String) (line 1, column 31)"
     )
   }
 
@@ -84,7 +83,7 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
 
   @Test def shouldComplainAboutUnknownIdentifier() {
     test(
-      "start s = node(1) where s.name = Name and s.age = 10 return s",
+      "start s = node(0) where s.name = Name and s.age = 10 return s",
       "Name not defined (line 1, column 34)"
     )
   }
@@ -153,7 +152,7 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
   @Test def shouldFailTypeCheckWhenDeleting() {
     test(
       "start a=node(0) delete 1 + 1",
-      "Type mismatch: expected Node, Relationship or Collection<Map> but was Long (line 1, column 26)"
+      "Type mismatch: expected Node, Relationship or Path but was Long (line 1, column 26)"
     )
   }
 
@@ -258,11 +257,11 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
   @Test def shouldFailIfNoParensAroundNode() {
     test(
       "match n:Person return n",
-      "Parenthesis are required to identify nodes in patterns (line 1, column 7)"
+      "Parenthesises are required to identify nodes in patterns (line 1, column 7)"
     )
     test(
       "match n {foo: 'bar'} return n",
-      "Parenthesis are required to identify nodes in patterns (line 1, column 7)"
+      "Parenthesises are required to identify nodes in patterns (line 1, column 7)"
     )
   }
 
@@ -287,7 +286,7 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
   @Test def shouldFailIfMergeActionUsesPathIdentifier() {
     test(
       "MERGE p=(n:Person) ON CREATE p SET n.foo = 1",
-      "Type mismatch: p already defined with conflicting type Collection<Map> (expected Node or Relationship) (line 1, column 30)"
+      "Type mismatch: p already defined with conflicting type Path (expected Node or Relationship) (line 1, column 30)"
     )
   }
 
@@ -304,21 +303,35 @@ class SemanticErrorTest extends ExecutionEngineHelper with Assertions {
   @Test def shouldFailIfUsingLegacyOptionalsMatch() {
     test(
       "start n = node(0) match (n)-[?]->(m) return n",
-      "Question mark is not used for optional patterns any more. Please use OPTIONAL MATCH instead. (line 1, column 28)"
+      "Question mark is no longer used for optional patterns - use OPTIONAL MATCH instead (line 1, column 28)"
     )
   }
 
   @Test def shouldFailIfUsingLegacyOptionalsMatch2() {
     test(
       "start n = node(0) match (n)-[?*]->(m) return n",
-      "Question mark is not used for optional patterns any more. Please use OPTIONAL MATCH instead. (line 1, column 28)"
+      "Question mark is no longer used for optional patterns - use OPTIONAL MATCH instead (line 1, column 28)"
     )
   }
 
   @Test def shouldFailIfUsingLegacyOptionalsMatch3() {
     test(
       "start n = node(0) match shortestPath((n)-[?*]->(m)) return n",
-      "Question mark is not used for optional patterns any more. Please use OPTIONAL MATCH instead. (line 1, column 41)"
+      "Question mark is no longer used for optional patterns - use OPTIONAL MATCH instead (line 1, column 41)"
+    )
+  }
+
+  @Test def shouldRequireWithAfterOptionalMatch() {
+    test(
+      "OPTIONAL MATCH (a)-->(b) MATCH (c)-->(d) return d",
+      "MATCH cannot follow OPTIONAL MATCH (perhaps use a WITH clause between them) (line 1, column 26)"
+    )
+  }
+
+  @Test def shouldRequireWithBeforeStart() {
+    test(
+      "MATCH (a)-->(b) START c=node(0) return c",
+      "WITH is required between MATCH and START (line 1, column 1)"
     )
   }
 
