@@ -41,8 +41,8 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
   @throws(classOf[SyntaxException])
   def profile(query: String, params: Map[String, Any]): ExecutionResult = {
     logger.debug(query)
-    val (plan, tx, statement) = prepare(query)
-    plan.profile(graphAPI, tx, statement, params)
+    val (plan, tx) = prepare(query)
+    plan.profile(graphAPI, tx, txBridge.statement(), params)
   }
 
   @throws(classOf[SyntaxException])
@@ -58,15 +58,15 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
   @throws(classOf[SyntaxException])
   def execute(query: String, params: Map[String, Any]): ExecutionResult = {
     logger.debug(query)
-    val (plan, tx, statement) = prepare(query)
-    plan.profile(graphAPI, tx, statement, params)
+    val (plan, tx) = prepare(query)
+    plan.execute(graphAPI, tx, txBridge.statement(), params)
   }
 
   @throws(classOf[SyntaxException])
   def execute(query: String, params: JavaMap[String, Any]): ExecutionResult = execute(query, params.asScala.toMap)
 
   @throws(classOf[SyntaxException])
-  private def prepare(query: String): (ExecutionPlan, Transaction, Statement)=  {
+  private def prepare(query: String): (ExecutionPlan, Transaction)=  {
 
     var n = 0
     while (n < ExecutionEngine.PLAN_BUILDING_TRIES) {
@@ -98,11 +98,10 @@ class ExecutionEngine(graph: GraphDatabaseService, logger: StringLogger = String
         tx.close()
       }
       else {
-        val queryContext = executionContext(tx)
         // close the old statement reference after the statement has been "upgraded"
         // to either a schema data or a schema statement, so that the locks are "handed over".
         statement.close()
-        return (plan, tx, statement)
+        return (plan, tx)
       }
 
       n += 1

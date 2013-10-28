@@ -28,6 +28,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.{CypherCompiler => CypherCompiler
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{ExecutionPlan => ExecutionPlan_v2_0}
 import org.neo4j.kernel.api.Statement
 import org.neo4j.cypher.internal.spi.v2_0.{TransactionBoundExecutionContext, TransactionBoundPlanContext}
+import org.neo4j.cypher.internal.compiler.v2_0.spi.ExceptionTranslatingQueryContext
 
 object CypherCompiler {
   def apply(graph: GraphDatabaseService) = VersionProxy(graph, CypherVersion.vDefault)
@@ -75,10 +76,14 @@ object CypherCompiler {
 }
 
 class ExecutionPlanWrapperForV2_0(inner: ExecutionPlan_v2_0) extends ExecutionPlan {
+
+  private def executionContext(graph: GraphDatabaseAPI, tx: Transaction, statement: Statement) =
+    new ExceptionTranslatingQueryContext(new TransactionBoundExecutionContext(graph, tx, statement))
+
   def profile(graph: GraphDatabaseAPI, tx: Transaction, statement: Statement, params: Map[String, Any]) =
-    inner.profile(new TransactionBoundExecutionContext(graph, tx, statement), params)
+    inner.profile(executionContext(graph, tx, statement), params)
 
   def execute(graph: GraphDatabaseAPI, tx: Transaction, statement: Statement, params: Map[String, Any]) =
-    inner.execute(new TransactionBoundExecutionContext(graph, tx, statement), params)
+    inner.execute(executionContext(graph, tx, statement), params)
 }
 
