@@ -25,9 +25,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,7 +61,6 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.*;
 import static org.neo4j.helpers.collection.IteratorUtil.asCollection;
 import static org.neo4j.helpers.collection.IteratorUtil.asResourceIterator;
-import static org.neo4j.helpers.collection.IteratorUtil.asSet;
 import static org.neo4j.helpers.collection.IteratorUtil.iterator;
 import static org.neo4j.kernel.api.index.InternalIndexState.ONLINE;
 import static org.neo4j.kernel.api.index.InternalIndexState.POPULATING;
@@ -393,9 +389,10 @@ public class IndexingServiceTest
     public void shouldNotSnapshotPopulatingIndexes() throws Exception
     {
         // GIVEN
+        CountDownLatch populatorLatch = new CountDownLatch(1);
         IndexAccessor indexAccessor = mock(IndexAccessor.class);
         IndexingService indexing = newIndexingServiceWithMockedDependencies(
-                mock( IndexPopulator.class ), indexAccessor,
+                populator, indexAccessor,
                 new DataUpdates( new NodePropertyUpdate[0] ) );
         int indexId = 1;
         int indexId2 = 2;
@@ -404,7 +401,8 @@ public class IndexingServiceTest
         IndexRule rule1 = indexRule( indexId, 2, 3, PROVIDER_DESCRIPTOR );
         IndexRule rule2 = indexRule( indexId2, 4, 5, PROVIDER_DESCRIPTOR );
 
-        when( indexAccessor.snapshotFiles()).thenAnswer( newResourceIterator( theFile ) );
+        doAnswer( waitForLatch( populatorLatch ) ).when( populator ).create();
+        when(indexAccessor.snapshotFiles()).thenAnswer( newResourceIterator( theFile ) );
         when( indexProvider.getInitialState( indexId ) ).thenReturn( POPULATING );
         when( indexProvider.getInitialState( indexId2 ) ).thenReturn( ONLINE );
 
@@ -413,10 +411,21 @@ public class IndexingServiceTest
 
         // WHEN
         ResourceIterator<File> files = indexing.snapshotStoreFiles();
+        populatorLatch.countDown(); // only now, after the snapshot, is the population job allowed to finish
 
         // THEN
         // We get a snapshot from the online index, but no snapshot from the populating one
         assertThat( asCollection( files ), equalTo( asCollection( iterator( theFile ) ) ) );
+    }
+
+    private Answer waitForLatch( final CountDownLatch latch ) {
+        return new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                latch.await();
+                return null;
+            }
+        };
     }
 
     private Answer<ResourceIterator<File>> newResourceIterator( final File theFile )

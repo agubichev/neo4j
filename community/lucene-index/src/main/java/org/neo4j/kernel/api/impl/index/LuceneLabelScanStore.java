@@ -27,18 +27,18 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.SnapshotDeletionPolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
-
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.kernel.api.scan.LabelScanReader;
 import org.neo4j.kernel.api.scan.LabelScanStore;
 import org.neo4j.kernel.api.scan.NodeLabelUpdate;
+import org.neo4j.kernel.api.scan.NodeRangeReader;
+import org.neo4j.kernel.api.scan.NodeRangeScanSupport;
 import org.neo4j.kernel.impl.api.PrimitiveLongIterator;
 import org.neo4j.kernel.impl.api.scan.LabelScanStoreProvider.FullStoreChangeStream;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
@@ -46,7 +46,8 @@ import org.neo4j.kernel.impl.nioneo.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.logging.Logging;
 
-public class LuceneLabelScanStore implements LabelScanStore, LabelScanStorageStrategy.StorageService
+public class LuceneLabelScanStore
+        implements LabelScanStore, LabelScanStorageStrategy.StorageService, NodeRangeScanSupport
 {
     private final LabelScanStorageStrategy strategy;
     private final DirectoryFactory directoryFactory;
@@ -170,6 +171,13 @@ public class LuceneLabelScanStore implements LabelScanStore, LabelScanStorageStr
         searcherManager.maybeRefresh();
     }
 
+    public NodeRangeReader newRangeReader()
+    {
+        final IndexSearcher searcher = acquireSearcher();
+        return strategy.newNodeLabelReader( searcher );
+    }
+
+
     @Override
     public void recover( Iterator<NodeLabelUpdate> updates ) throws IOException
     {
@@ -221,8 +229,7 @@ public class LuceneLabelScanStore implements LabelScanStore, LabelScanStorageStr
     @Override
     public ResourceIterator<File> snapshotStoreFiles() throws IOException
     {
-        SnapshotDeletionPolicy deletionPolicy = (SnapshotDeletionPolicy) writer.getConfig().getIndexDeletionPolicy();
-        return new LuceneStoreSnapshot( directoryLocation, deletionPolicy );
+        return new LuceneSnapshotter().snapshot( directoryLocation, writer );
     }
 
     @Override
