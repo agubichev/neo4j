@@ -25,7 +25,7 @@ import expressions.{Identifier, Property, Expression, AggregationExpression}
 import org.neo4j.cypher.internal.compiler.v1_9.ReattachAliasedExpressions
 import org.neo4j.cypher.internal.compiler.v1_9.mutation.UpdateAction
 
-case class CypherParser extends Base
+case class CypherParser() extends Base
 with StartClause
 with MatchClause
 with WhereClause

@@ -56,4 +56,6 @@ trait Operations[T <: PropertyContainer] {
   def indexQuery(name: String, query: Any): Iterator[T]
 
   def all : Iterator[T]
+
+  def isDeleted(obj: T): Boolean
 }

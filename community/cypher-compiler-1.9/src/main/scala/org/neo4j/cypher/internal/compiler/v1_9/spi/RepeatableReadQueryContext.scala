@@ -70,6 +70,11 @@ class RepeatableReadQueryContext(inner: QueryContext, locker: Locker) extends De
       locker.readLock(obj)
       inner.propertyKeys(obj)
     }
+
+    override def isDeleted(obj: T): Boolean = {
+      locker.readLock(obj)
+      inner.isDeleted(obj)
+    }
   }
 
 }

@@ -36,7 +36,7 @@ class ExecutionPlanImplTest extends Assertions with Timed {
 
     val exception = intercept[ExecutionException](timeoutAfter(1) {
       val epi = new FakeEPI(q, null)
-      epi.execute(Map())
+      epi.execute(null, null, Map())
     })
 
     assertTrue(exception.getCause.isInstanceOf[InternalException])

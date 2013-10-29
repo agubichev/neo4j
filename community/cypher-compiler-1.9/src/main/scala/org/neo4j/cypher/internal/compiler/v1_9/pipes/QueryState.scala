@@ -19,25 +19,19 @@
  */
 package org.neo4j.cypher.internal.compiler.v1_9.pipes
 
-import org.neo4j.graphdb.{Transaction, GraphDatabaseService}
+import org.neo4j.graphdb.Transaction
 import org.neo4j.cypher.internal.compiler.v1_9.spi.QueryContext
-import org.neo4j.kernel.GraphDatabaseAPI
 import java.util.concurrent.atomic.AtomicInteger
 import org.neo4j.cypher.ParameterNotFoundException
-import org.neo4j.cypher.internal.compiler.v1_9.spi.gdsimpl.GDSBackedQueryContext
 
 
 object QueryState {
-  def empty: QueryState = apply(null)
+  def empty: QueryState = new QueryState(null, Map.empty, NullDecorator, None, new TimeReader)
 
   def apply(): QueryState = empty
-
-  def apply(db: GraphDatabaseService): QueryState =
-    new QueryState(db, new GDSBackedQueryContext(db), Map.empty, NullDecorator, None, new TimeReader)
 }
 
-case class QueryState(db: GraphDatabaseService,
-                      query: QueryContext,
+case class QueryState(query: QueryContext,
                       params: Map[String, Any],
                       decorator: PipeDecorator,
                       var transaction: Option[Transaction] = None,
@@ -50,11 +44,6 @@ case class QueryState(db: GraphDatabaseService,
   val propertySet = new Counter
   val deletedNodes = new Counter
   val deletedRelationships = new Counter
-
-  def graphDatabaseAPI: GraphDatabaseAPI = if (db.isInstanceOf[GraphDatabaseAPI])
-    db.asInstanceOf[GraphDatabaseAPI]
-  else
-    throw new IllegalStateException("Graph database does not implement GraphDatabaseAPI")
 
   def getParam(key: String): Any =
     params.getOrElse(key, throw new ParameterNotFoundException("Expected a parameter named " + key))

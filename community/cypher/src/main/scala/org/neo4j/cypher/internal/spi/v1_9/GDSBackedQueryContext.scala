@@ -26,6 +26,7 @@ import collection.JavaConverters._
 import java.lang.{Iterable=>JIterable}
 import org.neo4j.tooling.GlobalGraphOperations
 import org.neo4j.cypher.EntityNotFoundException
+import org.neo4j.kernel.GraphDatabaseAPI
 
 class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
 
@@ -71,14 +72,11 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
       }
 
       def getById(id: Long): Node =
-        try
-        {
+        try {
           graph.getNodeById(id)
+        } catch {
+          case e: NotFoundException => throw new EntityNotFoundException(e.getMessage)
         }
-        catch
-          {
-            case e: NotFoundException => throw new EntityNotFoundException(e.getMessage)
-          }
 
       def indexGet(name: String, key: String, value: Any): Iterator[Node] =
         graph.index.forNodes(name).get(key, value).iterator().asScala
@@ -88,6 +86,8 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
 
       def all: Iterator[Node] =
         GlobalGraphOperations.at(graph).getAllNodes.iterator().asScala
+
+      def isDeleted(node: Node): Boolean = graph.asInstanceOf[GraphDatabaseAPI].getNodeManager.isDeleted(node)
     }
   }
 
@@ -114,15 +114,11 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
       def propertyKeys(obj: Relationship): Iterable[String] =
         obj.getPropertyKeys.asScala
 
-      def getById(id: Long): Relationship =
-        try
-        {
-          graph.getRelationshipById(id)
-        }
-        catch
-          {
-            case e:NotFoundException => throw new EntityNotFoundException(e.getMessage)
-          }
+      def getById(id: Long): Relationship = try {
+        graph.getRelationshipById(id)
+      } catch {
+        case e: NotFoundException => throw new EntityNotFoundException(e.getMessage)
+      }
 
       def indexGet(name: String, key: String, value: Any): Iterator[Relationship] =
         graph.index.forRelationships(name).get(key, value).iterator().asScala
@@ -132,6 +128,8 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
 
       def all: Iterator[Relationship] =
         GlobalGraphOperations.at(graph).getAllRelationships.iterator().asScala
+
+      def isDeleted(node: Relationship): Boolean = graph.asInstanceOf[GraphDatabaseAPI].getNodeManager.isDeleted(node)
     }
   }
 }

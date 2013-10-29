@@ -65,4 +65,6 @@ class DelegatingOperations[T <: PropertyContainer](protected val inner: Operatio
   def indexQuery(name: String, query: Any): Iterator[T] = inner.indexQuery(name, query)
 
   def all: Iterator[T] = inner.all
+
+  def isDeleted(obj: T): Boolean = inner.isDeleted(obj)
 }

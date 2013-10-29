@@ -140,15 +140,15 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
   }
 
   private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): ExecutionPlanParams => ExecutionResult =
-    (context: QueryContext, tx:Transaction, profile: Boolean, params: Map[String, Any]) => {
-      val (state, results, planDescriptor) = prepareStateAndResult(params, pipe, profile)
+    (planParams: ExecutionPlanParams) => {
+      val (state, results, planDescriptor) = prepareStateAndResult(planParams, pipe)
 
       new PipeExecutionResult(results, columns, state, planDescriptor)
   }
 
   private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): ExecutionPlanParams => ExecutionResult = {
-    val func = (profile: Boolean, params: Map[String, Any]) => {
-      val (state, results, planDescriptor) = prepareStateAndResult(params, pipe, profile)
+    val func = (planParams: ExecutionPlanParams) => {
+      val (state, results, planDescriptor) = prepareStateAndResult(planParams, pipe)
 
       new EagerPipeExecutionResult(results, columns, state, graph, planDescriptor)
     }
@@ -156,16 +156,14 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
     func
   }
 
-  private def prepareStateAndResult(params: Map[String, Any], pipe: Pipe, profile: Boolean):
+  private def prepareStateAndResult(planParams: ExecutionPlanParams, pipe: Pipe):
   (QueryState, ClosingIterator[ExecutionContext], () => PlanDescription) = {
-    val tx = graph.beginTx()
-
+    val (ctx, tx, profile, params) = planParams
 
     try {
-      val gdsContext = new GDSBackedQueryContext(graph)
 
       val decorator: PipeDecorator = if (profile) new Profiler() else NullDecorator
-      val state = new QueryState(graph, gdsContext, params, decorator)
+      val state = new QueryState(ctx, params, decorator)
       val results = pipe.createResults(state)
       val closingIterator = new ClosingIterator[ExecutionContext](results, state.query, tx)
       val descriptor = () => decorator.decorate(pipe.executionPlanDescription, closingIterator.isEmpty)
@@ -174,7 +172,7 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
     } catch {
       case e: Throwable =>
         tx.failure()
-        tx.finish()
+        tx.close()
         throw e
     }
   }

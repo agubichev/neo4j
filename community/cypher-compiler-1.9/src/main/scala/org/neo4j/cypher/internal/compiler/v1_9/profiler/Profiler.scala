@@ -133,6 +133,11 @@ class ProfilingQueryContext(val inner: QueryContext, val p: Pipe) extends Delega
         increment()
         t
     }
+
+    override def isDeleted(obj: T): Boolean = {
+      increment()
+      inner.isDeleted(obj)
+    }
   }
 
   override def createNode(): Node = {
