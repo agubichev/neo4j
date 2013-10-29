@@ -20,8 +20,10 @@
 package org.neo4j.cypher.internal.compiler.v1_9.executionplan
 
 import org.neo4j.cypher.ExecutionResult
+import org.neo4j.cypher.internal.compiler.v1_9.spi.QueryContext
+import org.neo4j.graphdb.Transaction
 
 trait ExecutionPlan {
-  def execute(params: Map[String,Any]): ExecutionResult
-  def profile(params: Map[String,Any]): ExecutionResult
+  def execute(query: QueryContext, tx: Transaction, params: Map[String, Any]): ExecutionResult
+  def profile(query: QueryContext, tx: Transaction, params: Map[String, Any]): ExecutionResult
 }

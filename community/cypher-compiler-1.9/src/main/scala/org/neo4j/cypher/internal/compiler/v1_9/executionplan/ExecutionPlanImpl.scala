@@ -23,8 +23,7 @@ import builders._
 import org.neo4j.cypher.internal.compiler.v1_9.pipes._
 import org.neo4j.cypher._
 import org.neo4j.kernel.InternalAbstractGraphDatabase
-import org.neo4j.graphdb.GraphDatabaseService
-import javacompat.{PlanDescription => JPlanDescription}
+import org.neo4j.graphdb.{Transaction, GraphDatabaseService}
 import org.neo4j.cypher.internal.compiler.v1_9.commands._
 import org.neo4j.cypher.internal.compiler.v1_9.commands.RelationshipByIndexQuery
 import org.neo4j.cypher.internal.compiler.v1_9.pipes.EagerPipe
@@ -32,19 +31,22 @@ import org.neo4j.cypher.internal.compiler.v1_9.commands.RelationshipByIndex
 import org.neo4j.cypher.internal.compiler.v1_9.symbols.{SymbolTable, NodeType, RelationshipType}
 import org.neo4j.cypher.internal.compiler.v1_9.mutation.{CreateNode, CreateRelationship}
 import org.neo4j.cypher.internal.compiler.v1_9.{ExecutionContext, ClosingIterator}
-import org.neo4j.cypher.internal.compiler.v1_9.spi.gdsimpl.GDSBackedQueryContext
 import org.neo4j.cypher.internal.compiler.v1_9.profiler.Profiler
+import org.neo4j.cypher.internal.compiler.v1_9.spi.QueryContext
 
 class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends ExecutionPlan with PatternGraphBuilder {
-  val executionPlan: (Boolean, Map[String, Any]) => ExecutionResult = prepareExecutionPlan()
 
-  def execute(params: Map[String, Any]): ExecutionResult = executionPlan(false, params)
+  type ExecutionPlanParams = (QueryContext, Transaction, Boolean, Map[String, Any])
 
-  def profile(params: Map[String, Any]): ExecutionResult = executionPlan(true, params)
+  val executionPlan: ExecutionPlanParams => ExecutionResult = prepareExecutionPlan()
+
+  def execute(query: QueryContext, tx: Transaction, params: Map[String, Any]): ExecutionResult = executionPlan(query, tx, false, params)
+
+  def profile(query: QueryContext, tx: Transaction, params: Map[String, Any]): ExecutionResult = executionPlan(query, tx, true, params)
 
   lazy val lockManager = graph.asInstanceOf[InternalAbstractGraphDatabase].getLockManager
 
-  private def prepareExecutionPlan(): (Boolean, Map[String, Any]) => ExecutionResult = {
+  private def prepareExecutionPlan(): ExecutionPlanParams => ExecutionResult = {
     var continue = true
     var planInProgress = ExecutionPlanInProgress(PartiallySolvedQuery(inputQuery), new ParameterPipe(), containsTransaction = false)
     checkFirstQueryPattern(planInProgress)
@@ -137,14 +139,14 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
     columns
   }
 
-  private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): (Boolean, Map[String, Any]) => ExecutionResult =
-    (profile: Boolean, params: Map[String, Any]) => {
+  private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): ExecutionPlanParams => ExecutionResult =
+    (context: QueryContext, tx:Transaction, profile: Boolean, params: Map[String, Any]) => {
       val (state, results, planDescriptor) = prepareStateAndResult(params, pipe, profile)
 
       new PipeExecutionResult(results, columns, state, planDescriptor)
   }
 
-  private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): (Boolean, Map[String, Any]) => ExecutionResult = {
+  private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): ExecutionPlanParams => ExecutionResult = {
     val func = (profile: Boolean, params: Map[String, Any]) => {
       val (state, results, planDescriptor) = prepareStateAndResult(params, pipe, profile)
 

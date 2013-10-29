@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v1_9.spi.gdsimpl
+package org.neo4j.cypher.internal.spi.v1_9
 
 import org.neo4j.cypher.internal.compiler.v1_9.spi.{Operations, QueryContext}
 import org.neo4j.graphdb._
@@ -76,9 +76,9 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
           graph.getNodeById(id)
         }
         catch
-        {
-          case e: NotFoundException => throw new EntityNotFoundException(e.getMessage)
-        }
+          {
+            case e: NotFoundException => throw new EntityNotFoundException(e.getMessage)
+          }
 
       def indexGet(name: String, key: String, value: Any): Iterator[Node] =
         graph.index.forNodes(name).get(key, value).iterator().asScala
@@ -120,9 +120,9 @@ class GDSBackedQueryContext(graph: GraphDatabaseService) extends QueryContext {
           graph.getRelationshipById(id)
         }
         catch
-        {
-          case e:NotFoundException => throw new EntityNotFoundException(e.getMessage)
-        }
+          {
+            case e:NotFoundException => throw new EntityNotFoundException(e.getMessage)
+          }
 
       def indexGet(name: String, key: String, value: Any): Iterator[Relationship] =
         graph.index.forRelationships(name).get(key, value).iterator().asScala
