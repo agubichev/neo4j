@@ -38,6 +38,8 @@ public interface LabelScanStorageStrategy
     PrimitiveLongIterator nodesWithLabel( IndexSearcher searcher, int labelId );
 
     AllEntriesLabelScanReader newNodeLabelReader( SearcherManager searcher );
+    
+    Iterator<Long> labelsForNode( IndexSearcher searcher, long nodeId );
 
     interface StorageService
     {

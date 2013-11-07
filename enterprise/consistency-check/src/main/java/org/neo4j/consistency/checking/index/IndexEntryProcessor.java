@@ -40,4 +40,9 @@ public class IndexEntryProcessor implements RecordProcessor<Long>
     {
         reporter.forIndexEntry( new IndexEntry( nodeId ), indexCheck );
     }
+
+    @Override
+    public void close()
+    {
+    }
 }

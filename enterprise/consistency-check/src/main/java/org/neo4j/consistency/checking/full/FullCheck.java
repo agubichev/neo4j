@@ -40,11 +40,11 @@ import org.neo4j.consistency.store.DirectRecordAccess;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.kernel.api.direct.DirectStoreAccess;
-import org.neo4j.kernel.api.direct.NodeLabelRange;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.nioneo.store.AbstractBaseRecord;
 import org.neo4j.kernel.impl.nioneo.store.IndexRule;
 import org.neo4j.kernel.impl.nioneo.store.LabelTokenRecord;
+import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
 import org.neo4j.kernel.impl.nioneo.store.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.nioneo.store.RecordStore;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipTypeTokenRecord;
@@ -53,7 +53,6 @@ import org.neo4j.kernel.impl.nioneo.store.StoreAccess;
 import org.neo4j.kernel.impl.util.StringLogger;
 
 import static java.lang.String.format;
-
 import static org.neo4j.consistency.checking.full.MultiPassStore.ARRAYS;
 import static org.neo4j.consistency.checking.full.MultiPassStore.NODES;
 import static org.neo4j.consistency.checking.full.MultiPassStore.PROPERTIES;
@@ -93,45 +92,40 @@ public class FullCheck
         return summary;
     }
 
-    void execute( DirectStoreAccess directStoreAccess, CheckDecorator decorator, DiffRecordAccess recordAccess,
-                  InconsistencyReport report )
+    void execute( final DirectStoreAccess directStoreAccess, CheckDecorator decorator, final DiffRecordAccess recordAccess,
+                  final InconsistencyReport report )
             throws ConsistencyCheckIncompleteException
     {
-        ConsistencyReporter reporter = new ConsistencyReporter( recordAccess, report );
+        final ConsistencyReporter reporter = new ConsistencyReporter( recordAccess, report );
         StoreProcessor processEverything = new StoreProcessor( decorator, reporter );
 
         ProgressMonitorFactory.MultiPartBuilder progress = progressFactory.multipleParts( "Full consistency check" );
-        List<StoppableRunnable> tasks = new ArrayList<>( 16 );
+        List<StoppableRunnable> tasks = new ArrayList<>();
+        TaskCreator taskCreator = new TaskCreator( progress, order, processEverything );
 
 
-        StoreAccess nativeStores = directStoreAccess.nativeStores();
+        final StoreAccess nativeStores = directStoreAccess.nativeStores();
         MultiPassStore.Factory multiPass = new MultiPassStore.Factory(
                 decorator, totalMappedMemory, nativeStores, recordAccess, report );
 
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getNodeStore(), progress, order,
-                processEverything, multiPass.processors( PROPERTIES, RELATIONSHIPS ) ) );
+        tasks.add( taskCreator.create( nativeStores.getNodeStore(),
+                multiPass.processors( PROPERTIES, RELATIONSHIPS ) ) );
 
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getRelationshipStore(), progress, order,
-                processEverything, multiPass.processors( NODES, PROPERTIES, RELATIONSHIPS ) ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getPropertyStore(), progress, order,
-                processEverything, multiPass.processors( PROPERTIES, STRINGS, ARRAYS ) ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getStringStore(), progress, order,
-                processEverything, multiPass.processors( STRINGS ) ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getArrayStore(), progress, order,
-                processEverything, multiPass.processors( ARRAYS ) ) );
+        tasks.add( taskCreator.create( nativeStores.getRelationshipStore(),
+                multiPass.processors(  NODES, PROPERTIES, RELATIONSHIPS  ) ) );
+
+        tasks.add( taskCreator.create( nativeStores.getPropertyStore(),
+                multiPass.processors(  PROPERTIES, STRINGS, ARRAYS  ) ) );
+
+        tasks.add( taskCreator.create( nativeStores.getStringStore(), multiPass.processors( STRINGS ) ) );
+
+        tasks.add( taskCreator.create( nativeStores.getArrayStore(), multiPass.processors( ARRAYS ) ) );
 
         // The schema store is verified in multiple passes that share state since it fits into memory
         // and we care about the consistency of back references (cf. SemanticCheck)
 
         // PASS 1: Dynamic record chains
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getSchemaStore(), progress, order,
-                processEverything, processEverything ) );
+        tasks.add( taskCreator.create( nativeStores.getSchemaStore() ));
 
         // PASS 2: Rule integrity and obligation build up
         final SchemaRecordCheck schemaCheck = new SchemaRecordCheck( (SchemaStore) nativeStores.getSchemaStore() );
@@ -144,39 +138,28 @@ public class FullCheck
                 nativeStores.getSchemaStore(), "check_obligations", schemaCheck.forObligationChecking(), progress, order,
                 processEverything, processEverything ) );
 
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getRelationshipTypeTokenStore(), progress, order,
-                processEverything, processEverything ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getPropertyKeyTokenStore(), progress, order,
-                processEverything, processEverything ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getLabelTokenStore(), progress, order,
-                processEverything, processEverything ) );
+        tasks.add( taskCreator.create( nativeStores.getRelationshipTypeTokenStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getPropertyKeyTokenStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getLabelTokenStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getRelationshipTypeNameStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getPropertyKeyNameStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getLabelNameStore() ) );
+        tasks.add( taskCreator.create( nativeStores.getNodeDynamicLabelStore() ) );
+        IterableStore<NodeRecord> nodeStoreBoundedIterable = new IterableStore<>( nativeStores.getNodeStore() );
 
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getRelationshipTypeNameStore(), progress, order,
-                processEverything, processEverything ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getPropertyKeyNameStore(), progress, order,
-                processEverything, processEverything ) );
-        tasks.add( new StoreProcessorTask<>(
-                nativeStores.getLabelNameStore(), progress, order,
-                processEverything, processEverything ) );
-
-        tasks.add( new StoreProcessorTask<>( nativeStores.getNodeDynamicLabelStore(), progress, order,
-                processEverything, processEverything ) );
+        tasks.add( new RecordScanner<>( nodeStoreBoundedIterable, "NodeStoreToLabelScanStore", progress,
+                new NodeToLabelScanRecordProcessor( reporter, directStoreAccess.labelScanStore(), decorator ) ) );
 
         int iPass = 0;
         for ( ConsistencyReporter filteredReporter : multiPass.reporters( order, NODES ) )
         {
-            tasks.add( new RecordScanner<NodeLabelRange>( directStoreAccess.labelScanStore().newAllEntriesReader(),
+            tasks.add( new RecordScanner<>( directStoreAccess.labelScanStore().newAllEntriesReader(),
                     format( "LabelScanStore_%d", iPass ), progress, new LabelScanDocumentProcessor( filteredReporter,
                     new LabelScanCheck() ) ) );
 
             for ( IndexRule indexRule : loadAllIndexRules( directStoreAccess.nativeStores().getSchemaStore() ) )
             {
-                tasks.add( new RecordScanner<Long>( new IndexIterator( indexRule, directStoreAccess.indexes() ),
+                tasks.add( new RecordScanner<>( new IndexIterator( indexRule, directStoreAccess.indexes() ),
                         format( "Index_%d_%d", indexRule.getId(), iPass ), progress, new IndexEntryProcessor( filteredReporter,
                         new IndexCheck( indexRule ) ) ) );
             }
@@ -185,6 +168,35 @@ public class FullCheck
 
         order.execute( tasks, progress.build() );
     }
+
+    class TaskCreator
+    {
+        private final ProgressMonitorFactory.MultiPartBuilder progress;
+        private final TaskExecutionOrder order;
+        private final StoreProcessor processor;
+
+        TaskCreator( ProgressMonitorFactory.MultiPartBuilder progress, TaskExecutionOrder order,
+                     StoreProcessor processor )
+        {
+            this.progress = progress;
+            this.order = order;
+            this.processor = processor;
+        }
+
+        <RECORD extends AbstractBaseRecord> StoreProcessorTask<RECORD> create( RecordStore<RECORD> input )
+        {
+            return new StoreProcessorTask<>(
+                    input, progress, order, processor, processor );
+        }
+
+        <RECORD extends AbstractBaseRecord> StoreProcessorTask<RECORD> create( RecordStore<RECORD> input,
+                                                                               StoreProcessor[] processors )
+        {
+            return new StoreProcessorTask<>(
+                    input, progress, order, processor, processors );
+        }
+    }
+
 
     static DiffRecordAccess recordAccess( StoreAccess store )
     {
