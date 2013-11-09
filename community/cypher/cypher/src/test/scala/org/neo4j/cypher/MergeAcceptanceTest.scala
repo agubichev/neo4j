@@ -21,7 +21,7 @@ package org.neo4j.cypher
 
 import org.scalatest.Assertions
 import org.junit.Test
-import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.{Relationship, Node}
 import org.scalautils.LegacyTripleEquals
 
 class MergeAcceptanceTest
@@ -392,5 +392,102 @@ class MergeAcceptanceTest
     val result = execute("MERGE (a:Item {id:2}) MERGE (b:Person {id:1})")
 
     // then does not throw
+  }
+
+  @Test
+  def should_be_able_to_create_relationship() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+
+    // when
+    val r = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    graph.inTx {
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+      assert(r.getType.name() === "TYPE")
+    }
+  }
+
+  @Test
+  def should_be_able_to_find_a_relationship() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r1 = relate(a, b, "TYPE")
+
+    // when
+    val result = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    assert(r1 === result)
+  }
+
+  @Test
+  def should_be_able_to_find_two_relationships() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r1 = relate(a, b, "TYPE")
+    val r2 = relate(a, b, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").columnAs[Relationship]("r")
+
+    // then
+    assert(Set(r1, r2) === result.toSet)
+  }
+
+  @Test
+  def should_be_able_to_filter_out_relationships() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    relate(a, b, "TYPE", "r1")
+    val r = relate(a, b, "TYPE", "r2")
+
+    // when
+    val result = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE {name:'r2'}]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    assert(r === result)
+  }
+
+  @Test
+  def should_not_be_fooled_by_direction() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r = relate(b, a, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)<-[r:TYPE]-(b) RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 0)
+    assert(result.toList.head("r") === r)
+  }
+
+  @Test
+  def should_create_relationship_with_property() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE {name:'Lola'}]->(b) RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 1, propertiesSet = 1)
+    graph.inTx {
+      val r = result.toList.head("r").asInstanceOf[Relationship]
+      assert(r.getProperty("name") === "Lola")
+      assert(r.getType.name() === "TYPE")
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+    }
+
   }
 }

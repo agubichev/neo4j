@@ -27,6 +27,7 @@ import commands.values.TokenType.PropertyKey
 import mutation.PropertySetAction
 import org.junit.Test
 import org.parboiled.scala._
+import org.neo4j.graphdb.Direction
 
 class MergeTest extends ParserTest[ast.Merge, MergeAst] with Query with Expressions {
   implicit val parserToTest = Merge ~ EOI
@@ -94,6 +95,11 @@ ON MATCH b SET b.property = timestamp()""") shouldGive
           OnAction(On.Create, B, Seq(setProperty(B))),
           OnAction(On.Match, B, Seq(setProperty(B)))
         ))
+
+    parsing(
+    """MERGE (a)-[r:Type]->(b)""") shouldGive
+    MergeAst(Seq(ParsedRelation("r", "a", "b", Seq("Type"),Direction.OUTGOING)), Seq.empty)
+
   }
 
   def convert(astNode: ast.Merge): MergeAst = astNode.toCommand
