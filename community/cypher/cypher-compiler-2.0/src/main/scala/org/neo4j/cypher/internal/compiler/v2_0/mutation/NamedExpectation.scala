@@ -31,13 +31,11 @@ import collection.Map
 import org.neo4j.cypher.internal.compiler.v2_0.helpers.IsMap
 
 object NamedExpectation {
-  def apply(name: String, bare: Boolean): NamedExpectation = NamedExpectation(name, Map.empty, bare)
+  def apply(name: String, bare: Boolean): NamedExpectation =
+    NamedExpectation(name, Map.empty, bare)
 
   def apply(name: String, properties: Map[String, Expression], bare: Boolean): NamedExpectation =
     NamedExpectation(name, properties, Seq.empty, bare)
-
-  def apply(name: String, e: Expression, properties: Map[String, Expression], bare: Boolean): NamedExpectation =
-    new NamedExpectation(name, e, properties, Seq.empty, bare)
 
   def apply(name: String, properties: Map[String, Expression], labels: Seq[KeyToken], bare: Boolean): NamedExpectation =
     new NamedExpectation(name, Identifier(name), properties, labels, bare)
