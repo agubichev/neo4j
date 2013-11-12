@@ -21,53 +21,122 @@ package org.neo4j.cypher.internal.compiler.v2_0.mutation
 
 import org.neo4j.cypher.internal.compiler.v2_0.commands.{Predicate, AstNode}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Expression
-import org.neo4j.cypher.internal.compiler.v2_0.symbols.{SymbolTable, CypherType}
-import org.neo4j.cypher.internal.compiler.v2_0.{AbstractPattern, ExecutionContext}
+import org.neo4j.cypher.internal.compiler.v2_0.symbols._
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
+import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryState
 
 /*
- DRAFTING                                           */
 
+TODO:
 
-case class Entity(identifier: String,
-                  expectations: Seq[Predicate],
-                  onCreate: Seq[UpdateAction],
-                  onMatch: Seq[UpdateAction])
+* Given a seq of merge links, build follow-up steps and choose how to continue
+* Convert AbstractPattern to Seq[MergeLink]
 
-case class MergeLink(start: Entity, rel: Entity, relType: String, end: Entity) {
-  def apply(ctx: ExecutionContext)(implicit qs: QueryState): Option[MergeStep]
+*/
+
+final case class MergeLink(start: NodeMergeEntity, rel: RelationshipMergeEntity, relType: String, end: NodeMergeEntity)
+  extends AstNode[MergeLink] with TypeSafe {
+
+  def apply(ctx: ExecutionContext)(implicit qs: QueryState): MergeStep
+
+  def identifiers: Seq[(String, CypherType)] = start.identifiers ++ rel.identifiers ++ end.identifiers
+
+  def children: Seq[AstNode[_]] = start.children ++ rel.children ++ end.children
+
+  def rewrite(f: (Expression) => Expression): MergeLink =
+    MergeLink(start.rewrite(f), rel.rewrite(f), relType, end.rewrite(f))
+
+  def throwIfSymbolsMissing(symbols: SymbolTable): Unit = {
+    start.throwIfSymbolsMissing(symbols)
+    rel.throwIfSymbolsMissing(symbols)
+    end.throwIfSymbolsMissing(symbols)
+  }
+
+  def symbolTableDependencies: Set[String] =
+    start.symbolTableDependencies ++ rel.symbolTableDependencies ++ end.symbolTableDependencies
+}
+
+object MergeLink {
+  def apply(links: Seq[MergeLink])(ctx: ExecutionContext)(implicit qs: QueryState): Seq[(MergeLink, MergeStep)] =
+    links.map( (link: MergeLink) => link -> link(ctx) )
+
+}
+
+sealed abstract class MergeEntity extends AstNode[MergeEntity] with TypeSafe {
+  def identifier: String
+
+  def expectations: Seq[Predicate]
+  def onCreate: Seq[UpdateAction]
+  def onMatch: Seq[UpdateAction]
+
+  def identifiers: Seq[(String, CypherType)]
+
+  def children: Seq[AstNode[_]] = expectations ++ onCreate ++ onMatch
+
+  def throwIfSymbolsMissing(symbols: SymbolTable): Unit = {
+    expectations.foreach(_.throwIfSymbolsMissing(symbols))
+    onCreate.foreach(_.throwIfSymbolsMissing(symbols))
+    onMatch.foreach(_.throwIfSymbolsMissing(symbols))
+  }
+
+  def symbolTableDependencies: Set[String] =
+    ( expectations.map(_.symbolTableDependencies) ++
+      onCreate.map(_.symbolTableDependencies) ++
+      onMatch.map(_.symbolTableDependencies) ).reduce(_++_)
+}
+
+final case class NodeMergeEntity(identifier: String,
+                                 expectations: Seq[Predicate],
+                                 onCreate: Seq[UpdateAction],
+                                 onMatch: Seq[UpdateAction]) extends MergeEntity
+{
+  def identifiers: Seq[(String, CypherType)] = Seq((identifier, NodeType()))
+
+  def rewrite(f: (Expression) => Expression): NodeMergeEntity =
+    NodeMergeEntity(identifier, expectations.map(_.rewrite(f)), onCreate.map(_.rewrite(f)), onMatch.map(_.rewrite(f)))
+}
+
+final case class RelationshipMergeEntity(identifier: String,
+                                         expectations: Seq[Predicate],
+                                         onCreate: Seq[UpdateAction],
+                                         onMatch: Seq[UpdateAction])  extends MergeEntity
+{
+  def identifiers: Seq[(String, CypherType)] = Seq((identifier, RelationshipType()))
+
+  def rewrite(f: (Expression) => Expression): RelationshipMergeEntity =
+    RelationshipMergeEntity(
+      identifier, expectations.map(_.rewrite(f)), onCreate.map(_.rewrite(f)), onMatch.map(_.rewrite(f)))
 }
 
 
-trait MergeStep {
+sealed trait MergeStep
+
+sealed trait ApplicableMergeStep extends MergeStep {
   def execute(): Iterator[ExecutionContext]
 }
 
 object MergeStep {
+  case object DoNothing extends MergeStep
+  case object NotApplicable extends MergeStep
 
-  case class Traverse(execute: () => Iterator[ExecutionContext]) extends MergeStep
-
-  case class Create(execute: () => Iterator[ExecutionContext]) extends MergeStep
-
-  case object NotApplicable extends MergeStep {
-    def execute() = ???
-  }
-
+  final case class Traverse(execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep
+  final case class Create(execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep
 }
 
 
-case class MergeRelationshipsAction(pattern: Seq[AbstractPattern]) extends UpdateAction {
-  def children: Seq[AstNode[_]] = ???
+case class MergeRelationshipsAction(links: Seq[MergeLink]) extends UpdateAction {
+  def children: Seq[AstNode[_]] = links.flatMap(_.children)
 
   def exec(context: ExecutionContext, state: QueryState): Iterator[ExecutionContext] = ???
 
-  def throwIfSymbolsMissing(symbols: SymbolTable): Unit = ???
+  def throwIfSymbolsMissing(symbols: SymbolTable): Unit = links.foreach(_.throwIfSymbolsMissing(symbols))
 
-  def identifiers: Seq[(String, CypherType)] = ???
+  def identifiers: Seq[(String, CypherType)] = links.flatMap(_.identifiers)
 
-  def rewrite(f: (Expression) => Expression): UpdateAction = ???
+  def rewrite(f: (Expression) => Expression): UpdateAction = MergeRelationshipsAction(links.map(_.rewrite(f)))
 
-  def symbolTableDependencies: Set[String] = ???
+  def symbolTableDependencies: Set[String] = links.map(_.symbolTableDependencies).reduce(_++_)
 }
 
 
