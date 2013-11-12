@@ -28,13 +28,13 @@ import org.neo4j.cypher.internal.helpers.CastSupport
 import org.neo4j.graphdb.{Relationship, Direction, Node}
 import org.neo4j.cypher.CypherTypeException
 
-case class MergeRelationshipAction(startNodeIdentifier: String,
-                                   endNodeIdentifier: String,
-                                   identifier: String,
-                                   relType: String,
-                                   expectations: Seq[Predicate],
-                                   onCreate: Seq[UpdateAction],
-                                   onMatch: Seq[UpdateAction]) extends UpdateAction {
+case class MergeRelationshipsAction(startNodeIdentifier: String,
+                                    endNodeIdentifier: String,
+                                    identifier: String,
+                                    relType: String,
+                                    expectations: Seq[Predicate],
+                                    onCreate: Seq[UpdateAction],
+                                    onMatch: Seq[UpdateAction]) extends UpdateAction {
   def exec(context: ExecutionContext, state: QueryState): Iterator[ExecutionContext] = {
     val startNode = CastSupport.castOrFail[Node](context(startNodeIdentifier))
     val endNode = CastSupport.castOrFail[Node](context(endNodeIdentifier))
@@ -83,7 +83,7 @@ case class MergeRelationshipAction(startNodeIdentifier: String,
 
   def identifiers: Seq[(String, CypherType)] = Seq(identifier -> RelationshipType())
 
-  def rewrite(f: (Expression) => Expression): UpdateAction = MergeRelationshipAction(
+  def rewrite(f: (Expression) => Expression): UpdateAction = MergeRelationshipsAction(
     startNodeIdentifier = startNodeIdentifier,
     endNodeIdentifier = endNodeIdentifier,
     identifier = identifier,

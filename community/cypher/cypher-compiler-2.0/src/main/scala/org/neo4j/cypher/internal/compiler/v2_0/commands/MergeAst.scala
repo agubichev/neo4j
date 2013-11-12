@@ -23,10 +23,11 @@ import expressions._
 import values.KeyToken
 import values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.mutation.{MergeRelationshipAction, UpdateAction, PropertySetAction, MergeNodeAction}
+import org.neo4j.cypher.internal.compiler.v2_0.mutation.{MergeRelationshipsAction, UpdateAction, PropertySetAction, MergeSingleNodeAction}
 import org.neo4j.cypher.PatternException
 import scala.collection.mutable
 import org.neo4j.graphdb.Direction
+import scala.collection
 
 case class MergeAst(patterns: Seq[AbstractPattern], onActions: Seq[OnAction]) {
   def nextStep(): Seq[UpdateAction] = {
@@ -36,49 +37,54 @@ case class MergeAst(patterns: Seq[AbstractPattern], onActions: Seq[OnAction]) {
     for (
       actions <- onActions;
       action <- actions.set) {
-      actionsMap.addBinding((actions.identifier, actions.verb), action)
+      actionsMap.addBinding(actions.identifier -> actions.verb, action)
     }
+
+    def getActions(name: String, action: Action): Seq[UpdateAction] =
+      actionsMap.get(name -> action).getOrElse(Set.empty).toSeq
 
     patterns.map {
       case ParsedEntity(name, _, props, labelTokens, _) =>
 
         val labelPredicates = labelTokens.map(labelName => HasLabel(Identifier(name), labelName))
-
         val (propertyPredicates, propertyMap, propertyActions) = mangleProperties(props, name)
-
         val predicates = labelPredicates ++ propertyPredicates
-
         val labelActions = labelTokens.map(labelName => LabelAction(Identifier(name), LabelSetOp, Seq(labelName)))
 
-        val actionsFromOnCreateClause = actionsMap.get((name, On.Create)).getOrElse(Set.empty)
-        val actionsFromOnMatchClause = actionsMap.get((name, On.Match)).getOrElse(Set.empty)
+        val onCreate: Seq[UpdateAction] = labelActions ++ propertyActions ++ getActions(name, On.Create)
 
-        val onCreate: Seq[UpdateAction] = labelActions ++ propertyActions ++ actionsFromOnCreateClause
-
-        MergeNodeAction(name, propertyMap, labelTokens, predicates, onCreate, actionsFromOnMatchClause.toSeq, None)
+        MergeSingleNodeAction(
+          identifier = name,
+          props = propertyMap,
+          labels = labelTokens,
+          expectations = predicates,
+          onCreate = onCreate,
+          onMatch = getActions(name, On.Match),
+          maybeNodeProducer = None)
 
       case ParsedRelation(name, props, firstEntity, secondEntity, types, dir, false) =>
 
-        val (start,end) = if(dir == Direction.OUTGOING) (firstEntity.name, secondEntity.name)
-                          else (secondEntity.name, firstEntity.name)
+        val (start, end) = if (dir == Direction.OUTGOING) (firstEntity.name, secondEntity.name)
+        else (secondEntity.name, firstEntity.name)
 
         val (propertyPredicates, _, propertyActions) = mangleProperties(props, name)
 
-        MergeRelationshipAction(
+        MergeRelationshipsAction(
           startNodeIdentifier = start,
           endNodeIdentifier = end,
           identifier = name,
           relType = types.head,
           expectations = propertyPredicates.toSeq,
-          onCreate = propertyActions.toSeq,
-          onMatch = Seq.empty)
+          onCreate = propertyActions ++ getActions(name, On.Create),
+          onMatch = getActions(name, On.Match))
 
       case _ =>
         throw new PatternException("MERGE only supports single node patterns or relationships")
     }
   }
 
-  private def mangleProperties(props: collection.Map[String, Expression], name: String) = {
+  private def mangleProperties(props: collection.Map[String, Expression], name: String):
+  (Seq[Predicate], Map[KeyToken, Expression], Seq[UpdateAction]) = {
     val propertyPredicates = props.map {
       case (propertyKey, expression) => Equals(Property(Identifier(name), PropertyKey(propertyKey)), expression)
     }
@@ -88,13 +94,12 @@ case class MergeAst(patterns: Seq[AbstractPattern], onActions: Seq[OnAction]) {
     }.toMap
 
     val propertyActions = props.map {
-      case (propertyKey, expression) => {
+      case (propertyKey, expression) =>
         if (propertyKey == "*") throw new PatternException("MERGE does not support map parameters")
         PropertySetAction(Property(Identifier(name), PropertyKey(propertyKey)), expression)
-      }
     }
 
-    (propertyPredicates, propertyMap, propertyActions)
+    (propertyPredicates.toSeq, propertyMap, propertyActions.toSeq)
   }
 }
 

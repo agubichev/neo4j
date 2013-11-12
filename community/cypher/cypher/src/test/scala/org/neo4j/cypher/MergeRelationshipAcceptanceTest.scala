@@ -1,0 +1,199 @@
+/**
+ * Copyright (c) 2002-2013 "Neo Technology,"
+ * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Neo4j is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package org.neo4j.cypher
+
+import org.scalatest.Assertions
+import org.junit.Test
+import org.neo4j.graphdb.Relationship
+
+class MergeRelationshipAcceptanceTest
+  extends ExecutionEngineHelper with Assertions with StatisticsChecker {
+
+  @Test
+  def should_be_able_to_create_relationship() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+
+    // when
+    val r = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    graph.inTx {
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+      assert(r.getType.name() === "TYPE")
+    }
+  }
+
+  @Test
+  def should_be_able_to_find_a_relationship() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r1 = relate(a, b, "TYPE")
+
+    // when
+    val result = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    assert(r1 === result)
+  }
+
+  @Test
+  def should_be_able_to_find_two_existing_relationships() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r1 = relate(a, b, "TYPE")
+    val r2 = relate(a, b, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").columnAs[Relationship]("r").toList
+
+    // then
+    assert(List(r1, r2) === result)
+  }
+
+  @Test
+  def should_be_able_to_find_two_relationships() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r1 = relate(a, b, "TYPE")
+    val r2 = relate(a, b, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) RETURN r").columnAs[Relationship]("r")
+
+    // then
+    assert(Set(r1, r2) === result.toSet)
+  }
+
+  @Test
+  def should_be_able_to_filter_out_relationships() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    relate(a, b, "TYPE", "r1")
+    val r = relate(a, b, "TYPE", "r2")
+
+    // when
+    val result = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE {name:'r2'}]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    assert(r === result)
+  }
+
+  @Test
+  def should_be_able_to_create_when_nothing_matches() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    relate(a, b, "TYPE", "r1")
+
+    // when
+    val r = executeScalar("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE {name:'r2'}]->(b) RETURN r").asInstanceOf[Relationship]
+
+    // then
+    graph.inTx {
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+      assert(r.getType.name() === "TYPE")
+    }
+  }
+
+  @Test
+  def should_not_be_fooled_by_direction() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    val r = relate(b, a, "TYPE")
+    val r2 = relate(a, b, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)<-[r:TYPE]-(b) RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 0)
+    assert(result.toList === List(Map("r" -> r)))
+  }
+
+  @Test
+  def should_create_relationship_with_property() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE {name:'Lola'}]->(b) RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 1, propertiesSet = 1)
+    graph.inTx {
+      val r = result.toList.head("r").asInstanceOf[Relationship]
+      assert(r.getProperty("name") === "Lola")
+      assert(r.getType.name() === "TYPE")
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+    }
+  }
+
+  @Test
+  def should_handle_on_create() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) ON CREATE r SET r.name = 'Lola' RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 1, propertiesSet = 1)
+    graph.inTx {
+      val r = result.toList.head("r").asInstanceOf[Relationship]
+      assert(r.getProperty("name") === "Lola")
+      assert(r.getType.name() === "TYPE")
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+    }
+  }
+
+  @Test
+  def should_handle_on_match() {
+    // given
+    val a = createNode("A")
+    val b = createNode("B")
+    relate(a, b, "TYPE")
+
+    // when
+    val result = execute("MATCH (a {name:'A'}), (b {name:'B'}) MERGE (a)-[r:TYPE]->(b) ON MATCH r SET r.name = 'Lola' RETURN r")
+
+    // then
+    assertStats(result, relationshipsCreated = 0, propertiesSet = 1)
+    graph.inTx {
+      val r = result.toList.head("r").asInstanceOf[Relationship]
+      assert(r.getProperty("name") === "Lola")
+      assert(r.getType.name() === "TYPE")
+      assert(r.getStartNode === a)
+      assert(r.getEndNode === b)
+    }
+  }
+}

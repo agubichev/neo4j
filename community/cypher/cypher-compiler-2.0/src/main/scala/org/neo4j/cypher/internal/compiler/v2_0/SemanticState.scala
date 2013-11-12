@@ -20,7 +20,6 @@
 package org.neo4j.cypher.internal.compiler.v2_0
 
 import scala.collection.immutable.Map
-import scala.collection.immutable.HashMap
 import scala.collection.immutable.SortedSet
 import scala.collection.breakOut
 import org.neo4j.cypher.internal.compiler.v2_0.symbols._
@@ -30,7 +29,7 @@ case class Symbol(identifiers: Set[ast.Identifier], types: TypeSet) {
 }
 
 object SemanticState {
-  val clean = SemanticState(HashMap.empty, HashMap.empty, None)
+  val clean = SemanticState(Map.empty, Map.empty, None)
 }
 
 case class SemanticState(
@@ -38,10 +37,10 @@ case class SemanticState(
     typeTable: Map[ast.Expression, TypeSet],
     parent: Option[SemanticState]) {
 
-  def newScope = copy(symbolTable = HashMap.empty, parent = Some(this))
+  def newScope = copy(symbolTable = Map.empty, parent = Some(this))
   def popScope = copy(symbolTable = parent.get.symbolTable, parent = parent.get.parent)
 
-  def clearSymbols = copy(symbolTable = HashMap.empty, parent = None)
+  def clearSymbols = copy(symbolTable = Map.empty, parent = None)
 
   def symbol(name: String): Option[Symbol] = symbolTable.get(name) orElse parent.flatMap(_.symbol(name))
   def symbolTypes(name: String) = this.symbol(name).map(_.types).getOrElse(TypeSet.empty)

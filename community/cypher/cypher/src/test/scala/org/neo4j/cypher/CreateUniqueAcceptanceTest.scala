@@ -135,10 +135,12 @@ class CreateUniqueAcceptanceTest
   @Test
   def should_be_able_to_handle_two_params() {
     createNode()
-    val props1 = Map("name"->"Andres", "position"->"Developer")
-    val props2 = Map("name"->"Lasse", "awesome"->true)
+    val props1 = Map("name" -> "Andres", "position" -> "Developer")
+    val props2 = Map("name" -> "Lasse", "awesome" -> true)
 
-    val result = execute("start n=node(0) create unique n-[:REL]->(a {props1})-[:LER]->(b {props2}) return a,b", "props1"->props1, "props2"->props2)
+    val result = execute("start n=node(0) " +
+      "create unique n-[:REL]->(a {props1})-[:LER]->(b {props2}) " +
+      "return a,b", "props1" -> props1, "props2" -> props2)
 
     assertStats(result, relationshipsCreated = 2, nodesCreated = 2, propertiesSet = 4)
     val resultMap = result.toList.head

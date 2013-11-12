@@ -34,7 +34,7 @@ class MergeAstTest extends Assertions {
     val from = MergeAst(Seq(ParsedEntity(A, Identifier(A), Map.empty, Seq.empty, bare = true)), Seq.empty)
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeAction(A, Map.empty, Seq.empty, Seq.empty, Seq.empty, Seq.empty, None)))
+    assert(from.nextStep() === Seq(MergeSingleNodeAction(A, Map.empty, Seq.empty, Seq.empty, Seq.empty, Seq.empty, None)))
   }
 
   @Test
@@ -44,7 +44,7 @@ class MergeAstTest extends Assertions {
 
     // then
     val a = from.nextStep().head
-    val b = Seq(MergeNodeAction(A,
+    val b = Seq(MergeSingleNodeAction(A,
       props = Map.empty,
       labels = Seq(Label(labelName)),
       expectations = Seq(nodeHasLabelPredicate(A)),
@@ -60,7 +60,7 @@ class MergeAstTest extends Assertions {
     // given
     val from = MergeAst(Seq(ParsedEntity(A, Identifier(A), Map(propertyKey.name -> expression), Seq.empty, bare = true)), Seq.empty)
 
-    assert(from.nextStep() === Seq(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeSingleNodeAction(A,
       props = Map(propertyKey -> expression),
       labels = Seq.empty,
       expectations = Seq(Equals(Property(Identifier(A), propertyKey), expression)),
@@ -79,7 +79,7 @@ class MergeAstTest extends Assertions {
         OnAction(On.Create, A, Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)))))
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeSingleNodeAction(A,
       props = Map.empty,
       labels = Seq.empty,
       expectations = Seq.empty,
@@ -98,7 +98,7 @@ class MergeAstTest extends Assertions {
         OnAction(On.Match, A, Seq(PropertySetAction(Property(Identifier(A), propertyKey), expression)))))
 
     // then
-    assert(from.nextStep() === Seq(MergeNodeAction(A,
+    assert(from.nextStep() === Seq(MergeSingleNodeAction(A,
       props = Map.empty,
       labels = Seq.empty,
       expectations = Seq.empty,

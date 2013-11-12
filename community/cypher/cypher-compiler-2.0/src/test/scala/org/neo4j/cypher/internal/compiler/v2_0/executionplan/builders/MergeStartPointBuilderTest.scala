@@ -25,7 +25,7 @@ import org.scalatest.mock.MockitoSugar
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.{KeyToken, TokenType}
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.PartiallySolvedQuery
-import org.neo4j.cypher.internal.compiler.v2_0.mutation.{ForeachAction, UpdateAction, MergeNodeAction}
+import org.neo4j.cypher.internal.compiler.v2_0.mutation.{ForeachAction, UpdateAction, MergeSingleNodeAction}
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.FakePipe
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.NodeType
@@ -46,7 +46,7 @@ class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
   val otherProperty = "prop2"
   val otherPropertyKey = PropertyKey(otherProperty)
   val expression = Literal(42)
-  val mergeNodeAction = MergeNodeAction("x", Map.empty, Seq(Label("Label")), Seq(HasLabel(Identifier("x"), KeyToken.Unresolved("Label", TokenType.Label))), Seq.empty, Seq.empty, None)
+  val mergeNodeAction = MergeSingleNodeAction("x", Map.empty, Seq(Label("Label")), Seq(HasLabel(Identifier("x"), KeyToken.Unresolved("Label", TokenType.Label))), Seq.empty, Seq.empty, None)
 
   @Test
   def should_solved_merge_node_start_points() {
@@ -62,7 +62,7 @@ class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
 
     // Then
     plan.query.updates match {
-      case Seq(Unsolved(MergeNodeAction("x", _, _, Seq(), Seq(), Seq(), _))) =>
+      case Seq(Unsolved(MergeSingleNodeAction("x", _, _, Seq(), Seq(), Seq(), _))) =>
       case _                                                                 =>
         fail("Expected something else, but got this: " + plan.query.start)
     }
@@ -85,7 +85,7 @@ class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
 
     // Then
     plan.query.updates match {
-      case Seq(Unsolved(ForeachAction(_, _, Seq(MergeNodeAction(_,_,_,_,_,_,producer))))) if producer.nonEmpty =>
+      case Seq(Unsolved(ForeachAction(_, _, Seq(MergeSingleNodeAction(_,_,_,_,_,_,producer))))) if producer.nonEmpty =>
       case _                                                                 =>
         fail("Expected something else, but got this: " + plan.query.updates)
     }

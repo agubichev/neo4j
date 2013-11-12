@@ -41,13 +41,13 @@ sealed abstract class MergeNodeProducer
 final case class PlainMergeNodeProducer(nodeProducer: EntityProducer[Node]) extends MergeNodeProducer
 final case class UniqueMergeNodeProducers(nodeProducers: Seq[IndexNodeProducer]) extends MergeNodeProducer
 
-case class MergeNodeAction(identifier: String,
-                           props: Map[KeyToken, Expression],
-                           labels: Seq[KeyToken],
-                           expectations: Seq[Predicate],
-                           onCreate: Seq[UpdateAction],
-                           onMatch: Seq[UpdateAction],
-                           maybeNodeProducer: Option[MergeNodeProducer]) extends UpdateAction {
+case class MergeSingleNodeAction(identifier: String,
+                                 props: Map[KeyToken, Expression],
+                                 labels: Seq[KeyToken],
+                                 expectations: Seq[Predicate],
+                                 onCreate: Seq[UpdateAction],
+                                 onMatch: Seq[UpdateAction],
+                                 maybeNodeProducer: Option[MergeNodeProducer]) extends UpdateAction {
 
   def children = expectations ++ onCreate ++ onMatch
 
@@ -131,7 +131,7 @@ case class MergeNodeAction(identifier: String,
   def identifiers: Seq[(String, CypherType)] = Seq(identifier -> NodeType())
 
   def rewrite(f: (Expression) => Expression) =
-    MergeNodeAction(identifier = identifier,
+    MergeSingleNodeAction(identifier = identifier,
       props = props.map { case (k, v) => k.rewrite(f) -> v.rewrite(f) },
       labels = labels.map(_.rewrite(f)),
       expectations = expectations.map(_.rewrite(f)),

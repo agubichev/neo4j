@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.commands
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions._
 import org.neo4j.cypher.internal.compiler.v2_0.mutation._
 import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.mutation.MergeNodeAction
+import org.neo4j.cypher.internal.compiler.v2_0.mutation.MergeSingleNodeAction
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.CreateUniqueAction
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Literal
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.CreateNode
@@ -127,7 +127,7 @@ case class CreateUniqueStartItem(inner: CreateUniqueAction) extends UpdatingStar
   override def rewrite(f: (Expression) => Expression) = CreateUniqueStartItem(inner.rewrite(f))
 }
 
-case class MergeNodeStartItem(inner: MergeNodeAction) extends UpdatingStartItem(inner, inner.identifier) {
+case class MergeNodeStartItem(inner: MergeSingleNodeAction) extends UpdatingStartItem(inner, inner.identifier) {
   override def rewrite(f: (Expression) => Expression) = MergeNodeStartItem(inner.rewrite(f))
 }
 

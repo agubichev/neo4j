@@ -26,7 +26,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.mutation._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Identifier, Property}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.UniqueMergeNodeProducers
-import org.neo4j.cypher.internal.compiler.v2_0.mutation.MergeNodeAction
+import org.neo4j.cypher.internal.compiler.v2_0.mutation.MergeSingleNodeAction
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.ExecutionPlanInProgress
 import org.neo4j.cypher.internal.compiler.v2_0.commands.SchemaIndex
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.PlainMergeNodeProducer
@@ -52,18 +52,18 @@ class MergeStartPointBuilder extends PlanBuilder {
   }
 
   private def solveUnsolvedMergePoints(boundIdentifiers: Set[String], ctx: PlanContext): (UpdateAction => UpdateAction) = {
-    case merge: MergeNodeAction if merge.maybeNodeProducer.isEmpty => findNodeProducer(merge, boundIdentifiers, ctx)
-    case foreach: ForeachAction                                    => foreach.copy(actions = foreach.actions.map(solveUnsolvedMergePoints(boundIdentifiers, ctx)))
-    case x                                                         => x
+    case merge: MergeSingleNodeAction if merge.maybeNodeProducer.isEmpty => findNodeProducer(merge, boundIdentifiers, ctx)
+    case foreach: ForeachAction                                          => foreach.copy(actions = foreach.actions.map(solveUnsolvedMergePoints(boundIdentifiers, ctx)))
+    case x                                                               => x
   }
 
-  private def findNodeProducer(mergeNodeAction: MergeNodeAction, boundIdentifiers: Set[String], ctx: PlanContext): MergeNodeAction = {
+  private def findNodeProducer(mergeNodeAction: MergeSingleNodeAction, boundIdentifiers: Set[String], ctx: PlanContext): MergeSingleNodeAction = {
     val identifier = mergeNodeAction.identifier
     val props = mergeNodeAction.props
     val labels = mergeNodeAction.labels
     val where = mergeNodeAction.expectations
 
-    val newMergeNodeAction: MergeNodeAction = NodeFetchStrategy.findUniqueIndexes(props, labels, ctx) match {
+    val newMergeNodeAction: MergeSingleNodeAction = NodeFetchStrategy.findUniqueIndexes(props, labels, ctx) match {
       case indexes if indexes.isEmpty =>
         val startItem = NodeFetchStrategy.findStartStrategy(identifier, boundIdentifiers, where, ctx)
 
