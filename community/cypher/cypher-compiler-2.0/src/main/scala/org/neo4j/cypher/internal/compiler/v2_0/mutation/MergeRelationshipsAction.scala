@@ -25,7 +25,6 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols._
 import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryState
-
 /*
 
 TODO:
@@ -38,7 +37,14 @@ TODO:
 final case class MergeLink(start: NodeMergeEntity, rel: RelationshipMergeEntity, relType: String, end: NodeMergeEntity)
   extends AstNode[MergeLink] with TypeSafe {
 
-  def apply(ctx: ExecutionContext)(implicit qs: QueryState): MergeStep
+  def apply(ctx: ExecutionContext)(implicit qs: QueryState): MergeStep = {
+    (ctx.contains(start.identifier), ctx.contains(rel.identifier), ctx.contains(end.identifier)) match {
+      case (true, true, true) => MergeStep.DoNothing
+      case (true, false, false) => MergeStep.Traverse( () => Iterator.empty)
+      case (false, false, true) => MergeStep.Traverse( () => Iterator.empty)
+      // Foo!
+    }
+  }
 
   def identifiers: Seq[(String, CypherType)] = start.identifiers ++ rel.identifiers ++ end.identifiers
 
@@ -58,9 +64,34 @@ final case class MergeLink(start: NodeMergeEntity, rel: RelationshipMergeEntity,
 }
 
 object MergeLink {
-  def apply(links: Seq[MergeLink])(ctx: ExecutionContext)(implicit qs: QueryState): Seq[(MergeLink, MergeStep)] =
-    links.map( (link: MergeLink) => link -> link(ctx) )
 
+  def select(links: Set[MergeLink], lowestPriority: Int)
+            (ctx: ExecutionContext)(implicit qs: QueryState): (Set[MergeLink], Option[(MergeLink, MergeStep)]) = {
+
+      var nextLink: Option[(MergeLink, MergeStep)] = None
+      var bestPrio = Int.MaxValue
+      var newLinks = Set.newBuilder[MergeLink]
+
+      for ( link <- links ) {
+        val linkStep = link.apply(ctx)
+        val linkPrio = linkStep.priority
+
+        if ( linkPrio >= lowestPriority ) {
+            if ( linkPrio < bestPrio ) {
+              nextLink match {
+                case Some((previousBestLink, _)) => newLinks += previousBestLink
+                case _                           =>
+              }
+              nextLink = Some(link -> linkStep)
+              bestPrio = linkPrio
+            } else {
+              newLinks += link
+            }
+        }
+      }
+
+    (newLinks.result(), nextLink)
+  }
 }
 
 sealed abstract class MergeEntity extends AstNode[MergeEntity] with TypeSafe {
@@ -110,22 +141,41 @@ final case class RelationshipMergeEntity(identifier: String,
 }
 
 
-sealed trait MergeStep
+sealed trait MergeStep {
+  def priority: Int
+}
 
 sealed trait ApplicableMergeStep extends MergeStep {
   def execute(): Iterator[ExecutionContext]
 }
 
 object MergeStep {
-  case object DoNothing extends MergeStep
-  case object NotApplicable extends MergeStep
+  case object DoNothing extends MergeStep {
+    def priority = 0
+  }
 
-  final case class Traverse(execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep
-  final case class Create(execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep
+  final case class Traverse( override val execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep {
+    def priority = Traverse.priority
+  }
+
+  object Traverse { def priority = 1 }
+
+  final case class Create( override val execute: () => Iterator[ExecutionContext]) extends ApplicableMergeStep {
+    def priority = Create.priority
+  }
+
+  object Create { def priority = 2 }
+
+  case object NotApplicable extends MergeStep {
+    def priority = 3
+  }
 }
 
 
 case class MergeRelationshipsAction(links: Seq[MergeLink]) extends UpdateAction {
+
+  val initialLinkSet = links.toSet
+
   def children: Seq[AstNode[_]] = links.flatMap(_.children)
 
   def exec(context: ExecutionContext, state: QueryState): Iterator[ExecutionContext] = ???

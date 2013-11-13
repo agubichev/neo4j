@@ -23,7 +23,7 @@ import expressions._
 import values.KeyToken
 import values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.mutation.{MergeRelationshipsAction, UpdateAction, PropertySetAction, MergeSingleNodeAction}
+import org.neo4j.cypher.internal.compiler.v2_0.mutation.{UpdateAction, PropertySetAction, MergeSingleNodeAction}
 import org.neo4j.cypher.PatternException
 import scala.collection.mutable
 import org.neo4j.graphdb.Direction
@@ -69,14 +69,15 @@ case class MergeAst(patterns: Seq[AbstractPattern], onActions: Seq[OnAction]) {
 
         val (propertyPredicates, _, propertyActions) = mangleProperties(props, name)
 
-        MergeRelationshipsAction(
-          startNodeIdentifier = start,
-          endNodeIdentifier = end,
-          identifier = name,
-          relType = types.head,
-          expectations = propertyPredicates.toSeq,
-          onCreate = propertyActions ++ getActions(name, On.Create),
-          onMatch = getActions(name, On.Match))
+          ???
+//        MergeRelationshipsAction(
+//          startNodeIdentifier = start,
+//          endNodeIdentifier = end,
+//          identifier = name,
+//          relType = types.head,
+//          expectations = propertyPredicates.toSeq,
+//          onCreate = propertyActions ++ getActions(name, On.Create),
+//          onMatch = getActions(name, On.Match))
 
       case _ =>
         throw new PatternException("MERGE only supports single node patterns or relationships")
