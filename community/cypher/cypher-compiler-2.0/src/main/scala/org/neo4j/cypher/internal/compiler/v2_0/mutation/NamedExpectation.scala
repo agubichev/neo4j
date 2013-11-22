@@ -31,25 +31,25 @@ import collection.Map
 import org.neo4j.cypher.internal.compiler.v2_0.helpers.IsMap
 
 object NamedExpectation {
-  def apply(name: String, bare: Boolean): NamedExpectation = NamedExpectation(name, Map.empty, bare)
+  def apply(name: String, bare: Boolean): NamedExpectation = NamedExpectation(name, NoProperties, bare)
 
-  def apply(name: String, properties: Map[String, Expression], bare: Boolean): NamedExpectation =
+  def apply(name: String, properties: PropertyMap, bare: Boolean): NamedExpectation =
     NamedExpectation(name, properties, Seq.empty, bare)
 
-  def apply(name: String, e: Expression, properties: Map[String, Expression], bare: Boolean): NamedExpectation =
+  def apply(name: String, e: Expression, properties: PropertyMap, bare: Boolean): NamedExpectation =
     new NamedExpectation(name, e, properties, Seq.empty, bare)
 
-  def apply(name: String, properties: Map[String, Expression], labels: Seq[KeyToken], bare: Boolean): NamedExpectation =
+  def apply(name: String, properties: PropertyMap, labels: Seq[KeyToken], bare: Boolean): NamedExpectation =
     new NamedExpectation(name, Identifier(name), properties, labels, bare)
 }
 
-case class NamedExpectation(name: String, e: Expression, properties: Map[String, Expression],
+case class NamedExpectation(name: String, e: Expression, properties: PropertyMap,
                             labels: Seq[KeyToken], bare: Boolean)
   extends GraphElementPropertyFunctions
   with CollectionSupport
   with TypeSafe {
 
-  case class DataExpectation(properties: Map[String, Expression], labels: Seq[KeyToken])
+  case class DataExpectation(properties: PropertyMap, labels: Seq[KeyToken])
 
   /*
   The expectation expression for a node can either be an expression that returns a node,
@@ -67,7 +67,7 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
             properties
           case IsMap(f)             =>
             val m = f(state.query)
-            Materialized.mapValues(m, Literal)
+            ExpressionMap(Materialized.mapValues(m, Literal))
         }
     }
     DataExpectation(expectedProps, labels)
@@ -88,17 +88,11 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
                                                              ctx: ExecutionContext,
                                                              expectations: DataExpectation,
                                                              state: QueryState): Boolean = {
-    val propsOk = expectations.properties.forall {
-      case ("*", expression) =>
-        getMapFromExpression(expression(ctx)(state)).forall {
-          case (k, value) => state.query.getOptPropertyKeyId(k).exists(ops.getProperty(id(x), _) == value)
-        }
+    val propsOk = expectations.properties.apply(ctx)(state).forall {
 
-      // case (k, _) if !ops.hasProperty(x, state.query.getOrCreatePropertyKeyId(k)) => false
-      case (k, _) if state.query.getOptPropertyKeyId(k).map(!ops.hasProperty(id(x), _)).getOrElse(true) => false
+      case (k, _) if state.query.getOptPropertyKeyId(k).map(!ops.hasProperty(id(x), _)).isEmpty => false
 
-      case (k, exp) =>
-        val expectationValue = exp(ctx)(state)
+      case (k, expectationValue) =>
         val elementValue = ops.getProperty(id(x), state.query.getPropertyKeyId(k))
 
         (expectationValue, elementValue) match {
@@ -126,7 +120,7 @@ case class NamedExpectation(name: String, e: Expression, properties: Map[String,
   }
 
 
-  def symbolTableDependencies = properties.symboltableDependencies
+  def symbolTableDependencies = properties.symbolTableDependencies
 
   def throwIfSymbolsMissing(symbols: SymbolTable) {
     properties.throwIfSymbolsMissing(symbols)

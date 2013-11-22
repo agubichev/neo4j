@@ -35,10 +35,11 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.SchemaIndex
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Property
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.UnresolvedLabel
 import org.neo4j.graphdb.Direction
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class HintVerifierTest extends Assertions {
   val labeledA = SingleNode("a", Seq(UnresolvedLabel("Person")))
-  val relatedTo = RelatedTo(labeledA, SingleNode("b"), "r", Seq.empty, Direction.OUTGOING, Map.empty)
+  val relatedTo = RelatedTo(labeledA, SingleNode("b"), "r", Seq.empty, Direction.OUTGOING, NoProperties)
 
   @Test
   def throws_when_the_predicate_is_not_usable_for_index_seek() {
@@ -103,7 +104,7 @@ class HintVerifierTest extends Assertions {
   def accepts_query_with_label_on_the_right_side() {
     //GIVEN  MATCH b-->a:Person
     val q = Query.
-      matches(RelatedTo(SingleNode("b"), labeledA, "r", Seq.empty, Direction.OUTGOING, Map.empty)).
+      matches(RelatedTo(SingleNode("b"), labeledA, "r", Seq.empty, Direction.OUTGOING, NoProperties)).
       using(NodeByLabel("a", "Person")).
       returns()
 

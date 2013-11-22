@@ -37,6 +37,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.Equals
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.SingleStepTrail
 import org.neo4j.cypher.internal.compiler.v2_0.commands.True
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Property
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class TrailToStepTest extends Assertions {
   val A = "A"
@@ -57,11 +58,11 @@ class TrailToStepTest extends Assertions {
             v
            (e)
   */
-  val AtoB = RelatedTo(SingleNode("a"), SingleNode("b"), "pr1", Seq("A"), Direction.OUTGOING, Map.empty)
-  val BtoC = RelatedTo(SingleNode("b"), SingleNode("c"), "pr2", Seq("B"), Direction.OUTGOING, Map.empty)
-  val CtoD = RelatedTo(SingleNode("c"), SingleNode("d"), "pr3", Seq("C"), Direction.OUTGOING, Map.empty)
-  val BtoB2 = RelatedTo(SingleNode("b"), SingleNode("b2"), "pr4", Seq("D"), Direction.OUTGOING, Map.empty)
-  val BtoE = VarLengthRelatedTo("p", SingleNode("b"), SingleNode("e"), None, None, Seq("A"), Direction.OUTGOING, None, Map.empty)
+  val AtoB = RelatedTo(SingleNode("a"), SingleNode("b"), "pr1", Seq("A"), Direction.OUTGOING, NoProperties)
+  val BtoC = RelatedTo(SingleNode("b"), SingleNode("c"), "pr2", Seq("B"), Direction.OUTGOING, NoProperties)
+  val CtoD = RelatedTo(SingleNode("c"), SingleNode("d"), "pr3", Seq("C"), Direction.OUTGOING, NoProperties)
+  val BtoB2 = RelatedTo(SingleNode("b"), SingleNode("b2"), "pr4", Seq("D"), Direction.OUTGOING, NoProperties)
+  val BtoE = VarLengthRelatedTo("p", SingleNode("b"), SingleNode("e"), None, None, Seq("A"), Direction.OUTGOING, None, NoProperties)
 
   @Test def single_step() {
     val expected = step(0, Seq(A), Direction.INCOMING, None)

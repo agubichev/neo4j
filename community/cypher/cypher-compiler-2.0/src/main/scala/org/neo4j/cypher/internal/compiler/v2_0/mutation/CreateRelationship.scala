@@ -29,13 +29,13 @@ import org.neo4j.graphdb.Node
 import collection.Map
 
 object RelationshipEndpoint {
-  def apply(name:String) = new RelationshipEndpoint(Identifier(name), Map.empty, Seq.empty, true)
+  def apply(name:String) = new RelationshipEndpoint(Identifier(name), NoProperties, Seq.empty, true)
 }
 
-case class RelationshipEndpoint(node: Expression, props: Map[String, Expression], labels: Seq[KeyToken], bare: Boolean)
+case class RelationshipEndpoint(node: Expression, props: PropertyMap, labels: Seq[KeyToken], bare: Boolean)
   extends GraphElementPropertyFunctions {
   def rewrite(f: (Expression) => Expression): RelationshipEndpoint =
-    RelationshipEndpoint(node.rewrite(f), Materialized.mapValues(props, (expression: Expression) => expression.rewrite(f)), labels.map(_.typedRewrite[KeyToken](f)), bare)
+    RelationshipEndpoint(node.rewrite(f), props.rewrite(f), labels.map(_.typedRewrite[KeyToken](f)), bare)
 
   def throwIfSymbolsMissing(symbols: SymbolTable) {
     props.throwIfSymbolsMissing(symbols)
@@ -47,26 +47,24 @@ case class RelationshipEndpoint(node: Expression, props: Map[String, Expression]
       case _: Identifier => Set[String]()
       case e => e.symbolTableDependencies
     }
-    nodeDeps ++ props.symboltableDependencies ++ labels.flatMap(_.symbolTableDependencies)
+    nodeDeps ++ props.symbolTableDependencies ++ labels.flatMap(_.symbolTableDependencies)
   }
 }
 
 case class CreateRelationship(key: String,
                               from: RelationshipEndpoint,
                               to: RelationshipEndpoint,
-                              typ: String, props: Map[String, Expression])
+                              typ: String,
+                              props: PropertyMap)
 extends UpdateAction
   with GraphElementPropertyFunctions {
 
   override def children =
-    props.map(_._2).toSeq ++ Seq(from.node, to.node) ++
-      from.props.map(_._2) ++ to.props.map(_._2) ++ to.labels.flatMap(_.children) ++ from.labels.flatMap(_.children)
+    props.children ++ Seq(from.node, to.node) ++
+      from.props.children ++ to.props.children ++ to.labels.flatMap(_.children) ++ from.labels.flatMap(_.children)
 
   override def rewrite(f: (Expression) => Expression) = {
-    val newFrom = from.rewrite(f)
-    val newTo = to.rewrite(f)
-    val newProps = Materialized.mapValues(props, (expr: Expression) => expr.rewrite(f))
-    CreateRelationship(key, newFrom, newTo, typ, newProps)
+    CreateRelationship(key, from.rewrite(f), to.rewrite(f), typ, props.rewrite(f))
   }
 
   def exec(context: ExecutionContext, state: QueryState) = {
@@ -89,9 +87,8 @@ extends UpdateAction
     props.throwIfSymbolsMissing(symbols)
   }
 
-  override def symbolTableDependencies: Set[String] =
-    {
-      val a = props.flatMap(_._2.symbolTableDependencies).toSet
+  override def symbolTableDependencies: Set[String] = {
+      val a = props.symbolTableDependencies
       val b = from.symbolTableDependencies
       val c = to.symbolTableDependencies
       a ++ b ++ c

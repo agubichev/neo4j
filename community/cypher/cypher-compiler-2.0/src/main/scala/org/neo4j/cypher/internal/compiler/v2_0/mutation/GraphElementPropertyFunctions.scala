@@ -44,10 +44,11 @@ trait GraphElementPropertyFunctions extends CollectionSupport {
     def symboltableDependencies: Set[String] = m.values.flatMap(_.symbolTableDependencies).toSet
   }
 
-  def setProperties(pc: PropertyContainer, props: Map[String, Expression], context: ExecutionContext, state: QueryState) {
-    props.foreach {
-      case ("*", expression) => setAllMapKeyValues(expression, context, pc, state)
-      case (key, expression) => setSingleValue(expression, context, pc, key, state)
+  def setProperties(pc: PropertyContainer, props: PropertyMap, context: ExecutionContext, state: QueryState) {
+    implicit val s = state
+    props match {
+      case SingleExpressionMap(expression) => setAllMapKeyValues(expression, context, pc, state)
+      case _                               => props.foreach(setSingleValue(_, _, pc, state), context)
     }
   }
 
@@ -64,7 +65,7 @@ trait GraphElementPropertyFunctions extends CollectionSupport {
   }
 
   private def setAllMapKeyValues(expression: Expression, context: ExecutionContext, pc: PropertyContainer, state: QueryState) {
-    val map = getMapFromExpression(expression(context)(state))
+    val map: Map[String, Any] = getMapFromExpression(expression(context)(state))
 
     pc match {
       case n: Node => map.foreach {
@@ -79,8 +80,8 @@ trait GraphElementPropertyFunctions extends CollectionSupport {
     }
   }
 
-  private def setSingleValue(expression: Expression, context: ExecutionContext, pc: PropertyContainer, key: String, state: QueryState) {
-    val value = makeValueNeoSafe(expression(context)(state))
+  private def setSingleValue(key: String, in: Any, pc: PropertyContainer, state: QueryState) {
+    val value = makeValueNeoSafe(in)
     pc match {
       case n: Node =>
         state.query.nodeOps.setProperty(n.getId, state.query.getOrCreatePropertyKeyId(key), value)

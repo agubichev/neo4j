@@ -42,7 +42,7 @@ class PredicateRewriter(namer: Namer = new RandomNamer) extends PlanBuilder {
                              name: String)
 
   case class PropertyExtraction(patternWithProperties: Unsolved[Pattern],
-                                props: Map[String, Expression],
+                                props: PropertyMap,
                                 patternWithoutProperties: Unsolved[Pattern],
                                 name: String)
 
@@ -63,18 +63,18 @@ class PredicateRewriter(namer: Namer = new RandomNamer) extends PlanBuilder {
   private def findPatternWithProperties(tokens: Seq[QueryToken[Pattern]]): Option[PropertyExtraction] =
     tokens.collectFirst {
       case node@Unsolved(pattern@SingleNode(name, _, props)) if props.nonEmpty =>
-        PropertyExtraction(node, props, Unsolved(pattern.copy(properties = Map())), name)
+        PropertyExtraction(node, props, Unsolved(pattern.copy(properties = NoProperties)), name)
 
       case relationship@Unsolved(RelationshipPattern(pattern, left@SingleNode(name, _, props), _))
         if props.nonEmpty =>
-        PropertyExtraction(relationship, props, Unsolved(pattern.changeEnds(left = left.copy(properties = Map.empty))), name)
+        PropertyExtraction(relationship, props, Unsolved(pattern.changeEnds(left = left.copy(properties = NoProperties))), name)
 
       case relationship@Unsolved(RelationshipPattern(pattern, _, right@SingleNode(name, _, props)))
         if props.nonEmpty =>
-        PropertyExtraction(relationship, props, Unsolved(pattern.changeEnds(right = right.copy(properties = Map.empty))), name)
+        PropertyExtraction(relationship, props, Unsolved(pattern.changeEnds(right = right.copy(properties = NoProperties))), name)
 
       case relationship@Unsolved(rel@RelatedTo(_, _, relName, _, _, props)) if props.nonEmpty =>
-        PropertyExtraction(relationship, props, Unsolved(rel.copy(properties = Map.empty)), relName)
+        PropertyExtraction(relationship, props, Unsolved(rel.copy(properties = NoProperties)), relName)
     }
 
   private def findVarlengthPatternWithProperties(tokens: Seq[QueryToken[Pattern]]): Option[(VarLengthRelatedTo, VarLengthRelatedTo, Predicate)] = {
@@ -87,13 +87,11 @@ class PredicateRewriter(namer: Namer = new RandomNamer) extends PlanBuilder {
       rel =>
         val iteratorName = rel.relIterator.getOrElse(namer.nextName())
         val innerSymbolName = namer.nextName()
-        val innerPredicate1: Seq[Predicate] = rel.properties.toSeq.map {
-          case (prop, value) => Equals(Property(Identifier(innerSymbolName), UnresolvedProperty(prop)), value).asInstanceOf[Predicate]
-        }
+        val innerPredicate1: Seq[Predicate] = rel.properties.asPredicatesOn(innerSymbolName)
         val innerPredicate2 = True().andWith(innerPredicate1: _*)
         val predicate = AllInCollection(Identifier(iteratorName), innerSymbolName, innerPredicate2)
 
-        (rel, rel.copy(relIterator = Some(iteratorName), properties = Map.empty), predicate)
+        (rel, rel.copy(relIterator = Some(iteratorName), properties = NoProperties), predicate)
     }
   }
 
@@ -108,7 +106,7 @@ class PredicateRewriter(namer: Namer = new RandomNamer) extends PlanBuilder {
         (predicates, nodeWithLabel.patternWithLabels, nodeWithLabel.patternWithoutLabels)
 
       case (_, Some(nodeWithProp), _) =>
-        val predicates = mapPropertiesToPredicates(nodeWithProp.props, nodeWithProp.name)
+        val predicates = nodeWithProp.props.asPredicatesOn(nodeWithProp.name).map(Unsolved.apply)
         (predicates, nodeWithProp.patternWithProperties, nodeWithProp.patternWithoutProperties)
 
       case (_, _, Some((originalRel, newRel, predicate))) =>

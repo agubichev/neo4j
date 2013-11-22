@@ -35,6 +35,7 @@ import scala.Some
 import org.neo4j.cypher.internal.compiler.v2_0.commands.HasLabel
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.Unsolved
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.{NamedExpectation, UniqueLink, CreateUniqueAction}
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class KeyTokenResolverTest extends BuilderTest with MockitoSugar {
 
@@ -79,21 +80,21 @@ class KeyTokenResolverTest extends BuilderTest with MockitoSugar {
   @Test
   def should_resolve_label_keytoken_on_related_to_pattern() {
     val q = Query.
-      matches(RelatedTo(SingleNode("a", Seq(unresolvedFoo)), SingleNode("b", Seq(unresolvedBar)), "r", Seq("KNOWS"), Direction.OUTGOING, Map.empty)).
+      matches(RelatedTo(SingleNode("a", Seq(unresolvedFoo)), SingleNode("b", Seq(unresolvedBar)), "r", Seq("KNOWS"), Direction.OUTGOING, NoProperties)).
       returns()
 
     val result = assertAccepts(q)
-    assert(result.query.patterns === Seq(Unsolved(RelatedTo(SingleNode("a", Seq(resolvedFoo)), SingleNode("b", Seq(resolvedBar)), "r", Seq("KNOWS"), Direction.OUTGOING, Map.empty))))
+    assert(result.query.patterns === Seq(Unsolved(RelatedTo(SingleNode("a", Seq(resolvedFoo)), SingleNode("b", Seq(resolvedBar)), "r", Seq("KNOWS"), Direction.OUTGOING, NoProperties))))
   }
 
   @Test
   def should_resolve_label_keytoken_on_var_length_pattern() {
     val q = Query.
-      matches(VarLengthRelatedTo("p", SingleNode("a", Seq(unresolvedFoo)), SingleNode("b", Seq(unresolvedBar)), None, None, Seq.empty, Direction.OUTGOING, None, Map.empty)).
+      matches(VarLengthRelatedTo("p", SingleNode("a", Seq(unresolvedFoo)), SingleNode("b", Seq(unresolvedBar)), None, None, Seq.empty, Direction.OUTGOING, None, NoProperties)).
       returns()
 
     val result = assertAccepts(q)
-    assert(result.query.patterns === Seq(Unsolved(VarLengthRelatedTo("p", SingleNode("a", Seq(resolvedFoo)), SingleNode("b", Seq(resolvedBar)), None, None, Seq.empty, Direction.OUTGOING, None, Map.empty))))
+    assert(result.query.patterns === Seq(Unsolved(VarLengthRelatedTo("p", SingleNode("a", Seq(resolvedFoo)), SingleNode("b", Seq(resolvedBar)), None, None, Seq.empty, Direction.OUTGOING, None, NoProperties))))
   }
 
   @Test
@@ -108,8 +109,8 @@ class KeyTokenResolverTest extends BuilderTest with MockitoSugar {
 
   @Test
   def should_resolve_label_keytoken_on_unique_link_pattern() {
-    val aNode = NamedExpectation("a", properties = Map.empty, Seq(unresolvedFoo), bare = false)
-    val bNode = NamedExpectation("b", properties = Map.empty, Seq(unresolvedBar), bare = false)
+    val aNode = NamedExpectation("a", properties = NoProperties, Seq(unresolvedFoo), bare = false)
+    val bNode = NamedExpectation("b", properties = NoProperties, Seq(unresolvedBar), bare = false)
     val rel = NamedExpectation("r", bare = true)
 
     val q = Query.

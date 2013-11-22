@@ -42,7 +42,7 @@ final case class PlainMergeNodeProducer(nodeProducer: EntityProducer[Node]) exte
 final case class UniqueMergeNodeProducers(nodeProducers: Seq[IndexNodeProducer]) extends MergeNodeProducer
 
 case class MergeNodeAction(identifier: String,
-                           props: Map[KeyToken, Expression],
+                           props: PropertyMap,
                            labels: Seq[KeyToken],
                            expectations: Seq[Predicate],
                            onCreate: Seq[UpdateAction],
@@ -132,7 +132,7 @@ case class MergeNodeAction(identifier: String,
 
   def rewrite(f: (Expression) => Expression) =
     MergeNodeAction(identifier = identifier,
-      props = props.map { case (k, v) => k.rewrite(f) -> v.rewrite(f) },
+      props = props.rewrite(f),
       labels = labels.map(_.rewrite(f)),
       expectations = expectations.map(_.rewrite(f)),
       onCreate = onCreate.map(_.rewrite(f)),

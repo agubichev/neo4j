@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.mutation._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.CollectionSliceExpression
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Literal
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Identifier
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class UpdateActionBuilderTest extends BuilderTest {
 
@@ -43,7 +44,7 @@ class UpdateActionBuilderTest extends BuilderTest {
   @Test
   def does_offer_to_solve_queries_without_start_items() {
     val q = PartiallySolvedQuery().
-      copy(start = Seq(Unsolved(CreateNodeStartItem(CreateNode("r", Map(), Seq.empty)))))
+      copy(start = Seq(Unsolved(CreateNodeStartItem(CreateNode("r", NoProperties, Seq.empty)))))
 
     assertAccepts(q)
   }
@@ -52,11 +53,11 @@ class UpdateActionBuilderTest extends BuilderTest {
   def full_path() {
     val q = PartiallySolvedQuery().copy(start = Seq(
       Unsolved(CreateRelationshipStartItem(CreateRelationship("r1",
-        RelationshipEndpoint(Identifier("a"), Map(), Seq.empty, true),
-        RelationshipEndpoint(Identifier("  UNNAMED1"), Map(), Seq.empty, true), "KNOWS", Map()))),
+        RelationshipEndpoint(Identifier("a"), NoProperties, Seq.empty, true),
+        RelationshipEndpoint(Identifier("  UNNAMED1"), NoProperties, Seq.empty, true), "KNOWS", NoProperties))),
       Unsolved(CreateRelationshipStartItem(CreateRelationship("r2",
-        RelationshipEndpoint(Identifier("b"), Map(),  Seq.empty, true),
-        RelationshipEndpoint(Identifier("  UNNAMED1"), Map(), Seq.empty, true), "LOVES", Map())))))
+        RelationshipEndpoint(Identifier("b"), NoProperties,  Seq.empty, true),
+        RelationshipEndpoint(Identifier("  UNNAMED1"), NoProperties, Seq.empty, true), "LOVES", NoProperties)))))
 
 
     val startPipe = createPipe(Seq("a", "b"))
@@ -68,8 +69,8 @@ class UpdateActionBuilderTest extends BuilderTest {
   def single_relationship_missing_nodes() {
     val q = PartiallySolvedQuery().copy(start = Seq(
       Unsolved(CreateRelationshipStartItem(CreateRelationship("r",
-        RelationshipEndpoint(Identifier("a"), Map(), Seq.empty, true),
-        RelationshipEndpoint(Identifier("b"), Map(), Seq.empty, true), "LOVES", Map())))))
+        RelationshipEndpoint(Identifier("a"), NoProperties, Seq.empty, true),
+        RelationshipEndpoint(Identifier("b"), NoProperties, Seq.empty, true), "LOVES", NoProperties)))))
 
     assertAccepts(q)
   }
@@ -78,8 +79,8 @@ class UpdateActionBuilderTest extends BuilderTest {
   def single_relationship_missing_nodes_with_expression() {
     val q = PartiallySolvedQuery().copy(updates = Seq(
       Unsolved(CreateRelationship("r",
-        RelationshipEndpoint(CollectionSliceExpression(Identifier("p"), Some(Literal(0)), Some(Literal(1))), Map(), Seq.empty, true),
-        RelationshipEndpoint(Identifier("b"), Map(), Seq.empty, true), "LOVES", Map()))))
+        RelationshipEndpoint(CollectionSliceExpression(Identifier("p"), Some(Literal(0)), Some(Literal(1))), NoProperties, Seq.empty, true),
+        RelationshipEndpoint(Identifier("b"), NoProperties, Seq.empty, true), "LOVES", NoProperties))))
 
     assertRejects(q)
   }

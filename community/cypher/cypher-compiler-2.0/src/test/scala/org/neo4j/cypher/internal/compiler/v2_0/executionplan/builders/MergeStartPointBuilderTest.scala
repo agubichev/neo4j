@@ -32,6 +32,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols.NodeType
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType._
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken.Unresolved
+import org.neo4j.cypher.internal.compiler.v2_0.{ExpressionMap, NoProperties}
 
 
 class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
@@ -46,7 +47,7 @@ class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
   val otherProperty = "prop2"
   val otherPropertyKey = PropertyKey(otherProperty)
   val expression = Literal(42)
-  val mergeNodeAction = MergeNodeAction("x", Map.empty, Seq(Label("Label")), Seq(HasLabel(Identifier("x"), KeyToken.Unresolved("Label", TokenType.Label))), Seq.empty, Seq.empty, None)
+  val mergeNodeAction = MergeNodeAction("x", NoProperties, Seq(Label("Label")), Seq(HasLabel(Identifier("x"), KeyToken.Unresolved("Label", TokenType.Label))), Seq.empty, Seq.empty, None)
 
   @Test
   def should_solved_merge_node_start_points() {
@@ -73,12 +74,12 @@ class MergeStartPointBuilderTest extends BuilderTest with MockitoSugar {
     // Given FOREACH(x in [1,2,3] | MERGE (x:Label {prop:x}))
     val pipe = new FakePipe(Iterator.empty, identifier -> NodeType())
     val collection = Collection(Literal(1), Literal(2), Literal(3))
-    val prop = Unresolved("prop", TokenType.PropertyKey)
+    val prop = "prop"
     val query = q(
-      updates = Seq(ForeachAction(collection, "x", Seq(mergeNodeAction.copy(props = Map(prop -> Identifier("x"))))))
+      updates = Seq(ForeachAction(collection, "x", Seq(mergeNodeAction.copy(props = ExpressionMap(prop -> Identifier("x"))))))
     )
     when(context.getOptLabelId("Label")).thenReturn(Some(42))
-    when(context.getUniquenessConstraint("Label", "prop")).thenReturn(None)
+    when(context.getUniquenessConstraint("Label", prop)).thenReturn(None)
 
     // When
     val plan = assertAccepts(pipe, query)

@@ -23,8 +23,8 @@ import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PartiallySolvedQue
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.mutation._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Identifier, Property}
-import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
+import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Expression, Identifier, Property}
+import org.neo4j.cypher.internal.compiler.v2_0.commands.values.{UnresolvedProperty, KeyToken}
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.UniqueMergeNodeProducers
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.MergeNodeAction
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.ExecutionPlanInProgress
@@ -58,12 +58,12 @@ class MergeStartPointBuilder extends PlanBuilder {
 
   private def findNodeProducer(mergeNodeAction: MergeNodeAction, boundIdentifiers: Set[String], ctx: PlanContext): MergeNodeAction = {
     val identifier = mergeNodeAction.identifier
-    val props = mergeNodeAction.props
-    val propsByName = mergeNodeAction.props.map { case (k,v) => k.name->v }
+    val props: Map[String, Expression] = mergeNodeAction.props.map((k,v) => (k,v)).toMap
+    val propsByName: Map[String, Expression] = mergeNodeAction.props.map { case (k,v) => k->v }.toMap
     val labels = mergeNodeAction.labels
     val where = mergeNodeAction.expectations
 
-    val newMergeNodeAction: MergeNodeAction = NodeFetchStrategy.findUniqueIndexes(props, labels, ctx) match {
+    val newMergeNodeAction: MergeNodeAction = NodeFetchStrategy.findUniqueIndexes(mergeNodeAction.props, labels, ctx) match {
       case indexes if indexes.isEmpty =>
         val startItem: RatedStartItem = NodeFetchStrategy.findStartStrategy(identifier, boundIdentifiers, where, ctx) match {
           case rated@RatedStartItem(index: SchemaIndex, _, _) => rated.copy(s = index.copy(query = Some(propsByName(index.property))))
@@ -77,18 +77,21 @@ class MergeStartPointBuilder extends PlanBuilder {
         mergeNodeAction.copy(maybeNodeProducer = Some(nodeProducer), expectations = predicatesLeft.toSeq)
 
       case indexes =>
-        val startItems: Seq[(KeyToken, KeyToken, RatedStartItem)] = indexes.map {
-          case ((label, key)) =>
-            val equalsPredicates = Seq(
-              Equals(Property(Identifier(identifier), key), props(key)),
-              Equals(props(key), Property(Identifier(identifier), key))
-            )
-            val hasLabelPredicates = labels.map {
-              HasLabel(Identifier(identifier), _)
-            }
-            val predicates = equalsPredicates ++ hasLabelPredicates
-            (label, key, RatedStartItem(SchemaIndex(identifier, label.name, key.name, UniqueIndex, Some(props(key))), NodeFetchStrategy.IndexEquality, predicates))
-        }
+        val startItems: Seq[(KeyToken, KeyToken, RatedStartItem)] =
+          indexes.map {
+            case ((label, key)) =>
+              val propertyToken = UnresolvedProperty(key)
+
+              val equalsPredicates = Seq(
+                Equals(Property(Identifier(identifier), propertyToken), propsByName(key)),
+                Equals(propsByName(key), Property(Identifier(identifier), propertyToken))
+              )
+              val hasLabelPredicates = labels.map {
+                HasLabel(Identifier(identifier), _)
+              }
+              val predicates = equalsPredicates ++ hasLabelPredicates
+              (label, propertyToken, RatedStartItem(SchemaIndex(identifier, label.name, key, UniqueIndex, Some(props(key))), NodeFetchStrategy.IndexEquality, predicates))
+          }
 
         val nodeProducer = UniqueMergeNodeProducers(startItems.map {
           case (label: KeyToken, propertyKey: KeyToken, item: RatedStartItem) => IndexNodeProducer(label, propertyKey, entityProducerFactory.nodeStartItems((ctx, item.s)))

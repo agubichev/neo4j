@@ -28,13 +28,11 @@ import spi.QueryContext
 import org.neo4j.graphdb.{Direction, Node}
 import collection.Map
 
-class PatternNode(key: String, val labels: Seq[KeyToken] = Seq.empty, val properties: Map[KeyToken, Expression] = Map.empty)
+class PatternNode(key: String, val labels: Seq[KeyToken] = Seq.empty, val properties: PropertyMap = NoProperties)
   extends PatternElement(key) {
 
   def this(node: SingleNode) = {
-    this(node.name, node.labels, node.properties.map {
-      case (k, e) => (UnresolvedProperty(k), e)
-    })
+    this(node.name, node.labels, node.properties)
   }
 
   def canUseThis(graphNodeId: Long, state: QueryState, ctx: ExecutionContext): Boolean =
@@ -93,16 +91,13 @@ class PatternNode(key: String, val labels: Seq[KeyToken] = Seq.empty, val proper
   }
 
   private def nodeHasProperties(graphNodeId: Long, execCtx: ExecutionContext)(implicit state: QueryState): Boolean =
-    properties.forall {
-    case (token, expression) =>
-      val propertyId = token.getOptId(state.query)
-      if (propertyId.isEmpty) false // The property doesn't exist in the graph
-      else {
-        val value = state.query.nodeOps.getProperty(graphNodeId, propertyId.get)
-        val expectedValue = expression(execCtx)
-        value == expectedValue
-      }
-  }
-
-
+    properties(execCtx).forall {
+      case (propKey, expectedValue) =>
+        val propertyId = UnresolvedProperty(propKey).getOptId(state.query)
+        if (propertyId.isEmpty) false // The property doesn't exist in the graph
+        else {
+          val value = state.query.nodeOps.getProperty(graphNodeId, propertyId.get)
+          value == expectedValue
+        }
+    }
 }

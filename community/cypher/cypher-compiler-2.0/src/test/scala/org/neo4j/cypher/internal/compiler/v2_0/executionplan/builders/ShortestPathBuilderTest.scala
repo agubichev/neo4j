@@ -23,6 +23,7 @@ import org.junit.Test
 import org.neo4j.graphdb.Direction
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.PartiallySolvedQuery
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class ShortestPathBuilderTest extends BuilderTest {
 
@@ -32,7 +33,7 @@ class ShortestPathBuilderTest extends BuilderTest {
   def should_not_accept_if_no_shortest_paths_exist() {
     val q = PartiallySolvedQuery().
       copy(start = Seq(Solved(NodeById("l", 0))),
-      patterns = Seq(Unsolved(RelatedTo(SingleNode("l"), SingleNode("r"), "rel", Seq(), Direction.OUTGOING, Map.empty))))
+      patterns = Seq(Unsolved(RelatedTo(SingleNode("l"), SingleNode("r"), "rel", Seq(), Direction.OUTGOING, NoProperties))))
 
     val p = createPipe(nodes = Seq("l"))
 

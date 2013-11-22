@@ -20,24 +20,26 @@
 package org.neo4j.cypher.internal.compiler.v2_0
 
 import commands._
-import commands.expressions.{Expression, Identifier}
+import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Property, Expression, Identifier}
 import commands.values.KeyToken
 import mutation.GraphElementPropertyFunctions
 import symbols._
-import org.neo4j.cypher.SyntaxException
+import org.neo4j.cypher.{CypherTypeException, InternalException, SyntaxException}
 import org.neo4j.graphdb.Direction
-import collection.Map
+import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryState
+import org.neo4j.cypher.internal.compiler.v2_0.helpers.IsMap
+import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType.PropertyKey
 
 abstract sealed class AbstractPattern extends AstNode[AbstractPattern] {
   def makeOutgoing: AbstractPattern
 
   def parsedEntities: Seq[ParsedEntity]
 
-  def possibleStartPoints:Seq[(String,CypherType)]
+  def possibleStartPoints: Seq[(String, CypherType)]
 
-  def name:String
+  def name: String
 
-  def start:AbstractPattern
+  def start: AbstractPattern
 }
 
 
@@ -51,19 +53,126 @@ object PatternWithEnds {
 }
 
 object ParsedEntity {
-  def apply(name:String) = new ParsedEntity(name, Identifier(name), Map.empty, Seq.empty, true)
+  def apply(name: String) = new ParsedEntity(name, Identifier(name), NoProperties, Seq.empty, true)
+}
+
+trait PropertyMap extends TypeSafe {
+  def children: Seq[AstNode[_]]
+
+  def rewrite(f: Expression => Expression): PropertyMap
+
+  def isEmpty: Boolean
+
+  def nonEmpty = !isEmpty
+
+  def foreach(f: (String, Any) => Unit, context: ExecutionContext)(implicit state: QueryState)
+
+  def throwIfSymbolsMissing(symbols: SymbolTable)
+
+  def symbolTableDependencies: Set[String]
+
+  def asPredicatesOn(identifier:String): Seq[Predicate]
+
+  def map[T](f: (String, Expression) => T): Seq[T]
+
+  def apply(ctx: ExecutionContext)(implicit state: QueryState): collection.Map[String, Any]
+}
+
+case object NoProperties extends PropertyMap {
+  def children: Seq[AstNode[_]] = Seq.empty
+
+  def rewrite(f: Expression => Expression): PropertyMap = NoProperties
+
+  def isEmpty = true
+
+  def foreach(f: (String, Any) => Unit, context: ExecutionContext)(implicit state: QueryState) {}
+
+  def throwIfSymbolsMissing(symbols: SymbolTable) {}
+
+  def symbolTableDependencies: Set[String] = Set.empty
+
+  def asPredicatesOn(identifier:String) = Seq.empty
+
+  def map[T](f: (String, Expression) => T): Seq[T] = Seq.empty
+
+  def apply(ctx: ExecutionContext)(implicit state: QueryState) = Map.empty
+}
+
+object ExpressionMap {
+  def apply(kv: (String, Expression)*) = new ExpressionMap(kv.toMap)
+}
+
+case class ExpressionMap(m: Map[String, Expression]) extends PropertyMap {
+  def children: Seq[AstNode[_]] = m.values.toSeq
+
+  def rewrite(f: Expression => Expression): PropertyMap = ExpressionMap(m.mapValues(f))
+
+  def isEmpty = m.isEmpty
+
+  def foreach(f: (String, Any) => Unit, context: ExecutionContext)(implicit state: QueryState) {
+    m.foreach {
+      case (key, expr) => f(key, expr(context))
+    }
+  }
+
+  def throwIfSymbolsMissing(symbols: SymbolTable) {
+    m.values.foreach(_.throwIfSymbolsMissing(symbols))
+  }
+
+  def symbolTableDependencies: Set[String] = m.values.map(_.symbolTableDependencies).flatten.toSet
+
+  def asPredicatesOn(identifier: String) = m.map {
+    case (propertyKey, expression) => Equals(Property(Identifier(identifier), PropertyKey(propertyKey)), expression)
+  }.toSeq
+
+  def map[T](f: (String, Expression) => T): Seq[T] = m.map(kv => f(kv._1, kv._2)).toSeq
+
+  def apply(ctx: ExecutionContext)(implicit state: QueryState) = m.map {
+    case (key,expression) => key -> expression(ctx)
+  }
+}
+
+case class SingleExpressionMap(e: Expression) extends PropertyMap {
+  def children: Seq[AstNode[_]] = Seq(e)
+
+  def rewrite(f: Expression => Expression): PropertyMap = SingleExpressionMap(e.rewrite(f))
+
+  def isEmpty = false
+
+  def foreach(f: (String, Any) => Unit, context: ExecutionContext)(implicit state: QueryState): Unit = {
+    e(context) match {
+      case IsMap(m) => m(state.query).foreach {
+        case (key, value) => f(key, value)
+      }
+    }
+  }
+
+  def throwIfSymbolsMissing(symbols: SymbolTable) {
+    e.throwIfSymbolsMissing(symbols)
+  }
+
+  def symbolTableDependencies: Set[String] = e.symbolTableDependencies
+
+  def asPredicatesOn(identifier: String): Seq[Predicate] = ???
+
+  def map[T](f: (String, Expression) => T): Seq[T] = throw new InternalException("Single expression property map cannot be mapped")
+
+  def apply(ctx: ExecutionContext)(implicit state: QueryState) = e(ctx) match {
+    case IsMap(m) => m(state.query)
+    case x        => throw new CypherTypeException("Expected to find a map, but got: " + x)
+  }
 }
 
 case class ParsedEntity(name: String,
                         expression: Expression,
-                        props: Map[String, Expression],
+                        props: PropertyMap,
                         labels: Seq[KeyToken],
                         bare: Boolean) extends AbstractPattern with GraphElementPropertyFunctions {
   def makeOutgoing = this
 
   def parsedEntities = Seq(this)
 
-  def children: Seq[AstNode[_]] = Seq(expression) ++ props.values
+  def children: Seq[AstNode[_]] = Seq(expression) ++ props.children
 
   def rewrite(f: (Expression) => Expression) =
     copy(expression = expression.rewrite(f), props = props.rewrite(f), labels = labels.map(_.rewrite(f)))
@@ -79,7 +188,7 @@ case class ParsedEntity(name: String,
 
 object ParsedRelation {
   def apply(name: String, start: String, end: String, typ: Seq[String], dir: Direction): ParsedRelation =
-    new ParsedRelation(name, Map.empty, ParsedEntity(start), ParsedEntity(end), typ, dir, false)
+    new ParsedRelation(name, NoProperties, ParsedEntity(start), ParsedEntity(end), typ, dir, false)
 }
 
 abstract class PatternWithPathName(val pathName: String) extends AbstractPattern {
@@ -87,7 +196,7 @@ abstract class PatternWithPathName(val pathName: String) extends AbstractPattern
 }
 
 case class ParsedRelation(name: String,
-                          props: Map[String, Expression],
+                          props: PropertyMap,
                           start: ParsedEntity,
                           end: ParsedEntity,
                           typ: Seq[String],
@@ -102,13 +211,13 @@ with GraphElementPropertyFunctions {
 
   def parsedEntities = Seq(start, end)
 
-  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.values
+  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.children
 
   def rewrite(f: (Expression) => Expression) =
     copy(props = props.rewrite(f), start = start.rewrite(f), end = end.rewrite(f))
 
   def possibleStartPoints: Seq[(String, CypherType)] =
-    (start.possibleStartPoints :+  name -> RelationshipType()) ++ end.possibleStartPoints
+    (start.possibleStartPoints :+ name -> RelationshipType()) ++ end.possibleStartPoints
 }
 
 trait Turnable {
@@ -138,7 +247,7 @@ trait Turnable {
 
 
 case class ParsedVarLengthRelation(name: String,
-                                   props: Map[String, Expression],
+                                   props: PropertyMap,
                                    start: ParsedEntity,
                                    end: ParsedEntity,
                                    typ: Seq[String],
@@ -157,7 +266,7 @@ case class ParsedVarLengthRelation(name: String,
 
   def parsedEntities = Seq(start, end)
 
-  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.values
+  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.children
 
   def rewrite(f: (Expression) => Expression) =
     copy(props = props.rewrite(f), start = start.rewrite(f), end = end.rewrite(f))
@@ -167,7 +276,7 @@ case class ParsedVarLengthRelation(name: String,
 }
 
 case class ParsedShortestPath(name: String,
-                              props: Map[String, Expression],
+                              props: PropertyMap,
                               start: ParsedEntity,
                               end: ParsedEntity,
                               typ: Seq[String],
@@ -183,7 +292,7 @@ case class ParsedShortestPath(name: String,
 
   def parsedEntities = Seq(start, end)
 
-  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.values
+  def children: Seq[AstNode[_]] = Seq(start, end) ++ props.children
 
   def rewrite(f: (Expression) => Expression) =
     copy(props = props.rewrite(f), start = start.rewrite(f), end = end.rewrite(f))

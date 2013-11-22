@@ -35,9 +35,9 @@ import org.neo4j.cypher.internal.compiler.v2_0.helpers.{IsMap, MapSupport}
 object UniqueLink {
   def apply(start: String, end: String, relName: String, relType: String, dir: Direction): UniqueLink =
     new UniqueLink(
-      NamedExpectation(start, Map.empty, bare = true),
-      NamedExpectation(end, Map.empty, bare = true),
-      NamedExpectation(relName, Map.empty, bare = true), relType, dir)
+      NamedExpectation(start, NoProperties, bare = true),
+      NamedExpectation(end, NoProperties, bare = true),
+      NamedExpectation(relName, NoProperties, bare = true), relType, dir)
 }
 
 case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: NamedExpectation, relType: String, dir: Direction)
@@ -68,8 +68,8 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
         case List() =>
           val expectations = rel.getExpectations(context, state)
           val createRel = CreateRelationship(rel.name,
-            RelationshipEndpoint(Literal(startNode), Map(), Seq.empty, bare = true),
-            RelationshipEndpoint(Literal(endNode), Map(), Seq.empty, bare = true), relType, expectations.properties)
+            RelationshipEndpoint(Literal(startNode), NoProperties, Seq.empty, bare = true),
+            RelationshipEndpoint(Literal(endNode), NoProperties, Seq.empty, bare = true), relType, expectations.properties)
           Some(this->Update(Seq(UpdateWrapper(Seq(), createRel, rel.name))))
         case List(r) => Some(this->Traverse(rel.name -> r))
         case _ => throw new UniquePathNotUniqueException("The pattern " + this + " produced multiple possible paths, and that is not allowed")
@@ -85,12 +85,12 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
         val relExpectations = rel.getExpectations(context, state)
         val createRel = if (dir == Direction.OUTGOING) {
           CreateRelationship(rel.name,
-            RelationshipEndpoint(Literal(startNode), Map(), Seq.empty, bare = true),
-            RelationshipEndpoint(Identifier(other.name), Map(), Seq.empty, bare = true), relType, relExpectations.properties)
+            RelationshipEndpoint(Literal(startNode), NoProperties, Seq.empty, bare = true),
+            RelationshipEndpoint(Identifier(other.name), NoProperties, Seq.empty, bare = true), relType, relExpectations.properties)
         } else {
           CreateRelationship(rel.name,
-            RelationshipEndpoint(Identifier(other.name), Map(), Seq.empty, bare = true),
-            RelationshipEndpoint(Literal(startNode), Map(), Seq.empty, bare = true), relType, relExpectations.properties)
+            RelationshipEndpoint(Identifier(other.name), NoProperties, Seq.empty, bare = true),
+            RelationshipEndpoint(Literal(startNode), NoProperties, Seq.empty, bare = true), relType, relExpectations.properties)
         }
 
         val relUpdate = UpdateWrapper(Seq(other.name), createRel, createRel.key)
@@ -140,9 +140,9 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
 
   lazy val identifier2 = Seq(start.name -> NodeType(), end.name -> NodeType(), rel.name -> RelationshipType())
 
-  def symbolTableDependencies:Set[String] = start.properties.symboltableDependencies ++
-    end.properties.symboltableDependencies ++
-    rel.properties.symboltableDependencies
+  def symbolTableDependencies:Set[String] = start.properties.symbolTableDependencies ++
+    end.properties.symbolTableDependencies ++
+    rel.properties.symbolTableDependencies
 
   def rewrite(f: (Expression) => Expression): UniqueLink = {
     val s = NamedExpectation(start.name, start.properties.rewrite(f), start.labels.map(_.typedRewrite[KeyToken](f)), start.bare)

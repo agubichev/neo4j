@@ -25,6 +25,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.mutation.{DeleteEntityAction, Cre
 import org.scalatest.Assertions
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.Unsolved
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Identifier
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class PartiallySolvedQueryTest extends Assertions {
   @Test def should_compact_query() {
@@ -62,5 +63,5 @@ class PartiallySolvedQueryTest extends Assertions {
 
   }
 
-  private def createNode(name: String) = CreateNodeStartItem(CreateNode(name, Map.empty, Seq.empty))
+  private def createNode(name: String) = CreateNodeStartItem(CreateNode(name, NoProperties, Seq.empty))
 }

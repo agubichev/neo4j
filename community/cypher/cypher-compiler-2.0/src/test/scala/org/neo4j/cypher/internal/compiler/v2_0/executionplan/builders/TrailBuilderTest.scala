@@ -31,6 +31,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.Equals
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.SingleStepTrail
 import org.neo4j.cypher.internal.compiler.v2_0.commands.True
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType.PropertyKey
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class TrailBuilderTest extends Assertions {
   val A = withName("A")
@@ -55,13 +56,13 @@ class TrailBuilderTest extends Assertions {
             |
            (f)
   */
-  val AtoB = RelatedTo(SingleNode("a"), SingleNode("b"), "pr1", Seq("A"), Direction.OUTGOING, Map.empty)
-  val BtoC = RelatedTo(SingleNode("b"), SingleNode("c"), "pr2", Seq("B"), Direction.OUTGOING, Map.empty)
-  val CtoD = RelatedTo(SingleNode("c"), SingleNode("d"), "pr3", Seq("C"), Direction.OUTGOING, Map.empty)
-  val BtoB2 = RelatedTo(SingleNode("b"), SingleNode("b2"), "pr4", Seq("D"), Direction.OUTGOING, Map.empty)
-  val BtoE = VarLengthRelatedTo("p", SingleNode("b"), SingleNode("e"), None, None, Seq("A"), Direction.OUTGOING, None, Map.empty)
-  val EtoF = VarLengthRelatedTo("p2", SingleNode("e"), SingleNode("f"), None, None, Seq("C"), Direction.BOTH, None, Map.empty)
-  val EtoG = RelatedTo(SingleNode("e"), SingleNode("g"), "pr5", Seq("E"), Direction.OUTGOING, Map.empty)
+  val AtoB = RelatedTo(SingleNode("a"), SingleNode("b"), "pr1", Seq("A"), Direction.OUTGOING, NoProperties)
+  val BtoC = RelatedTo(SingleNode("b"), SingleNode("c"), "pr2", Seq("B"), Direction.OUTGOING, NoProperties)
+  val CtoD = RelatedTo(SingleNode("c"), SingleNode("d"), "pr3", Seq("C"), Direction.OUTGOING, NoProperties)
+  val BtoB2 = RelatedTo(SingleNode("b"), SingleNode("b2"), "pr4", Seq("D"), Direction.OUTGOING, NoProperties)
+  val BtoE = VarLengthRelatedTo("p", SingleNode("b"), SingleNode("e"), None, None, Seq("A"), Direction.OUTGOING, None, NoProperties)
+  val EtoF = VarLengthRelatedTo("p2", SingleNode("e"), SingleNode("f"), None, None, Seq("C"), Direction.BOTH, None, NoProperties)
+  val EtoG = RelatedTo(SingleNode("e"), SingleNode("g"), "pr5", Seq("E"), Direction.OUTGOING, NoProperties)
 
   @Test def find_longest_path_for_single_pattern() {
     val expectedTrail = Some(LongestTrail("a", Some("b"), SingleStepTrail(EndPoint("b"), Direction.OUTGOING, "pr1", Seq("A"), "a", True(), True(), AtoB, Seq())))
@@ -269,8 +270,8 @@ class TrailBuilderTest extends Assertions {
     //  \                      ^
     //   --[pr5:A]->x-[pr6:B]-/
 
-    val AtoX = RelatedTo(SingleNode("a"), SingleNode("x"), "pr5", Seq("A"), Direction.OUTGOING, Map.empty)
-    val XtoC = RelatedTo(SingleNode("x"), SingleNode("c"), "pr6", Seq("B"), Direction.OUTGOING, Map.empty)
+    val AtoX = RelatedTo(SingleNode("a"), SingleNode("x"), "pr5", Seq("A"), Direction.OUTGOING, NoProperties)
+    val XtoC = RelatedTo(SingleNode("x"), SingleNode("c"), "pr6", Seq("B"), Direction.OUTGOING, NoProperties)
 
     val endPoint = EndPoint("c")
     val last = SingleStepTrail(endPoint, Direction.OUTGOING, "pr6", Seq("B"), "x", True(), True(), XtoC, Seq())
@@ -288,10 +289,10 @@ class TrailBuilderTest extends Assertions {
     // GIVEN
     // a<-[15]- (13)<-[16]- b-[17]-> (14)-[18]-> c
 
-    val s1 = RelatedTo(SingleNode("  UNNAMED13"), SingleNode("a"), "  UNNAMED15", Seq(), Direction.OUTGOING, Map.empty)
-    val s2 = RelatedTo(SingleNode("b"), SingleNode("  UNNAMED13"), "  UNNAMED16", Seq(), Direction.OUTGOING, Map.empty)
-    val s3 = RelatedTo(SingleNode("b"), SingleNode("  UNNAMED14"), "  UNNAMED17", Seq(), Direction.OUTGOING, Map.empty)
-    val s4 = RelatedTo(SingleNode("  UNNAMED14"), SingleNode("c"), "  UNNAMED18", Seq(), Direction.OUTGOING, Map.empty)
+    val s1 = RelatedTo(SingleNode("  UNNAMED13"), SingleNode("a"), "  UNNAMED15", Seq(), Direction.OUTGOING, NoProperties)
+    val s2 = RelatedTo(SingleNode("b"), SingleNode("  UNNAMED13"), "  UNNAMED16", Seq(), Direction.OUTGOING, NoProperties)
+    val s3 = RelatedTo(SingleNode("b"), SingleNode("  UNNAMED14"), "  UNNAMED17", Seq(), Direction.OUTGOING, NoProperties)
+    val s4 = RelatedTo(SingleNode("  UNNAMED14"), SingleNode("c"), "  UNNAMED18", Seq(), Direction.OUTGOING, NoProperties)
 
 
     val fifth = EndPoint("c")
@@ -318,9 +319,9 @@ class TrailBuilderTest extends Assertions {
     val expectedForB = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("b"))
     val expectedForC = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("c"))
 
-    val s1 = RelatedTo(SingleNode("a"), SingleNode("b"), "r1", Seq(), Direction.OUTGOING, Map.empty)
-    val s2 = RelatedTo(SingleNode("b"), SingleNode("c"), "r2", Seq(), Direction.OUTGOING, Map.empty)
-    val s3 = RelatedTo(SingleNode("c"), SingleNode("d"), "r3", Seq(), Direction.INCOMING, Map.empty)
+    val s1 = RelatedTo(SingleNode("a"), SingleNode("b"), "r1", Seq(), Direction.OUTGOING, NoProperties)
+    val s2 = RelatedTo(SingleNode("b"), SingleNode("c"), "r2", Seq(), Direction.OUTGOING, NoProperties)
+    val s3 = RelatedTo(SingleNode("c"), SingleNode("d"), "r3", Seq(), Direction.INCOMING, NoProperties)
 
     val fourth = EndPoint("d")
     val third = SingleStepTrail(fourth, Direction.INCOMING, "r3", Seq(), "c", True(), True(), s3, Seq())

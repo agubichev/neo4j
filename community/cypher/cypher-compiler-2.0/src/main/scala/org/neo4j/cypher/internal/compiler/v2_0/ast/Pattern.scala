@@ -245,7 +245,7 @@ case class RelationshipChain(element: PatternElement, relationship: Relationship
   def toAbstractPatterns: Seq[AbstractPattern] = {
 
     def createParsedRelationship(node: NodePattern): AbstractPattern = {
-      val props: Map[String, CommandExpression] = relationship.toLegacyProperties
+      val props: PropertyMap = relationship.toLegacyProperties
       val startNode: ParsedEntity = node.toAbstractPatterns.head.asInstanceOf[ParsedEntity]
       val endNode: ParsedEntity = rightNode.toAbstractPatterns.head.asInstanceOf[ParsedEntity]
 
@@ -319,14 +319,14 @@ sealed abstract class NodePattern extends PatternElement with SemanticChecking {
     Seq(ParsedEntity(legacyName, nodeExpression, props, labels, bare))
   }
 
-  protected lazy val legacyProps: Map[String, CommandExpression] = properties match {
-    case Some(m: MapExpression) => m.items.map(p => (p._1.name, p._2.toCommand)).toMap
-    case Some(p: Parameter)     => Map[String, CommandExpression]("*" -> p.toCommand)
+  protected lazy val legacyProps: PropertyMap = properties match {
+    case Some(m: MapExpression) => ExpressionMap(m.items.map(p => (p._1.name, p._2.toCommand)).toMap)
+    case Some(p: Parameter)     => SingleExpressionMap(p.toCommand)
     case Some(p)                => throw new SyntaxException(s"Properties of a node must be a map or parameter (${p.token.startPosition})")
-    case None                   => Map[String, CommandExpression]()
+    case None                   => NoProperties
   }
 
-  protected lazy val legacyDetails: (legacy.Expression, Map[String, legacy.Expression], Seq[Unresolved], Boolean) = {
+  protected lazy val legacyDetails: (legacy.Expression, PropertyMap, Seq[Unresolved], Boolean) = {
     val props = legacyProps
     val bare = labels.isEmpty && props.isEmpty
     (legacy.Identifier(legacyName), legacyProps, labels.map(t => commandvalues.KeyToken.Unresolved(t.name, commandvalues.TokenType.Label)), bare)
@@ -410,11 +410,11 @@ sealed abstract class RelationshipPattern extends AstNode with SemanticChecking 
     }
   }
 
-  def toLegacyProperties: Map[String, CommandExpression] = properties match {
-    case Some(m: MapExpression) => m.items.map(p => (p._1.name, p._2.toCommand)).toMap
-    case Some(p: Parameter)     => Map[String, CommandExpression]("*" -> p.toCommand)
+  def toLegacyProperties: PropertyMap = properties match {
+    case Some(m: MapExpression) => ExpressionMap(m.items.map(p => (p._1.name, p._2.toCommand)).toMap)
+    case Some(p: Parameter)     => SingleExpressionMap(p.toCommand)
     case Some(p)                => throw new SyntaxException(s"Properties of a node must be a map or parameter (${p.token.startPosition})")
-    case None                   => Map[String, CommandExpression]()
+    case None                   => NoProperties
   }
 
 

@@ -27,6 +27,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.GraphElementPropertyFunctions
 import collection.Map
+import org.neo4j.cypher.internal.compiler.v2_0.{NoProperties, PropertyMap}
 
 trait Pattern extends TypeSafe with AstNode[Pattern] {
   def possibleStartPoints: Seq[(String,CypherType)]
@@ -63,7 +64,7 @@ trait RelationshipPattern {
 
 case class SingleNode(name: String,
                       labels: Seq[KeyToken] = Seq.empty,
-                      properties: Map[String, Expression]=Map.empty) extends Pattern with GraphElementPropertyFunctions {
+                      properties: PropertyMap = NoProperties) extends Pattern with GraphElementPropertyFunctions {
   def possibleStartPoints = Seq(name -> NodeType())
 
   def predicate = True()
@@ -83,17 +84,17 @@ case class SingleNode(name: String,
   override def toString: String = {
     val namePart = if (notNamed(name)) s"${name.drop(9)}" else name
     val labelPart = if (labels.isEmpty) "" else labels.mkString(":", ":", "")
-    val props = if (properties.isEmpty) "" else " " + toString(properties)
+    val props = if (properties.isEmpty) "" else " " + properties
     "(%s%s%s)".format(namePart, labelPart, props)
   }
 }
 
 object RelatedTo {
   def apply(left: String, right: String, relName: String, relType: String, direction: Direction) =
-    new RelatedTo(SingleNode(left), SingleNode(right), relName, Seq(relType), direction, Map.empty)
+    new RelatedTo(SingleNode(left), SingleNode(right), relName, Seq(relType), direction, NoProperties)
 
   def apply(left: String, right: String, relName: String, types: Seq[String], direction: Direction) =
-    new RelatedTo(SingleNode(left), SingleNode(right), relName, types, direction, Map.empty)
+    new RelatedTo(SingleNode(left), SingleNode(right), relName, types, direction, NoProperties)
 }
 
 case class RelatedTo(left: SingleNode,
@@ -101,14 +102,14 @@ case class RelatedTo(left: SingleNode,
                      relName: String,
                      relTypes: Seq[String],
                      direction: Direction,
-                     properties: Map[String, Expression])
+                     properties: PropertyMap)
   extends Pattern with RelationshipPattern with GraphElementPropertyFunctions {
   override def toString = left + leftArrow(direction) + relInfo + rightArrow(direction) + right
 
   private def relInfo: String = {
     var info = relName
     if (relTypes.nonEmpty) info += ":" + relTypes.mkString("|")
-    if (properties.nonEmpty) info += toString(properties)
+    if (properties.nonEmpty) info += properties.toString
 
     if (info == "") "" else "[" + info + "]"
   }
@@ -142,7 +143,7 @@ abstract class PathPattern extends Pattern with RelationshipPattern {
 object VarLengthRelatedTo {
   def apply(pathName: String, left: String, right: String, minHops: Option[Int], maxHops: Option[Int], relTypes: String,
             direction: Direction, relIterator:Option[String]=None) =
-    new VarLengthRelatedTo(pathName, SingleNode(left), SingleNode(right), minHops, maxHops, Seq(relTypes), direction, relIterator, Map.empty)
+    new VarLengthRelatedTo(pathName, SingleNode(left), SingleNode(right), minHops, maxHops, Seq(relTypes), direction, relIterator, NoProperties)
 }
 
 case class VarLengthRelatedTo(pathName: String,
@@ -153,7 +154,7 @@ case class VarLengthRelatedTo(pathName: String,
                               relTypes: Seq[String],
                               direction: Direction,
                               relIterator: Option[String],
-                              properties: Map[String, Expression]) extends PathPattern with GraphElementPropertyFunctions {
+                              properties: PropertyMap) extends PathPattern with GraphElementPropertyFunctions {
 
   override def toString: String = pathName + "=" + left + leftArrow(direction) + relInfo + rightArrow(direction) + right
 
@@ -169,7 +170,7 @@ case class VarLengthRelatedTo(pathName: String,
       case (None, Some(max))      => "*" + ".." + max
       case (Some(min), Some(max)) => "*" + min + ".." + max
     }
-    if (properties.nonEmpty) info += toString(properties)
+    if (properties.nonEmpty) info += properties.toString
 
     val relName = relIterator.getOrElse("")
     info = relName + info + hops

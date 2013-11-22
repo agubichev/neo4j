@@ -36,6 +36,7 @@ import org.neo4j.kernel.impl.api.index.IndexDescriptor
 import org.neo4j.kernel.api.constraints.UniquenessConstraint
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType._
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class StartPointChoosingBuilderTest extends BuilderTest with MockitoSugar {
   def builder = new StartPointChoosingBuilder
@@ -462,8 +463,8 @@ class StartPointChoosingBuilderTest extends BuilderTest with MockitoSugar {
     val query = q(
       start = Seq(NodeById("a", 0)),
       patterns = Seq(
-        RelatedTo(SingleNode("a"),SingleNode("b"), "x", Seq.empty, Direction.OUTGOING, Map.empty),
-        RelatedTo(SingleNode("c"), SingleNode("d"), "x", Seq.empty, Direction.OUTGOING, Map.empty)
+        RelatedTo(SingleNode("a"),SingleNode("b"), "x", Seq.empty, Direction.OUTGOING, NoProperties),
+        RelatedTo(SingleNode("c"), SingleNode("d"), "x", Seq.empty, Direction.OUTGOING, NoProperties)
       )
     )
 

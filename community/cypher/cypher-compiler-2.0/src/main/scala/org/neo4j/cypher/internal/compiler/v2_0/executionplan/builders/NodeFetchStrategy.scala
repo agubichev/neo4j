@@ -23,6 +23,8 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions._
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
+import org.neo4j.cypher.internal.compiler.v2_0.{SingleExpressionMap, ExpressionMap, PropertyMap}
+import collection.Map
 
 /*
 This rather simple class finds a starting strategy for a given single node and a list of predicates required
@@ -39,15 +41,27 @@ object NodeFetchStrategy {
     ratedItems.sortBy(_.rating).head
   }
 
-  def findUniqueIndexes(props: Map[KeyToken, Expression], labels: Seq[KeyToken], ctx: PlanContext): Seq[(KeyToken, KeyToken)] = {
-    val indexes = labels.flatMap { (label: KeyToken) => findUniqueIndexesForLabel( label, props.keys, ctx ) }
-    implicit val ordering = KeyToken.Ordering
-    indexes.sorted
+  def findUniqueIndexes(props: PropertyMap, labels: Seq[KeyToken], ctx: PlanContext): Seq[(KeyToken, String)] = {
+
+    def findIndexesFromMap(map:Map[String,Expression]) = {
+      val indexes = labels.flatMap { (label: KeyToken) => findUniqueIndexesForLabel( label, map.keys, ctx ) }
+      implicit val ordering = KeyToken.Ordering
+      indexes.sorted
+    }
+
+    props match {
+      case ExpressionMap(map)                   => findIndexesFromMap(map)
+      case SingleExpressionMap(LiteralMap(map)) => findIndexesFromMap(map)
+      case _                                    => Seq.empty
+    }
   }
 
-  def findUniqueIndexesForLabel(label: KeyToken, keys: Iterable[KeyToken], ctx: PlanContext): Seq[(KeyToken, KeyToken)] =
-    keys.flatMap { (key: KeyToken) =>
-      ctx.getUniquenessConstraint(label.name, key.name).map { _ => (label, key) }
+
+  def findUniqueIndexesForLabel(label: KeyToken, keys: Iterable[String], ctx: PlanContext): Seq[(KeyToken, String)] =
+    keys.flatMap {
+      (key: String) => ctx.getUniquenessConstraint(label.name, key).map {
+          _ => (label, key)
+        }
     }.toSeq
 
   val Single = 0
@@ -82,10 +96,11 @@ trait NodeStrategy {
 
   protected def findLabelsForNode(node: String, where: Seq[Predicate]): Seq[SolvedPredicate[LabelName]] =
     where.collect {
-      case predicate @ HasLabel(Identifier(identifier), label) if identifier == node => SolvedPredicate(label.name, predicate)
+      case predicate@HasLabel(Identifier(identifier), label) if identifier == node => SolvedPredicate(label.name, predicate)
     }
 
   case class SolvedPredicate[+T](solution: T, predicate: Predicate)
+
 }
 
 object NodeByIdStrategy extends NodeStrategy {
@@ -102,19 +117,19 @@ object NodeByIdStrategy extends NodeStrategy {
   }
 
   private def findEqualityPredicatesForBoundIdentifiers(identifier: IdentifierName, boundIdentifiers: Set[String], where: Seq[Predicate]): Seq[SolvedPredicate[Expression]] = {
-    def computable(expression: Expression): Boolean = ! expression.exists {
+    def computable(expression: Expression): Boolean = !expression.exists {
       case Identifier(name) => !boundIdentifiers(name)
       case _                => false
     }
-    
-    where.collect {
-      case predicate @ Equals(IdFunction(Identifier(id)), Literal(idValue)) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(Literal(idValue.asInstanceOf[Number].longValue()), predicate)
-      case predicate @ Equals(Literal(idValue), IdFunction(Identifier(id))) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(Literal(idValue.asInstanceOf[Number].longValue()), predicate)
-        
-      case predicate @ Equals(IdFunction(Identifier(id)), expression) if id == identifier && computable(expression) => SolvedPredicate(expression, predicate)
-      case predicate @ Equals(expression, IdFunction(Identifier(id))) if id == identifier && computable(expression) => SolvedPredicate(expression, predicate)
 
-      case predicate @ AnyInCollection(collectionExpression, _, Equals(IdFunction(Identifier(id)), _)) if id == identifier && computable(collectionExpression) => SolvedPredicate(collectionExpression, predicate)
+    where.collect {
+      case predicate@Equals(IdFunction(Identifier(id)), Literal(idValue)) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(Literal(idValue.asInstanceOf[Number].longValue()), predicate)
+      case predicate@Equals(Literal(idValue), IdFunction(Identifier(id))) if id == identifier && idValue.isInstanceOf[Number] => SolvedPredicate(Literal(idValue.asInstanceOf[Number].longValue()), predicate)
+
+      case predicate@Equals(IdFunction(Identifier(id)), expression) if id == identifier && computable(expression) => SolvedPredicate(expression, predicate)
+      case predicate@Equals(expression, IdFunction(Identifier(id))) if id == identifier && computable(expression) => SolvedPredicate(expression, predicate)
+
+      case predicate@AnyInCollection(collectionExpression, _, Equals(IdFunction(Identifier(id)), _)) if id == identifier && computable(collectionExpression) => SolvedPredicate(collectionExpression, predicate)
     }
   }
 }
@@ -139,8 +154,8 @@ object IndexSeekStrategy extends NodeStrategy {
 
   private def findEqualityPredicatesOnProperty(identifier: IdentifierName, where: Seq[Predicate]): Seq[SolvedPredicate[PropertyKey]] =
     where.collect {
-      case predicate @ Equals(Property(Identifier(id), propertyKey), expression) if id == identifier => SolvedPredicate(propertyKey.name, predicate)
-      case predicate @ Equals(expression, Property(Identifier(id), propertyKey)) if id == identifier => SolvedPredicate(propertyKey.name, predicate)
+      case predicate@Equals(Property(Identifier(id), propertyKey), expression) if id == identifier => SolvedPredicate(propertyKey.name, predicate)
+      case predicate@Equals(expression, Property(Identifier(id), propertyKey)) if id == identifier => SolvedPredicate(propertyKey.name, predicate)
     }
 }
 

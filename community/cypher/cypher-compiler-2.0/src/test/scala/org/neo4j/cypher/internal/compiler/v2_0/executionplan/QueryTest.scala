@@ -23,16 +23,17 @@ import org.junit.Test
 import org.neo4j.cypher.internal.compiler.v2_0.commands.{AllIdentifiers, CreateNodeStartItem, Query}
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.CreateNode
 import org.scalatest.Assertions
+import org.neo4j.cypher.internal.compiler.v2_0.NoProperties
 
 class QueryTest extends Assertions {
   @Test
   def shouldCompactCreateStatements() {
     val end = Query.
-      start(CreateNodeStartItem(CreateNode("b", Map(), Seq.empty, bare = true))).
+      start(CreateNodeStartItem(CreateNode("b", NoProperties, Seq.empty, bare = true))).
       returns()
 
     val start = Query.
-      start(CreateNodeStartItem(CreateNode("a", Map(), Seq.empty, bare = true))).
+      start(CreateNodeStartItem(CreateNode("a", NoProperties, Seq.empty, bare = true))).
       tail(end).
       returns(AllIdentifiers())
 
@@ -40,8 +41,8 @@ class QueryTest extends Assertions {
 
     val expected = Query.
       start(
-      CreateNodeStartItem(CreateNode("a", Map(), Seq.empty, bare = true)),
-      CreateNodeStartItem(CreateNode("b", Map(), Seq.empty, bare = true))).
+      CreateNodeStartItem(CreateNode("a", NoProperties, Seq.empty, bare = true)),
+      CreateNodeStartItem(CreateNode("b", NoProperties, Seq.empty, bare = true))).
       returns()
 
     assert(expected === compacted)

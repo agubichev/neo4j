@@ -74,7 +74,7 @@ class PredicateRewriterTest(name: String,
 
 object PredicateRewriterTest {
   val literal = Literal("bar")
-  val properties = Map("foo" -> literal)
+  val properties = ExpressionMap("foo" -> literal)
   val label = UnresolvedLabel("Person")
 
   // Nodes
@@ -86,14 +86,14 @@ object PredicateRewriterTest {
   val bareB = SingleNode("b")
 
   // Relationships
-  val relationshipLabeledBoth = RelatedTo(labeledA, labeledB, "r", Seq.empty, Direction.OUTGOING, Map.empty)
+  val relationshipLabeledBoth = RelatedTo(labeledA, labeledB, "r", Seq.empty, Direction.OUTGOING, NoProperties)
   val relationshipLabeledLeft = relationshipLabeledBoth.copy(right = bareB)
   val relationshipLabeledRight = relationshipLabeledBoth.copy(left = bareA)
   val relationshipBare = relationshipLabeledLeft.copy(left = bareA)
   val relationshipPropsOnBoth = relationshipBare.copy(left = propertiedA, right = propertiedB)
   val relationshipPropsOnLeft = relationshipBare.copy(left = propertiedA)
   val relationshipPropsOnRight = relationshipBare.copy(right = propertiedB)
-  val varlengthRelatedToNoLabels = VarLengthRelatedTo("p", bareA, bareB, None, None, Seq(), Direction.OUTGOING, None, Map.empty)
+  val varlengthRelatedToNoLabels = VarLengthRelatedTo("p", bareA, bareB, None, None, Seq(), Direction.OUTGOING, None, NoProperties)
   val varlengthRelatedToWithProps = varlengthRelatedToNoLabels.copy(properties = properties)
 
 
@@ -218,7 +218,7 @@ object PredicateRewriterTest {
     add("MATCH (a)-[* {foo:'bar'}]->(b) RETURN a => MATCH (a)-[*]->(b) WHERE ALL(x in UNNAMED | x.foo = 'bar')",
       varlengthRelatedToWithProps,
       Seq(predicateForPropertiedRelIterator("1", "2")),
-      Seq(varlengthRelatedToWithProps.copy(relIterator = Some("1"), properties = Map.empty))
+      Seq(varlengthRelatedToWithProps.copy(relIterator = Some("1"), properties = NoProperties))
     )
 
     list

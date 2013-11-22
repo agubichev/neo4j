@@ -48,7 +48,7 @@ class CreateUniqueAstTest(name: String,
 }
 
 object CreateUniqueAstTest {
-  val simplePropMap = Map("name" -> Literal("Neo"))
+  val simplePropMap = ExpressionMap("name" -> Literal("Neo"))
 
   @Parameters(name = "{0}")
   def parameters: java.util.Collection[Array[AnyRef]] = {

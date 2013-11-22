@@ -25,27 +25,28 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols.{NodeType, SymbolTable}
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.{CreateNode, RelationshipEndpoint, CreateRelationship}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Expression, Identifier, Literal}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.{UnresolvedLabel, KeyToken}
+import org.neo4j.cypher.internal.compiler.v2_0.{ExpressionMap, NoProperties, PropertyMap}
 
 class CreateMissingNodesTest extends Assertions {
   @Test def should_do_it_simplest_case() {
     // Given (@a)-[:FOO]->(b)
 
     val symbolTable = new SymbolTable(Map("a" -> NodeType()))
-    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b"), "FOO", Map.empty)
+    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b"), "FOO", NoProperties)
     val result = MatchOrCreatePatternBuilder.createActions(symbolTable, Seq(relationship))
 
-    assert(result.toList === List(CreateNode("b", Map.empty, Seq.empty), relationship))
+    assert(result.toList === List(CreateNode("b", NoProperties, Seq.empty), relationship))
   }
 
-  private def endPoint(name: String, props: Map[String, Expression] = Map.empty, labels: Seq[KeyToken] = Seq.empty) =
+  private def endPoint(name: String, props: PropertyMap = NoProperties, labels: Seq[KeyToken] = Seq.empty) =
     RelationshipEndpoint(Identifier(name), props, labels, props.isEmpty && labels.isEmpty)
 
   @Test def should_handle_properties() {
     // Given (@a)-[:FOO]->(b {id:42})
 
     val symbolTable = new SymbolTable(Map("a" -> NodeType()))
-    val props = Map("id" -> Literal(42))
-    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", props), "FOO", Map.empty)
+    val props = ExpressionMap("id" -> Literal(42))
+    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", props), "FOO", NoProperties)
     val result = MatchOrCreatePatternBuilder.createActions(symbolTable, Seq(relationship))
 
     assert(result.toList === List(CreateNode("b", props, Seq.empty, bare = false), relationship))
@@ -56,10 +57,10 @@ class CreateMissingNodesTest extends Assertions {
 
     val symbolTable = new SymbolTable(Map("a" -> NodeType()))
     val labels = Seq(UnresolvedLabel("FOO"))
-    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", labels = labels), "FOO", Map.empty)
+    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", labels = labels), "FOO", NoProperties)
     val result = MatchOrCreatePatternBuilder.createActions(symbolTable, Seq(relationship))
 
-    assert(result.toList === List(CreateNode("b", Map.empty, labels, bare = false), relationship))
+    assert(result.toList === List(CreateNode("b", NoProperties, labels, bare = false), relationship))
   }
 
   @Test def should_handle_labels_and_properties() {
@@ -67,8 +68,8 @@ class CreateMissingNodesTest extends Assertions {
 
     val symbolTable = new SymbolTable(Map("a" -> NodeType()))
     val labels = Seq(UnresolvedLabel("FOO"))
-    val props = Map("id" -> Literal(42))
-    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", labels = labels, props = props), "FOO", Map.empty)
+    val props = ExpressionMap("id" -> Literal(42))
+    val relationship = CreateRelationship("r", endPoint("a"), endPoint("b", labels = labels, props = props), "FOO", NoProperties)
     val result = MatchOrCreatePatternBuilder.createActions(symbolTable, Seq(relationship))
 
     assert(result.toList === List(CreateNode("b", props, labels, bare = false), relationship))
@@ -78,12 +79,12 @@ class CreateMissingNodesTest extends Assertions {
     // Given (@a)-[r1:FOO]->(b)-[r2:FOO]->(c)
 
     val symbolTable = new SymbolTable(Map("a" -> NodeType()))
-    val r1 = CreateRelationship("r1", endPoint("a"), endPoint("b"), "FOO", Map.empty)
-    val r2 = CreateRelationship("r2", endPoint("b"), endPoint("c"), "FOO", Map.empty)
+    val r1 = CreateRelationship("r1", endPoint("a"), endPoint("b"), "FOO", NoProperties)
+    val r2 = CreateRelationship("r2", endPoint("b"), endPoint("c"), "FOO", NoProperties)
     val result = MatchOrCreatePatternBuilder.createActions(symbolTable, Seq(r1, r2))
 
     assert(result.toList === List(bareNode("b"), r1, bareNode("c"), r2))
   }
 
-  private def bareNode(name: String) = CreateNode(name, Map.empty, Seq.empty, bare = true)
+  private def bareNode(name: String) = CreateNode(name, NoProperties, Seq.empty, bare = true)
 }

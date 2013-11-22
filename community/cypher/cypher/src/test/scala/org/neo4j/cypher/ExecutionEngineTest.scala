@@ -2613,4 +2613,16 @@ RETURN x0.name""")
     assert(result("name") === "Foo")
     assert(result("count") === 1)
   }
+
+  @Test
+  def should_be_able_to_match_on_properties() {
+    // Given
+    val n = createNode("Foo")
+
+    // when
+    val result = execute("match (n {param}) return n", "param" -> Map("name" -> "Foo"))
+
+    // then
+    assert(result.toList === List(Map("n" -> n)))
+  }
 }

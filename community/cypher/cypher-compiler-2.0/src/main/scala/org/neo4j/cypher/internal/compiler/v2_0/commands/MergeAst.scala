@@ -38,26 +38,21 @@ case class MergeAst(patterns: Seq[AbstractPattern],
 
       val labelPredicates = labelTokens.map(labelName => HasLabel(Identifier(name), labelName))
 
-      val propertyPredicates = props.map {
-        case (propertyKey, expression) => Equals(Property(Identifier(name), PropertyKey(propertyKey)), expression)
-      }
-
-      val propertyMap: Map[KeyToken, Expression] = props.collect {
-        case (propertyKey, expression) => PropertyKey(propertyKey) -> expression
-      }.toMap
+      val propertyPredicates = props.asPredicatesOn(name)
 
       val labelActions = labelTokens.map(labelName => LabelAction(Identifier(name), LabelSetOp, Seq(labelName)))
-      val propertyActions = props.map {
-        case (propertyKey, expression) => {
-          if (propertyKey == "*") throw new PatternException("MERGE does not support map parameters")
-          PropertySetAction(Property(Identifier(name), PropertyKey(propertyKey)), expression)
+
+      val propertyActions = props match {
+        case SingleExpressionMap(_) => throw new PatternException("MERGE does not support map parameters")
+        case _ => props.map {
+          case (propertyKey, expression) => PropertySetAction(Property(Identifier(name), PropertyKey(propertyKey)), expression)
+          }
         }
-      }
 
       val onCreate: Seq[UpdateAction] = labelActions ++ propertyActions ++ getActionsFor(On.Create)
       val predicates = labelPredicates ++ propertyPredicates
 
-      MergeNodeAction(name, propertyMap, labelTokens, predicates, onCreate, getActionsFor(On.Match), None)
+      MergeNodeAction(name, props, labelTokens, predicates, onCreate, getActionsFor(On.Match), None)
   }
 
   private def getPatternMerges =
