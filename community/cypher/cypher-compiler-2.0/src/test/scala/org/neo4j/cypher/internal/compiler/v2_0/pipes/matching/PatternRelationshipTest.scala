@@ -23,6 +23,7 @@ import org.scalatest.junit.JUnitSuite
 import org.scalatest.Assertions
 import org.junit.Test
 import org.neo4j.graphdb.Direction
+import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Literal
 
 class PatternRelationshipTest extends JUnitSuite with Assertions {
   @Test def returnsTheOtherNode() {
@@ -34,5 +35,15 @@ class PatternRelationshipTest extends JUnitSuite with Assertions {
     val result = r.getOtherNode(a)
 
     assert(result === b)
+  }
+
+  @Test def should_filter_out_relationships_based_on_properties() {
+    val a = new PatternNode("a")
+    val b = new PatternNode("b")
+
+    val r = a.relateTo("r", b, Seq(), Direction.BOTH, Map("prop" -> Literal(42)))
+
+
+//    r.canUs
   }
 }

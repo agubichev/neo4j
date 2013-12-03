@@ -2621,4 +2621,42 @@ RETURN x0.name""")
     assert(result("name") === "Foo")
     assert(result("count") === 1)
   }
+
+  @Test
+  def should_filter_relationships_with_properties() {
+    // Given
+    val a = createNode()
+    relate(createNode(), createNode(), "prop" -> 666)
+    relate(a, createNode(), "prop" -> 42)
+
+    // when
+    val result = execute("match (n) where (n)-[{prop: 42}]->() return n").toList
+
+    // then
+    assert(result === List(Map("n" -> a)))
+  }
+
+  @Test
+  def should_filter_var_length_relationships_with_properties() {
+    // Given a graph with two paths from the :Start node - one with all props having the 42 value, and one where not all rels have this property
+
+    def createPath(value: Any): Node = {
+      val a = createLabeledNode("Start")
+      val b = createNode()
+      val c = createNode()
+
+      relate(a, b, "prop" -> value)
+      relate(b, c, "prop" -> value)
+      a
+    }
+
+    val a1 = createPath(42)
+    val a2 = createPath(666)
+
+    // when
+    val result = execute("match (n:Start) where (n)-[*2 {prop: 42}]->() return n").toList
+
+    // then
+    assert(result === List(Map("n" -> a1)))
+  }
 }
