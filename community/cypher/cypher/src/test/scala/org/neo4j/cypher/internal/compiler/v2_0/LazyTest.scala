@@ -86,7 +86,7 @@ class LazyTest extends ExecutionEngineHelper with Assertions with MockitoSugar {
     val step = SingleStep(0, Seq(), Direction.OUTGOING, None, True(), True())
     val producer = EntityProducer[Node]("test") { (ctx, state) => Iterator(monitoredNode) }
     val matcher = new MonoDirectionalTraversalMatcher(step, producer)
-    val ctx = ExecutionContext().newWith("a" -> monitoredNode)
+    val ctx = ExecutionContext.from("a" -> monitoredNode)
 
     //When:
     val iter = matcher.findMatchingPaths(QueryStateHelper.queryStateFrom(graph, tx), ctx)
@@ -228,7 +228,7 @@ class LazyTest extends ExecutionEngineHelper with Assertions with MockitoSugar {
 
   @Test def filterpipe_is_lazy() {
     //Given:
-    val limited = new LimitedIterator[Map[String, Any]](4, (x) => Map("val" -> x))
+    val limited = new LimitedIterator(4, (x) => ExecutionContext.from("val" -> x))
     val input = new FakePipe(limited, "val" -> IntegerType())
     val pipe = new FilterPipe(input, GreaterThan(Identifier("val"), Literal(3)))
 

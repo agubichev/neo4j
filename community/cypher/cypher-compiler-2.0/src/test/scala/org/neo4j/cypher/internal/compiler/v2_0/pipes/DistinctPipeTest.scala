@@ -23,44 +23,45 @@ import org.junit.Test
 import org.scalatest.Assertions
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Literal, Multiply, Expression, Identifier}
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.NumberType
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 class DistinctPipeTest extends Assertions {
 
   @Test def distinct_input_passes_through() {
     //GIVEN
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 2)))
+    val pipe = createDistinctPipe(List(ExecutionContext.from("x" -> 1), ExecutionContext.from("x" -> 2)))
 
     //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty)
+    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap())
 
     //THEN
-    assert(result.toList === List(Map("x" -> 1), Map("x" -> 2)))
+    assert(result === List(Map("x" -> 1), Map("x" -> 2)))
   }
 
   @Test def distinct_executes_expressions() {
     //GIVEN
     val expressions = Map("doubled" -> Multiply(Identifier("x"), Literal(2)))
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 2)), expressions)
+    val pipe = createDistinctPipe(List(ExecutionContext.from("x" -> 1), ExecutionContext.from("x" -> 2)), expressions)
 
     //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty)
+    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap())
 
     //THEN
-    assert(result.toList === List(Map("doubled" -> 2), Map("doubled" -> 4)))
+    assert(result === List(Map("doubled" -> 2), Map("doubled" -> 4)))
   }
 
   @Test def undistinct_input_passes_through() {
     //GIVEN
-    val pipe = createDistinctPipe(List(Map("x" -> 1), Map("x" -> 1)))
+    val pipe = createDistinctPipe(List(ExecutionContext.from("x" -> 1), ExecutionContext.from("x" -> 1)))
 
     //WHEN
     val result = pipe.createResults(QueryStateHelper.empty)
 
     //THEN
-    assert(result.toList === List(Map("x" -> 1)))
+    assert(result.toList.map(_.toMap()) === List(Map("x" -> 1)))
   }
 
-  def createDistinctPipe(input: List[Map[String, Int]], expressions: Map[String, Expression] = Map("x" -> Identifier("x"))) = {
+  def createDistinctPipe(input: List[ExecutionContext], expressions: Map[String, Expression] = Map("x" -> Identifier("x"))) = {
     val source = new FakePipe(input, "x" -> NumberType())
     new DistinctPipe(source, expressions)
   }

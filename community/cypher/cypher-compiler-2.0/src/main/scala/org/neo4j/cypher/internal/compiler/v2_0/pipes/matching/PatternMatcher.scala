@@ -27,12 +27,15 @@ import collection.Map
 
 class PatternMatcher(bindings: Map[String, MatchingPair],
                      predicates: Seq[Predicate],
-                     source:ExecutionContext,
-                     state:QueryState,
+                     source: ExecutionContext,
+                     state: QueryState,
                      identifiersInClause: Set[String])
   extends Traversable[ExecutionContext] {
+
   val boundNodes: Map[String, MatchingPair] = bindings.filter(_._2.patternElement.isInstanceOf[PatternNode])
   val boundRels: Map[String, MatchingPair] = bindings.filter(_._2.patternElement.isInstanceOf[PatternRelationship])
+
+  val interestingRelationshipIdentifiers = identifiersInClause.filter(!boundRels.contains(_))
 
   def foreach[U](f: ExecutionContext => U) {
     debug("startPatternMatching")
@@ -44,8 +47,8 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
   def createInitialHistory: InitialHistory = {
 
     val relationshipsInContextButNotInPattern = source.collect {
-      case (key, r: Relationship) if !boundRels.contains(key) && identifiersInClause.contains(key) => r
-    }.toSeq
+      case (key, r: Relationship) if interestingRelationshipIdentifiers(key) => r
+    }
 
     new InitialHistory(source, relationshipsInContextButNotInPattern)
   }
@@ -226,7 +229,7 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
     """, current, pRel, history, remaining.toList))
   }
 
-  private def debug[U](history: History, resultMap: Map[String, Any]) {
+  private def debug[U](history: History, resultMap: ExecutionContext) {
     if (isDebugging)
       println(String.format("""yield(history=%s) => %s
     """, history, resultMap))

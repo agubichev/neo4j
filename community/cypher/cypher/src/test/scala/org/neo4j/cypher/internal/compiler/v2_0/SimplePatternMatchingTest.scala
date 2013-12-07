@@ -55,7 +55,7 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
     relate(n0, n1)
 
     // When
-    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> n0), queryState).toList
+    val result = matcher.getMatches(ExecutionContext.from("a" -> n0), queryState).toList
 
     // Then
     assert(result === List.empty)
@@ -73,7 +73,7 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
     val n1 = createNode()
     val rel = relate(n0, n1)
 
-    val startingState = ExecutionContext.empty.newWith(Map("a" -> n0, "b" -> n1, "r" -> rel))
+    val startingState = ExecutionContext.from("a" -> n0, "b" -> n1, "r" -> rel)
 
     // When
     val result = matcher.getMatches(startingState, queryState).toList
@@ -94,7 +94,7 @@ class SimplePatternMatchingTest extends ExecutionEngineHelper with PatternGraphB
     val n1 = createNode()
     val rel = relate(n0, n1)
 
-    val startingState = ExecutionContext.empty.newWith(Map("a" -> n0, "b" -> n1, "r" -> rel))
+    val startingState = ExecutionContext.from("a" -> n0, "b" -> n1, "r" -> rel)
 
     // When
     val result = matcher.getMatches(startingState, queryState).toList

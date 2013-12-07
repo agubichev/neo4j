@@ -51,7 +51,7 @@ class NamedPathPipeTest extends GraphDatabaseTestBase with Assertions {
     r2 = relate(b, c, "R")
     pathElements = Seq(a, r1, b, r2, c)
     p = PathImpl(pathElements: _*)
-    inputPipe = new FakePipe(Seq(Map("a" -> a, "r1" -> r1, "b" -> b, "r2" -> r2, "c" -> c, "x" -> p)))
+    inputPipe = new FakePipe(Seq(ExecutionContext.from("a" -> a, "r1" -> r1, "b" -> b, "r2" -> r2, "c" -> c, "x" -> p)))
   }
 
   @Test
@@ -71,7 +71,7 @@ class NamedPathPipeTest extends GraphDatabaseTestBase with Assertions {
 
   @Test
   def optionalVarlengthPath() {
-    inputPipe = new FakePipe(Seq(Map("a" -> a, "r1" -> r1, "b" -> b, "r2" -> r2, "c" -> c, "x" -> null)))
+    inputPipe = new FakePipe(Seq(ExecutionContext.from("a" -> a, "r1" -> r1, "b" -> b, "r2" -> r2, "c" -> c, "x" -> null)))
 
     assert(createNamedPath(varLengthPath.copy(optional = true)) === null)
   }
@@ -81,7 +81,7 @@ class NamedPathPipeTest extends GraphDatabaseTestBase with Assertions {
     // MATCH p = a-[*]->c
     val p = PathImpl(c, r2, b, r1, a)
 
-    inputPipe = new FakePipe(Seq(Map("a" -> a, "c" -> c, "x" -> p)))
+    inputPipe = new FakePipe(Seq(ExecutionContext.from("a" -> a, "c" -> c, "x" -> p)))
     assert(createNamedPath(varLengthPath) === pathElements)
   }
 
@@ -90,7 +90,7 @@ class NamedPathPipeTest extends GraphDatabaseTestBase with Assertions {
     // MATCH p = a-[r1]->b-[*]->c
     val p = PathImpl(c, r2, b)
 
-    inputPipe = new FakePipe(Seq(Map("a" -> a, "r1" -> r1, "b" -> b, "c" -> c, "x" -> p)))
+    inputPipe = new FakePipe(Seq(ExecutionContext.from("a" -> a, "r1" -> r1, "b" -> b, "c" -> c, "x" -> p)))
 
     assert(createNamedPath(singleRelationship, varLengthPath.copy(start = ParsedEntity("b"))) === pathElements)
   }

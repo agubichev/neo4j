@@ -43,7 +43,7 @@ class LabelsFunctionTest extends Assertions with MockitoSugar {
     })
     when(queryContext.getLabelName(12)).thenReturn("bambi")
     val state = new QueryState(null, queryContext, Map.empty, NullDecorator)
-    val ctx = ExecutionContext() += ("n" -> node)
+    val ctx = ExecutionContext.empty.update("n", node)
 
     // WHEN
     val result = LabelsFunction(Identifier("n"))(ctx)(state)

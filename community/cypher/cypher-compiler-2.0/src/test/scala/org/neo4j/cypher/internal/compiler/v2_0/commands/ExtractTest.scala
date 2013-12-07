@@ -30,7 +30,8 @@ class ExtractTest extends Assertions {
     val l = Seq("x", "xxx", "xx")
     val expression = LengthFunction(Identifier("n"))
     val collection = Identifier("l")
-    val m = ExecutionContext.from("l" -> l)
+    val m = ExecutionContext.empty
+    m("l") = l
 
     val extract = ExtractFunction(collection, "n", expression)
 

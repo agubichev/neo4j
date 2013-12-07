@@ -39,7 +39,7 @@ class VariableLengthExpanderStepExpandTest extends GraphDatabaseTestBase {
                       max: Option[Int],
                       next: Option[ExpanderStep]) = VarLengthStep(id, typ, direction, min, max, next, True(), True())
 
-  private def context = ExecutionContext()
+  private def context = ExecutionContext.empty
   var tx : org.neo4j.graphdb.Transaction = null
 
   private def queryState = {

@@ -39,65 +39,65 @@ class SortPipeTest extends JUnitSuite {
   }
 
   @Test def simpleSortingIsSupported() {
-    val list:Seq[MutableMap[String, Any]] = List(MutableMap("x" -> "B"), MutableMap("x" -> "A"))
+    val list:Seq[ExecutionContext] = List(ExecutionContext.from("x" -> "B"), ExecutionContext.from("x" -> "A"))
     val source = new FakePipe(list, "x" -> StringType())
     val sortPipe = new SortPipe(source, List(SortItem(Identifier("x"), true)))
 
-    assertEquals(List(MutableMap("x" -> "A"), MutableMap("x" -> "B")), sortPipe.createResults(QueryStateHelper.empty).toList)
+    assertEquals(List(ExecutionContext.from("x" -> "A"), ExecutionContext.from("x" -> "B")), sortPipe.createResults(QueryStateHelper.empty).toList)
   }
 
   @Test def sortByTwoColumns() {
     val source = new FakePipe(List(
-      MutableMap("x" -> "B", "y" -> 20),
-      MutableMap("x" -> "A", "y" -> 100),
-      MutableMap("x" -> "B", "y" -> 10)), "x" -> StringType(), "y"->NumberType())
+      ExecutionContext.from("x" -> "B", "y" -> 20),
+      ExecutionContext.from("x" -> "A", "y" -> 100),
+      ExecutionContext.from("x" -> "B", "y" -> 10)), "x" -> StringType(), "y"->NumberType())
 
     val sortPipe = new SortPipe(source, List(
       SortItem(Identifier("x"), true),
       SortItem(Identifier("y"), true)))
 
     assertEquals(List(
-      MutableMap("x" -> "A", "y" -> 100),
-      MutableMap("x" -> "B", "y" -> 10),
-      MutableMap("x" -> "B", "y" -> 20)), sortPipe.createResults(QueryStateHelper.empty).toList)
+      ExecutionContext.from("x" -> "A", "y" -> 100),
+      ExecutionContext.from("x" -> "B", "y" -> 10),
+      ExecutionContext.from("x" -> "B", "y" -> 20)), sortPipe.createResults(QueryStateHelper.empty).toList)
   }
 
   @Test def sortByTwoColumnsWithOneDescending() {
     val source = new FakePipe(List(
-      MutableMap("x" -> "B", "y" -> 20),
-      MutableMap("x" -> "A", "y" -> 100),
-      MutableMap("x" -> "B", "y" -> 10)), "x" -> StringType(), "y"->NumberType())
+      ExecutionContext.from("x" -> "B", "y" -> 20),
+      ExecutionContext.from("x" -> "A", "y" -> 100),
+      ExecutionContext.from("x" -> "B", "y" -> 10)), "x" -> StringType(), "y"->NumberType())
 
     val sortPipe = new SortPipe(source, List(
       SortItem(Identifier("x"), true),
       SortItem(Identifier("y"), false)))
 
     assertEquals(List(
-      MutableMap("x" -> "A", "y" -> 100),
-      MutableMap("x" -> "B", "y" -> 20),
-      MutableMap("x" -> "B", "y" -> 10)), sortPipe.createResults(QueryStateHelper.empty).toList)
+      ExecutionContext.from("x" -> "A", "y" -> 100),
+      ExecutionContext.from("x" -> "B", "y" -> 20),
+      ExecutionContext.from("x" -> "B", "y" -> 10)), sortPipe.createResults(QueryStateHelper.empty).toList)
   }
 
   @Test def shouldHandleSortingWithNullValues() {
-    val list: Seq[MutableMap[String, Any]] = List(
-      MutableMap("y" -> 1),
-      MutableMap("y" -> null),
-      MutableMap("y" -> 2))
+    val list: Seq[ExecutionContext] = List(
+      ExecutionContext.from("y" -> 1),
+      ExecutionContext.from("y" -> null),
+      ExecutionContext.from("y" -> 2))
     val source = new FakePipe(list, "y"->NumberType())
 
     val sortPipe = new SortPipe(source, List(SortItem(Identifier("y"), true)))
 
     assertEquals(List(
-      MutableMap("y" -> 1),
-      MutableMap("y" -> 2),
-      MutableMap("y" -> null)), sortPipe.createResults(QueryStateHelper.empty).toList)
+      ExecutionContext.from("y" -> 1),
+      ExecutionContext.from("y" -> 2),
+      ExecutionContext.from("y" -> null)), sortPipe.createResults(QueryStateHelper.empty).toList)
   }
 
   @Test def shouldHandleSortingWithComputedValues() {
-    val list:Seq[MutableMap[String, Any]] = List(
-      MutableMap("x" -> 3),
-      MutableMap("x" -> 1),
-      MutableMap("x" -> 2))
+    val list:Seq[ExecutionContext] = List(
+      ExecutionContext.from("x" -> 3),
+      ExecutionContext.from("x" -> 1),
+      ExecutionContext.from("x" -> 2))
 
     val source = new FakePipe(list, "x" -> NumberType())
 
@@ -105,15 +105,16 @@ class SortPipeTest extends JUnitSuite {
 
     val actualResult = sortPipe.createResults(QueryStateHelper.empty).toList
     val expectedResult =  List(
-      MutableMap("x" -> 1),
-      MutableMap("x" -> 2),
-      MutableMap("x" -> 3))
+      ExecutionContext.from("x" -> 1),
+      ExecutionContext.from("x" -> 2),
+      ExecutionContext.from("x" -> 3))
     assertEquals(expectedResult, actualResult)
   }
 
   @Test(expected = classOf[PatternException]) def shouldNotAllowSortingWithRandomValues() {
-    val list:Seq[MutableMap[String, Any]] = Random.shuffle(
-      for (v <- 1 to 1000) yield MutableMap("x" -> (v: Any)))
+    val list:Seq[ExecutionContext] = Random.shuffle(
+      for (v <- 1 to 1000)
+      yield ExecutionContext.from("x" -> (v: Any)))
 
     val source = new FakePipe(list, "x" -> NumberType())
 

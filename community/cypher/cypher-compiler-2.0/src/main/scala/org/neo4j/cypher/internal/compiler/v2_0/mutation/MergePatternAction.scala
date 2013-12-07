@@ -60,7 +60,7 @@ case class MergePatternAction(patterns: Seq[Pattern],
 
   private def lockAndThenMatch(state: QueryState, ctx: ExecutionContext): Iterator[ExecutionContext] = {
     val lockingQueryContext = state.query.upgradeToLockingQueryContext
-    ctx.collect { case (_, node: Node) => node.getId }.toSeq.sorted.
+    ctx.collectValues { case (node: Node) => node.getId }.toSeq.sorted.
       foreach( id => lockingQueryContext.getLabelsForNode(id) ) // TODO: This locks the nodes. Hack!
     matchPipe.createResults(state)
   }

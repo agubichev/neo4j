@@ -111,5 +111,5 @@ class PathExpressionTest extends GraphDatabaseTestBase with Assertions {
     if(tx != null) tx.close()
   }
 
-  private def createExecutionContext(m: Map[String, Any]): ExecutionContext = ExecutionContext().newFrom(m)
+  private def createExecutionContext(m: Map[String, Any]): ExecutionContext = ExecutionContext.from(m)
 }

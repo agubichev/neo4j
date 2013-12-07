@@ -25,6 +25,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.SortItem
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.{Literal, Identifier}
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.IntegerType
 import util.Random
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 
 class TopPipeTest extends Assertions {
@@ -45,7 +46,7 @@ class TopPipeTest extends Assertions {
   }
 
   @Test def reversedTop5From10ReturnsAll() {
-    val in = (0 until 100).toSeq.map(i => Map("a" -> i)).reverse
+    val in = (0 until 100).toSeq.map(i => ExecutionContext.from("a" -> i)).reverse
     val input = new FakePipe(in, "a" -> IntegerType())
 
     val pipe = new TopPipe(input, List(SortItem(Identifier("a"), ascending = true)), Literal(5))
@@ -67,7 +68,7 @@ class TopPipeTest extends Assertions {
 
     val r = new Random(1337)
 
-    val in = (0 until count).toSeq.map(i => Map("a" -> i)).sortBy( x => r.nextInt(100))
+    val in = (0 until count).toSeq.map(i => ExecutionContext.from("a" -> i)).sortBy( x => r.nextInt(100))
     new FakePipe(in, "a" -> IntegerType())
   }
 }

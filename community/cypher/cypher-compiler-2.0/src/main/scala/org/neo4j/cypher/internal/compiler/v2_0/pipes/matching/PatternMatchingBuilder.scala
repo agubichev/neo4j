@@ -29,7 +29,9 @@ class PatternMatchingBuilder(patternGraph: PatternGraph,
                              predicates: Seq[Predicate],
                              identifiersInClause: Set[String]) extends MatcherBuilder {
   def getMatches(sourceRow: ExecutionContext, state:QueryState): Traversable[ExecutionContext] = {
-    val bindings: Map[String, Any] = sourceRow.filter(_._2.isInstanceOf[PropertyContainer])
+    val bindings: Map[String, Any] = sourceRow.collect {
+      case pair @ (_, value: PropertyContainer) => pair
+    }.toMap
     val boundPairs: Map[String, MatchingPair] = extractBoundMatchingPairs(bindings)
 
     val undirectedBoundRelationships: Iterable[PatternRelationship] = bindings.keys.
@@ -69,8 +71,8 @@ class PatternMatchingBuilder(patternGraph: PatternGraph,
   }
 
   private def createNullValuesForOptionalElements(matchedGraph: ExecutionContext): ExecutionContext = {
-    val m = (patternGraph.keySet -- matchedGraph.keySet).map(_ -> null).toStream
-    matchedGraph.newWith(m)
+    val m = (patternGraph.keySet -- matchedGraph.slots).map(_ -> null).toStream
+    matchedGraph.copy().update(m)
   }
 
   // This method takes  a Seq of Seq and produces the cartesian product of all inner Seqs

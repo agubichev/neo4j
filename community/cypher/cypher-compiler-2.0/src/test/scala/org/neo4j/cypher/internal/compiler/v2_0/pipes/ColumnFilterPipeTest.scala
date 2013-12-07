@@ -26,16 +26,18 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.ReturnItem
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.NodeType
 import collection.mutable.Map
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Identifier
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 class ColumnFilterPipeTest extends JUnitSuite {
   @Test def shouldReturnColumnsFromReturnItems() {
     val col = "extractReturnItems"
     val returnItems = List(ReturnItem(Identifier(col), col))
-    val source = new FakePipe(List(Map("x" -> "x", col -> "bar")), col -> NodeType())
+    val source = new FakePipe(List(ExecutionContext.from("x" -> "x", col -> "bar")), col -> NodeType())
+
 
     val columnPipe = new ColumnFilterPipe(source, returnItems)
 
     Assert.assertEquals(Map(col -> NodeType()), columnPipe.symbols.identifiers)
-    Assert.assertEquals(List(Map(col -> "bar")), columnPipe.createResults(QueryStateHelper.empty).toList)
+    Assert.assertEquals(List(Map(col -> "bar")), columnPipe.createResults(QueryStateHelper.empty).toList.map(_.toMap()))
   }
 }

@@ -21,15 +21,14 @@ package org.neo4j.cypher.internal.compiler.v2_0.pipes
 
 import org.neo4j.cypher.internal.compiler.v2_0._
 import symbols.{SymbolTable, CypherType}
-import collection.Map
 
-class FakePipe(val data: Iterator[Map[String, Any]], identifiers: (String, CypherType)*) extends Pipe {
+class FakePipe(val data: Iterator[ExecutionContext], identifiers: (String, CypherType)*) extends Pipe {
 
-  def this(data: Traversable[Map[String, Any]], identifiers: (String, CypherType)*) = this(data.toIterator, identifiers:_*)
+  def this(data: Traversable[ExecutionContext], identifiers: (String, CypherType)*) = this(data.toIterator, identifiers:_*)
 
   val symbols: SymbolTable = SymbolTable(identifiers.toMap)
 
-  def internalCreateResults(state: QueryState) = data.map(m => ExecutionContext(collection.mutable.Map(m.toSeq: _*)))
+  def internalCreateResults(state: QueryState) = data
 
   def executionPlanDescription = PlanDescription(this, "Fake")
 

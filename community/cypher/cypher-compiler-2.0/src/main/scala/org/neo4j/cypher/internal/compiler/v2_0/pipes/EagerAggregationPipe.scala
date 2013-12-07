@@ -53,28 +53,27 @@ class EagerAggregationPipe(source: Pipe, val keyExpressions: Map[String, Express
     val aggregationNames: Seq[String] = aggregations.map(_._1).toSeq
 
     def createResults(key: NiceHasher, aggregator: scala.Seq[AggregationFunction], ctx: ExecutionContext): ExecutionContext = {
-      val newMap = MutableMaps.empty
+      val result = ExecutionContext.empty
 
       //add key values
-      (keyNames zip key.original).foreach(newMap += _)
+      (keyNames zip key.original).foreach(result.update)
 
       //add aggregated values
-      (aggregationNames zip aggregator.map(_.result)).foreach(newMap += _)
+      (aggregationNames zip aggregator.map(_.result)).foreach(result.update)
 
-      ctx.newFrom(newMap)
+      result
     }
 
-    def createEmptyResult(params:Map[String,Any]): Iterator[ExecutionContext] = {
-      val newMap = MutableMaps.empty
+    def createEmptyResult(params: Map[String,Any]): Iterator[ExecutionContext] = {
       val aggregationNamesAndFunctions = aggregationNames zip aggregations.map(_._2.createAggregationFunction.result)
+      val result = ExecutionContext.empty(aggregationNamesAndFunctions.size)
 
-      aggregationNamesAndFunctions.toMap
-        .foreach { case (name, zeroValue) => newMap += name -> zeroValue  }
-      Iterator.single(ExecutionContext(newMap))
+      aggregationNamesAndFunctions.foreach(result.update)
+      Iterator.single(result)
     }
 
     input.foreach(ctx => {
-      val groupValues: NiceHasher = new NiceHasher(keyNames.map(ctx))
+      val groupValues: NiceHasher = new NiceHasher(keyNames.map(ctx.apply))
       val aggregateFunctions: Seq[AggregationFunction] = aggregations.map(_._2.createAggregationFunction).toSeq
       val (_, functions) = result.getOrElseUpdate(groupValues, (ctx, aggregateFunctions))
       functions.foreach(func => func(ctx)(state))

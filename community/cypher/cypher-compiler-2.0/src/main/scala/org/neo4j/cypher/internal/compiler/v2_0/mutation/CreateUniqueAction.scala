@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.mutation
 import org.neo4j.cypher.internal.compiler.v2_0._
 import commands.expressions.Expression
 import pipes.QueryState
-import symbols.{CypherType, SymbolTable}
+import symbols.CypherType
 import org.neo4j.cypher.{PatternException, UniquePathNotUniqueException}
 import org.neo4j.graphdb.PropertyContainer
 import org.neo4j.helpers.ThisShouldNotHappenError
@@ -100,7 +100,9 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
     if (uniqueKeys.size != uniqueKVPs.size) {
       fail(nextSteps)
     } else {
-      oldContext.newWith(uniqueKeys)
+      val newContext = oldContext.copy()
+      uniqueKeys foreach { newContext.update }
+      newContext
     }
   }
 
@@ -186,10 +188,6 @@ case class Traverse(result: (String, PropertyContainer)*) extends CreateUniqueRe
 case class Update(cmds: Seq[UpdateWrapper]) extends CreateUniqueResult
 
 case class UpdateWrapper(needs: Seq[String], cmd: UpdateAction, key: String) {
-  def canRun(context: ExecutionContext) = {
-    lazy val keySet = context.keySet
-    val forall = needs.forall(keySet.contains)
-    forall
-  }
+  def canRun(context: ExecutionContext) = context.containsAll(needs)
 }
 

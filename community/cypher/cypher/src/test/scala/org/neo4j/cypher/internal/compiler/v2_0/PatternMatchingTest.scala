@@ -58,7 +58,7 @@ class PatternMatchingTest extends ExecutionEngineHelper with PatternGraphBuilder
     val aNode = createNode()
 
     // When
-    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+    val result = matcher.getMatches(ExecutionContext.empty.update("a" -> aNode), queryState).toList
 
     // Then
     assert(result === List.empty)
@@ -73,7 +73,7 @@ class PatternMatchingTest extends ExecutionEngineHelper with PatternGraphBuilder
     val relationship = relate(aNode, bNode)
 
     // When
-    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+    val result = matcher.getMatches(ExecutionContext.empty.update("a" -> aNode), queryState).toList
 
     // Then
     assert(result === List(Map("a" -> aNode, "b" -> bNode, "r" -> relationship)))
@@ -88,7 +88,7 @@ class PatternMatchingTest extends ExecutionEngineHelper with PatternGraphBuilder
     relate(aNode, bNode)
 
     // When
-    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+    val result = matcher.getMatches(ExecutionContext.empty.update("a" -> aNode), queryState).toList
 
     // Then
     assert(result === List())
@@ -103,7 +103,7 @@ class PatternMatchingTest extends ExecutionEngineHelper with PatternGraphBuilder
     val relationship = relate(aNode, bNode)
 
     // When
-    val result = matcher.getMatches(ExecutionContext.empty.newWith("a" -> aNode), queryState).toList
+    val result = matcher.getMatches(ExecutionContext.empty.update("a" -> aNode), queryState).toList
 
     // Then
     assert(result === List(Map("a" -> aNode, "b" -> bNode, "r" -> relationship)))

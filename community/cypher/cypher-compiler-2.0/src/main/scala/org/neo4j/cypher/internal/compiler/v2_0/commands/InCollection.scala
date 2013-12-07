@@ -22,7 +22,6 @@ package org.neo4j.cypher.internal.compiler.v2_0.commands
 import org.neo4j.cypher.internal.compiler.v2_0._
 import expressions.{Closure, Expression}
 import pipes.QueryState
-import symbols._
 import collection.Seq
 import org.neo4j.cypher.internal.helpers.CollectionSupport
 
@@ -38,7 +37,7 @@ abstract class InCollection(collection: Expression, id: String, predicate: Predi
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Option[Boolean] = {
     val seq = makeTraversable(collection(m)).toSeq
 
-    seqMethod(seq)(item => predicate.isMatch(m.newWith(id -> item)))
+    seqMethod(seq)(item => predicate.isMatch(m.copy().update(id, item)))
   }
 
   def name: String

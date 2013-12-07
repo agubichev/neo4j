@@ -46,7 +46,7 @@ case class CreateNode(key: String, properties: Map[String, Expression], labels: 
       val labelIds = labels.map(_.getOrCreateId(state.query))
       queryCtx.setLabelsOnNode(node.getId, labelIds.iterator)
 
-      val newContext = context.newWith(key -> node)
+      val newContext = context.copy().update(key, node)
       newContext
     }
 

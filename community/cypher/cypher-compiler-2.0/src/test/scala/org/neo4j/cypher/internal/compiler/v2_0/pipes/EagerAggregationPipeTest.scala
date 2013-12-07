@@ -31,6 +31,7 @@ import org.neo4j.cypher.internal.compiler.v2_0.symbols._
 import collection.mutable.{Map => MutableMap}
 import java.lang.{Iterable => JIterable}
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType.PropertyKey
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 class EagerAggregationPipeTest extends JUnitSuite {
   @Test def shouldReturnColumnsFromReturnItems() {
@@ -58,10 +59,10 @@ class EagerAggregationPipeTest extends JUnitSuite {
 
   @Test def shouldAggregateCountStar() {
     val source = new FakePipe(List(
-      Map("name" -> "Andres", "age" -> 36),
-      Map("name" -> "Peter", "age" -> 38),
-      Map("name" -> "Michael", "age" -> 36),
-      Map("name" -> "Michael", "age" -> 31)), createSymbolTableFor("name"))
+      ExecutionContext.from("name" -> "Andres", "age" -> 36),
+      ExecutionContext.from("name" -> "Peter", "age" -> 38),
+      ExecutionContext.from("name" -> "Michael", "age" -> 36),
+      ExecutionContext.from("name" -> "Michael", "age" -> 31)), createSymbolTableFor("name"))
 
     val returnItems = createReturnItemsFor("name")
     val grouping = Map("count(*)" -> CountStar())
@@ -95,19 +96,22 @@ class EagerAggregationPipeTest extends JUnitSuite {
 
   @Test def shouldCountNonNullValues() {
     val source = new FakePipe(List(
-      Map("name" -> "Andres", "age" -> 36),
-      Map("name" -> null, "age" -> 38),
-      Map("name" -> "Michael", "age" -> 36),
-      Map("name" -> "Michael", "age" -> 31)), createSymbolTableFor("name"))
+      ExecutionContext.from("name" -> "Andres", "age" -> 36),
+      ExecutionContext.from("name" -> null, "age" -> 38),
+      ExecutionContext.from("name" -> "Michael", "age" -> 36),
+      ExecutionContext.from("name" -> "Michael", "age" -> 31)), createSymbolTableFor("name"))
 
     val returnItems = createReturnItemsFor()
     val grouping = Map("count(name)" -> Count(Identifier("name")))
     val aggregationPipe = new EagerAggregationPipe(source, returnItems, grouping)
 
-    assertEquals(List(Map("count(name)" -> 3)), aggregationPipe.createResults(QueryStateHelper.empty).toList)
+    assertEquals(List(Map("count(name)" -> 3)), aggregationPipe.createResults(QueryStateHelper.empty).toList.map(_.toMap()))
   }
 
   private def createSymbolTableFor(name: String) = name -> NodeType()
 
-  private def getResults(p: Pipe): JIterable[Map[String, Any]] = p.createResults(QueryStateHelper.empty).map(_.m.toMap).toIterable.asJava
+  private def getResults(p: Pipe): JIterable[Map[String, Any]] = {
+    val results: Iterator[ExecutionContext] = p.createResults(QueryStateHelper.empty)
+    results.map(_.toMap()).toIterable.asJava
+  }
 }

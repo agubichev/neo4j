@@ -25,8 +25,8 @@ import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 class IfElseIteratorTest extends Assertions {
   val startIterator = Iterator(ExecutionContext.empty)
-  val a = ExecutionContext.from("a" -> 1)
-  val b = ExecutionContext.from("a" -> 2)
+  val a = ExecutionContext.empty.update("a" -> 1)
+  val b = ExecutionContext.empty.update("a" -> 2)
 
   @Test def should_pass_through_if_ifClause_returns_values() {
     val ifClause = (_: ExecutionContext) => Iterator(a)

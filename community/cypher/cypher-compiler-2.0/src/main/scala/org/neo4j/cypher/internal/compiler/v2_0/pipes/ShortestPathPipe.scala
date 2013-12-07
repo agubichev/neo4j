@@ -40,7 +40,7 @@ class ShortestPathPipe(source: Pipe, ast: ShortestPath) extends PipeWithSource(s
       case path: Path    => Stream(path)
     }
 
-    result.map(x => ctx.newWith(pathName -> x))
+    result.map(x => ctx.copy().update(pathName, x))
   })
 
   val symbols = source.symbols.add(pathName, PathType())

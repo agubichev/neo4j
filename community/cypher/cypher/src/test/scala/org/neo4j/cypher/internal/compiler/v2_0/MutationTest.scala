@@ -105,7 +105,7 @@ class MutationTest extends ExecutionEngineHelper with Assertions with LegacyTrip
     val createNodePipe = new ExecuteUpdateCommandsPipe(startPipe, Seq(createRel))
 
     val state = createQueryState
-    val results: List[MutableMap[String, Any]] = createNodePipe.createResults(state).map(ctx => ctx.m).toList
+    val results: List[ExecutionContext] = createNodePipe.createResults(state).toList
 
     val r = graph.getRelationshipById(0)
     assert(r.getProperty("I") === "was here")

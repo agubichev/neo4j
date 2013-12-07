@@ -31,7 +31,7 @@ abstract class PercentileTest {
   def getPercentile(percentile: Double, values: List[Any]): Any = {
     val func = createAggregator(Identifier("x"), Literal(percentile))
     values.foreach(value => {
-      func(ExecutionContext.from("x" -> value))(QueryStateHelper.empty)
+      func(ExecutionContext.empty.update("x" -> value))(QueryStateHelper.empty)
     })
     func.result
   }

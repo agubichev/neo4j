@@ -29,7 +29,7 @@ import collection.JavaConverters._
 case class NamedPathPipe(source: Pipe, pathName: String, entities: Seq[AbstractPattern]) extends PipeWithSource(source) {
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) =
     input.map {
-      ctx => ctx += (pathName -> getPath(ctx))
+      ctx => ctx(pathName) = getPath(ctx)
     }
 
   // TODO: This is duplicated with PathExtractor

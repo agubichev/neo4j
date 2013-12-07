@@ -31,7 +31,7 @@ case class ExtractFunction(collection: Expression, id: String, expression: Expre
 
   def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = makeTraversable(value).map {
     case iterValue =>
-      val innerMap = m.newWith(id -> iterValue)
+      val innerMap = m.copy().update(id, iterValue)
       expression(innerMap)
   }.toList
 

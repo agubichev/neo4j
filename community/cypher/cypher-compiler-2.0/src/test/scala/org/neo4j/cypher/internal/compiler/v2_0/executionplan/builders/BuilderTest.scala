@@ -22,17 +22,18 @@ package org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders
 import org.scalatest.Assertions
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.{RelationshipType, NodeType}
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress, PartiallySolvedQuery}
-import org.neo4j.cypher.internal.compiler.v2_0.pipes.{MutableMaps, Pipe, NullPipe, FakePipe}
+import org.neo4j.cypher.internal.compiler.v2_0.pipes.{Pipe, NullPipe, FakePipe}
 import org.junit.Assert._
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_0.commands.Query
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 trait BuilderTest extends Assertions {
   def createPipe(nodes: Seq[String] = Seq(), relationships: Seq[String] = Seq()): FakePipe = {
     val nodeIdentifiers = nodes.map(x => x -> NodeType())
     val relIdentifiers = relationships.map(x => x -> RelationshipType())
 
-    new FakePipe(Seq(MutableMaps.empty), (nodeIdentifiers ++ relIdentifiers): _*)
+    new FakePipe(Seq(ExecutionContext.empty), (nodeIdentifiers ++ relIdentifiers): _*)
   }
 
   // for avoiding missing an override while refactoring

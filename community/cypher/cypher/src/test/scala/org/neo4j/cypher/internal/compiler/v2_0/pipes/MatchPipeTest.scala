@@ -28,7 +28,7 @@ import org.scalatest.Assertions
 class MatchPipeTest extends Assertions {
   @Test
   def should_yield_nothing_if_it_gets_an_incoming_null() {
-    val source = new FakePipe(Iterator(Map("x"->null)), "x"->NodeType())
+    val source = new FakePipe(Iterator(ExecutionContext.from("x"->null)), "x"->NodeType())
     val patternGraph = new PatternGraph(Map.empty, Map.empty, Seq.empty, Seq.empty)
     val identifiersInClause = Set("x", "r", "z")
     val matchPipe = new MatchPipe(source, predicates = Seq.empty, patternGraph, identifiersInClause)

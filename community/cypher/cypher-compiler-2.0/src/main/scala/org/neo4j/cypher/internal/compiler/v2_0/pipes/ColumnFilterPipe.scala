@@ -30,21 +30,22 @@ class ColumnFilterPipe(source: Pipe, val returnItems: Seq[ReturnItem])
   extends PipeWithSource(source) {
   val returnItemNames: Seq[String] = returnItems.map(_.name)
   val symbols = SymbolTable(identifiers2.toMap)
+  val numItems = returnItems.size
 
   private lazy val identifiers2: Seq[(String, CypherType)] = returnItems.
     map( ri => ri.name->ri.expression.getType(source.symbols))
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
     input.map(ctx => {
-      val newMap = MutableMaps.create(ctx.size)
+      val result = ExecutionContext.empty(numItems)
 
       returnItems.foreach {
-        case ReturnItem(Identifier(oldName), newName, _) if isNamed(newName) => newMap.put(newName, ctx(oldName))
-        case ReturnItem(CachedExpression(oldName, _), newName, _)            => newMap.put(newName, ctx(oldName))
-        case ReturnItem(_, name, _)                                          => newMap.put(name, ctx(name))
+        case ReturnItem(Identifier(oldName), newName, _) if isNamed(newName) => result(newName) = ctx(oldName)
+        case ReturnItem(CachedExpression(oldName, _), newName, _)            => result(newName) = ctx(oldName)
+        case ReturnItem(_, name, _)                                          => result(name) = ctx(name)
       }
 
-      ctx.newFrom( newMap )
+      result
     })
   }
 

@@ -76,7 +76,7 @@ extends UpdateAction
     val t = toVal.asInstanceOf[Node]
     val relationship = state.query.createRelationship(f, t, typ)
     setProperties(relationship, props, context, state)
-    context.put(key, relationship)
+    context.update(key, relationship)
     Iterator(context)
   }
 

@@ -64,7 +64,7 @@ class DoubleCheckCreateUniqueTest extends Assertions {
   }
 
   private def createExecutionContext(state:QueryState, a: Node): ExecutionContext = {
-    ExecutionContext().newWith(Map("a" -> a))
+    ExecutionContext.from("a" -> a)
   }
 
   private def createQueryState(): QueryState = {

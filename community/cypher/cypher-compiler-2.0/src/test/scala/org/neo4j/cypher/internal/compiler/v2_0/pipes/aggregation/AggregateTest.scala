@@ -30,7 +30,7 @@ abstract class AggregateTest {
     implicit val state = QueryStateHelper.empty
     val func: AggregationFunction = createAggregator(Identifier("x"))
 
-    values.foreach(value => func(ExecutionContext.from("x" -> value)))
+    values.foreach(value => func(ExecutionContext.empty.update("x" -> value)))
 
     func.result
   }

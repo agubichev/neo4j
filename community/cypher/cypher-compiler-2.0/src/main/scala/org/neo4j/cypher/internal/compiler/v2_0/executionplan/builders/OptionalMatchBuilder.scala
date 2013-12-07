@@ -63,7 +63,9 @@ case class OptionalMatchBuilder(solveMatch: Phase) extends PlanBuilder {
     val nulls: Map[String, Any] = introducedIdentifiers.map(_ -> null).toMap
 
     private def createNulls(in: ExecutionContext): Iterator[ExecutionContext] = {
-      Iterator(in.newWith(nulls))
+      val context = in.copy()
+      introducedIdentifiers foreach { context.update(_, null) }
+      Iterator(context)
     }
 
     def doMatch(state: QueryState)(ctx: ExecutionContext) = matchPipe.createResults(state)

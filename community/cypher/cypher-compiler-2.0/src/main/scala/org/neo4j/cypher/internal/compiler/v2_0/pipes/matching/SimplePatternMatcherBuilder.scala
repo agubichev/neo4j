@@ -26,7 +26,7 @@ import symbols._
 import org.neo4j.graphdb.{Relationship, Node, DynamicRelationshipType}
 import org.neo4j.graphmatching.{PatternMatcher => SimplePatternMatcher, PatternNode => SimplePatternNode,
 PatternRelationship => SimplePatternRelationship, PatternMatch}
-import collection.{immutable, Map}
+import collection.immutable
 import collection.JavaConverters._
 
 class SimplePatternMatcherBuilder(pattern: PatternGraph,
@@ -62,7 +62,8 @@ class SimplePatternMatcherBuilder(pattern: PatternGraph,
     }
   }
 
-  def setAssociations(sourceRow: Map[String, Any]): (immutable.Map[String, SimplePatternNode], immutable.Map[String, SimplePatternRelationship]) = {
+  def setAssociations(sourceRow: ExecutionContext): (immutable.Map[String, SimplePatternNode], immutable.Map[String,
+    SimplePatternRelationship]) = {
     val patternNodes = createPatternNodes
     val patternRels = createPatternRels(patternNodes)
     patternNodes.values.foreach(pn => {
@@ -107,15 +108,13 @@ class SimplePatternMatcherBuilder(pattern: PatternGraph,
       if (alreadyUsed(patternMatch)) {
         None
       } else {
-        val result: ExecutionContext = ctx.clone()
+        val result: ExecutionContext = ctx.copy()
 
         patternNodes.foreach {
-          case (key, pn) => val tuple = key -> patternMatch.getNodeFor(pn)
-            result += tuple
+          case (key, pn) => result(key) = patternMatch.getNodeFor(pn)
         }
         patternRels.foreach {
-          case (key, pr) => val tuple = key -> patternMatch.getRelationshipFor(pr)
-            result += tuple
+          case (key, pr) => result(key) = patternMatch.getRelationshipFor(pr)
         }
 
         Some(result).filter(r => validPredicates.forall(_.isTrue(r)(state)))

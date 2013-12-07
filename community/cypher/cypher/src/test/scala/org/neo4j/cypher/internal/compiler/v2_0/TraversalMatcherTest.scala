@@ -61,7 +61,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val matcher = new BidirectionalTraversalMatcher(pr1, start, end)
 
-    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext()).toSeq
+    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext.empty).toSeq
 
     assert(result.size === 1)
     assert(result.head.startNode() === a)
@@ -102,7 +102,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val matcher = new BidirectionalTraversalMatcher(pr1, start, end)
 
-    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext()).toSeq
+    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext.empty).toSeq
 
     assert(result.size === 3)
 
@@ -124,7 +124,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val result: Set[(Long, Long)] =
       matcher
-        .findMatchingPaths(queryState, ExecutionContext()).map((p: Path) => (p.startNode().getId, p.endNode().getId))
+        .findMatchingPaths(queryState, ExecutionContext.empty).map((p: Path) => (p.startNode().getId, p.endNode().getId))
         .toSet
 
     val a = nodeA.getId
@@ -150,7 +150,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     val result: Set[(Long, Long)] =
       matcher
-        .findMatchingPaths(queryState, ExecutionContext()).map((p: Path) => (p.startNode().getId, p.endNode().getId))
+        .findMatchingPaths(queryState, ExecutionContext.empty).map((p: Path) => (p.startNode().getId, p.endNode().getId))
         .toSet
 
 
@@ -178,7 +178,7 @@ class TraversalMatcherTest extends GraphDatabaseTestBase {
 
     // When
     val matcher = new MonoDirectionalTraversalMatcher(pr0, start)
-    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext()).toSeq
+    val result: Seq[Path] = matcher.findMatchingPaths(queryState, ExecutionContext.empty).toSeq
 
     // Then
     // If there were no uniqueness constraint then this path would match the pattern:

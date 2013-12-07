@@ -29,7 +29,8 @@ import org.junit.Test
 class PropertyValueTest extends Assertions {
   @Test def nullNodeShouldGiveNullProperty() {
     val p = Property(Identifier("identifier"), PropertyKey("property"))
-    val ctx = ExecutionContext.from("identifier" -> null)
+    val ctx = ExecutionContext.empty
+    ctx("identifier") = null
     val state = QueryStateHelper.empty
 
     assert(p(ctx)(state) === null)

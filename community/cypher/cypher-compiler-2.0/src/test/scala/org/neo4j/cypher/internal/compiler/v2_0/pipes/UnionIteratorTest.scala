@@ -21,6 +21,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.pipes
 
 import org.junit.Test
 import org.scalatest.Assertions
+import org.neo4j.cypher.internal.compiler.v2_0.ExecutionContext
 
 
 class UnionIteratorTest extends Assertions {
@@ -37,7 +38,7 @@ class UnionIteratorTest extends Assertions {
   @Test
   def single_element() {
     // GIVEN
-    val singleMap = Map("x" -> 1)
+    val singleMap = ExecutionContext.from("x" -> 1)
     val union = createUnion(Iterator(singleMap), Iterator.empty)
 
     //THEN
@@ -47,15 +48,15 @@ class UnionIteratorTest extends Assertions {
   @Test
   def two_elements() {
     //GIVEN
-    val aMap = Map("x" -> 1)
-    val bMap = Map("x" -> 2)
+    val aMap = ExecutionContext.from("x" -> 1)
+    val bMap = ExecutionContext.from("x" -> 2)
     val union = createUnion(Iterator(aMap), Iterator(bMap))
 
     //THEN
     assert(union.toList === List(aMap, bMap))
   }
 
-  private def createUnion(aIt: Iterator[Map[String, Any]], bIt: Iterator[Map[String, Any]]): UnionIterator = {
+  private def createUnion(aIt: Iterator[ExecutionContext], bIt: Iterator[ExecutionContext]): UnionIterator = {
     val a = new FakePipe(aIt)
     val b = new FakePipe(bIt)
 
