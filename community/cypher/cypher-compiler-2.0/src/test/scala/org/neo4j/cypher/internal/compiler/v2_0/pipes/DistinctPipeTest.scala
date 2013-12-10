@@ -32,7 +32,7 @@ class DistinctPipeTest extends Assertions {
     val pipe = createDistinctPipe(List(ExecutionContext.from("x" -> 1), ExecutionContext.from("x" -> 2)))
 
     //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap())
+    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap)
 
     //THEN
     assert(result === List(Map("x" -> 1), Map("x" -> 2)))
@@ -44,7 +44,7 @@ class DistinctPipeTest extends Assertions {
     val pipe = createDistinctPipe(List(ExecutionContext.from("x" -> 1), ExecutionContext.from("x" -> 2)), expressions)
 
     //WHEN
-    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap())
+    val result = pipe.createResults(QueryStateHelper.empty).toList.map(_.toMap)
 
     //THEN
     assert(result === List(Map("doubled" -> 2), Map("doubled" -> 4)))
@@ -58,7 +58,7 @@ class DistinctPipeTest extends Assertions {
     val result = pipe.createResults(QueryStateHelper.empty)
 
     //THEN
-    assert(result.toList.map(_.toMap()) === List(Map("x" -> 1)))
+    assert(result.toList.map(_.toMap) === List(Map("x" -> 1)))
   }
 
   def createDistinctPipe(input: List[ExecutionContext], expressions: Map[String, Expression] = Map("x" -> Identifier("x"))) = {

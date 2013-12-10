@@ -31,76 +31,67 @@ object ExecutionContext {
 }
 
 abstract class ExecutionContext {
-  type Slot = String
+  def slots: Set[String]
 
-  def slots: Set[Slot]
+  def get(slot: String): Option[Any]
 
-  def get(slot: Slot): Option[Any]
+  def getOrElse(slot: String, f: => Any): Any
 
-  def getOrElse(slot: Slot, f: => Any): Any
+  def contains(slot: String): Boolean
 
-  def contains(slot: Slot): Boolean
+  def containsAll(slots: Seq[String]): Boolean = slots.isEmpty || slots.forall(contains)
 
-  def containsAll(slots: Seq[Slot]): Boolean = slots.isEmpty || slots.forall(contains)
+  def apply(slot: String): Any
 
-  def apply(slot: Slot): Any
-
-  def collect[T](f: PartialFunction[(Slot, Any), T]): Seq[T]
+  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T]
 
   def collectValues[T](f: PartialFunction[Any, T]): Seq[T]
 
-  def update(slot: Slot, value: Any): ExecutionContext
+  def update(slot: String, value: Any): ExecutionContext
 
-  def update(input: Iterable[(Slot, Any)]): ExecutionContext = {
+  def update(input: Iterable[(String, Any)]): ExecutionContext = {
     input foreach update
     this
   }
 
-  def update(kv: (Slot, Any)): ExecutionContext = kv match {
+  def update(kv: (String, Any)): ExecutionContext = kv match {
     case (key, value) => update(key, value)
   }
 
-  def update(m: Map[Slot, Any]): ExecutionContext = {
+  def update(m: Map[String, Any]): ExecutionContext = {
     m.foreach(update)
     this
   }
 
-  def -=(slot: Slot): Any
-
   def copy(): ExecutionContext
 
-  def toMap(): Map[String, Any]
+  def toMap: Map[String, Any]
 }
 
 case class MapExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty) extends ExecutionContext {
 
-  def slots: Set[Slot] = m.keySet.toSet
+  def slots: Set[String] = m.keySet.toSet
 
-  def contains(slot: Slot): Boolean = m.contains(slot)
+  def contains(slot: String): Boolean = m.contains(slot)
 
-  def get(slot: MapExecutionContext#Slot): Option[Any] = m.get(slot)
+  def get(slot: String): Option[Any] = m.get(slot)
 
-  def getOrElse(slot: Slot, f: => Any): Any = m.getOrElse(slot, f)
+  def getOrElse(slot: String, f: => Any): Any = m.getOrElse(slot, f)
 
-  def apply(slot: Slot): Any = m(slot)
+  def apply(slot: String): Any = m(slot)
 
-  def collect[T](f: PartialFunction[(Slot, Any), T]): Seq[T] = m.collect(f).toSeq
+  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T] = m.collect(f).toSeq
 
   def collectValues[T](f: PartialFunction[Any, T]): Seq[T] = m.values.collect(f).toSeq
 
-  def update(slot: Slot, value: Any): ExecutionContext = {
+  def update(slot: String, value: Any): ExecutionContext = {
     m.put(slot, value)
-    this
-  }
-
-  def -=(slot: Slot): Any = {
-    m -= slot
     this
   }
 
   def copy(): ExecutionContext = new MapExecutionContext(m.clone())
 
-  def toMap(): Map[String, Any] = m.toMap
+  def toMap: Map[String, Any] = m.toMap
 
   override def toString: String = "ExecutionContext(" + m.mkString(", ") + ")"
 
