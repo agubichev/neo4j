@@ -20,8 +20,6 @@
 package org.neo4j.cypher.internal.compiler.v2_0
 
 package object symbols {
-  implicit def cypherTypeSet[T <: CypherType](set: Set[T]) : TypeSet = TypeSet(set)
-
   val CTAny = AnyType.instance
   val CTBoolean = BooleanType.instance
   val CTString = StringType.instance
@@ -35,4 +33,9 @@ package object symbols {
   val CTPath = PathType.instance
   def CTCollection(inner: CypherType) = CollectionType(inner)
   val CTCollectionAny = CTCollection(CTAny)
+
+  val T = TypeSpec.all
+  val CTCollectionT = T <:< CTCollectionAny
+
+  implicit def exactTypeSpec(that: CypherType): TypeSpec = TypeSpec.exact(that)
 }
