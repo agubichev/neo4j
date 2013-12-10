@@ -72,10 +72,12 @@ class SortPipeTest extends JUnitSuite {
       SortItem(Identifier("x"), true),
       SortItem(Identifier("y"), false)))
 
-    assertEquals(List(
+    val result = sortPipe.createResults(QueryStateHelper.empty).toList
+    val expected = List(
       ExecutionContext.from("x" -> "A", "y" -> 100),
       ExecutionContext.from("x" -> "B", "y" -> 20),
-      ExecutionContext.from("x" -> "B", "y" -> 10)), sortPipe.createResults(QueryStateHelper.empty).toList)
+      ExecutionContext.from("x" -> "B", "y" -> 10))
+    assertEquals(expected, result)
   }
 
   @Test def shouldHandleSortingWithNullValues() {

@@ -44,11 +44,14 @@ class ExtractPipe(val source: Pipe, val expressions: Map[String, Expression]) ex
     source.symbols.add(newIdentifiers)
   }
 
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = input.map(
-    subgraph => {
-      expressions.foreach(subgraph.update)
+  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = input.map {
+    subgraph =>
+      expressions.foreach {
+        case (name, expression) => subgraph.update(name, expression(subgraph)(state))
+      }
+
       subgraph
-  })
+  }
 
   override def executionPlanDescription =
     source.executionPlanDescription

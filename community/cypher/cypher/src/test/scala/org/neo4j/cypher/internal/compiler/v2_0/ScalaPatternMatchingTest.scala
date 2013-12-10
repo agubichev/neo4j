@@ -134,7 +134,7 @@ class ScalaPatternMatchingTest extends ExecutionEngineHelper with PatternGraphBu
     val result = matcher.getMatches(startingState, queryState).toList
 
     // Then
-    assert(List(Map("a" -> n0, "b" -> n1, "c" -> n0, "r1" -> rel, "r2" -> rel)) ===  result)
+    assert(result === List(Map("a" -> n0, "b" -> n1, "c" -> n0, "r1" -> rel, "r2" -> rel)))
   }
 
   @Test def should_handle_a_single_relationship_with_node_with_properties_no_matches() {
