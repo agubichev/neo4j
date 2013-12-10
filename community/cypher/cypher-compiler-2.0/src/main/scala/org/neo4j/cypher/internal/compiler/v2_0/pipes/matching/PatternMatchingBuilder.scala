@@ -70,11 +70,6 @@ class PatternMatchingBuilder(patternGraph: PatternGraph,
     cartesian(toList).map(_.reduceLeft(_ ++ _))
   }
 
-  private def createNullValuesForOptionalElements(matchedGraph: ExecutionContext): ExecutionContext = {
-    val m = (patternGraph.keySet -- matchedGraph.slots).map(_ -> null).toStream
-    matchedGraph.copy().update(m)
-  }
-
   // This method takes  a Seq of Seq and produces the cartesian product of all inner Seqs
   // I'm committing this code, but it's all Tobias' doing.
   private def cartesian[T](lst: Seq[Seq[T]]): Seq[Seq[T]] =

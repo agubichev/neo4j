@@ -29,8 +29,10 @@ case class FilterFunction(collection: Expression, id: String, predicate: Predica
   extends NullInNullOutExpression(collection)
   with CollectionSupport
   with Closure {
-  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) =
-    makeTraversable(value).filter(element => predicate.isTrue(m.copy().update(id, element)  ))
+  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = {
+    val innerMap = m.copy()
+    makeTraversable(value).filter(element => predicate.isTrue(innerMap.update(id, element)  ))
+  }
 
   def rewrite(f: (Expression) => Expression) = f(FilterFunction(collection.rewrite(f), id, predicate.rewrite(f)))
 

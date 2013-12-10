@@ -29,11 +29,10 @@ case class ExtractFunction(collection: Expression, id: String, expression: Expre
   with CollectionSupport
   with Closure {
 
-  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = makeTraversable(value).map {
-    case iterValue =>
-      val innerMap = m.copy().update(id, iterValue)
-      expression(innerMap)
-  }.toList
+  def compute(value: Any, m: ExecutionContext)(implicit state: QueryState) = {
+    val innerMap = m.copy()
+    makeTraversable(value).map(iterValue => expression(innerMap.update(id, iterValue))).toList
+  }
 
   def rewrite(f: (Expression) => Expression) = f(ExtractFunction(collection.rewrite(f), id, expression.rewrite(f)))
 

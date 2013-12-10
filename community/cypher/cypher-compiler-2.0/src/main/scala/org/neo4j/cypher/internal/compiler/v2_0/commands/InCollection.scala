@@ -37,7 +37,9 @@ abstract class InCollection(collection: Expression, id: String, predicate: Predi
   def isMatch(m: ExecutionContext)(implicit state: QueryState): Option[Boolean] = {
     val seq = makeTraversable(collection(m)).toSeq
 
-    seqMethod(seq)(item => predicate.isMatch(m.copy().update(id, item)))
+    val innerContext = m.copy()
+
+    seqMethod(seq)(item => predicate.isMatch(innerContext.update(id, item)))
   }
 
   def name: String

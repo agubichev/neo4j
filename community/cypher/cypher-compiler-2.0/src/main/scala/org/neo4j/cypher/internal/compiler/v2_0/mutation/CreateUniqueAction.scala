@@ -93,16 +93,15 @@ case class CreateUniqueAction(incomingLinks: UniqueLink*) extends UpdateAction {
 
   case class TraverseResult(identifier: String, element: PropertyContainer, link: UniqueLink)
 
-  private def traverseNextStep(nextSteps: Seq[TraverseResult], oldContext: ExecutionContext): ExecutionContext = {
+  private def traverseNextStep(nextSteps: Seq[TraverseResult], context: ExecutionContext): ExecutionContext = {
     val uniqueKVPs = nextSteps.map(x => x.identifier -> x.element).distinct
     val uniqueKeys = uniqueKVPs.toMap
 
     if (uniqueKeys.size != uniqueKVPs.size) {
       fail(nextSteps)
     } else {
-      val newContext = oldContext.copy()
-      uniqueKeys foreach { newContext.update }
-      newContext
+      uniqueKeys foreach { context.update }
+      context
     }
   }
 

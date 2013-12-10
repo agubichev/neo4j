@@ -46,8 +46,7 @@ case class CreateNode(key: String, properties: Map[String, Expression], labels: 
       val labelIds = labels.map(_.getOrCreateId(state.query))
       queryCtx.setLabelsOnNode(node.getId, labelIds.iterator)
 
-      val newContext = context.copy().update(key, node)
-      newContext
+      context.update(key, node)
     }
 
     def isParametersMap(m: Map[String, Expression]) = properties.size == 1 && properties.head._1 == "*"
