@@ -101,3 +101,49 @@ case class MapExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty) e
     case _                          => false
   }
 }
+
+class ArrayExecutionContext() extends ExecutionContext {
+  private var data:Array[Any] = Array()
+  private var keys:Seq[String] = Seq()
+
+  private def indexOf(key:String):Option[Int] = {
+    val idx = keys.indexOf(key)
+
+    if(idx < 0) None else Some(idx)
+  }
+
+  def slots: Set[String] = keys.toSet
+
+  def contains(slot: String): Boolean = indexOf(slot).nonEmpty
+
+  def get(slot: String): Option[Any] = indexOf(slot).map(data(_))
+
+  def getOrElse(slot: String, f: => Any): Any = ???
+
+  def apply(slot: String): Any = get(slot).
+    getOrElse(throw new NoSuchElementException("The " + slot + " was not found"))
+
+  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T] = ???
+
+  def collectValues[T](f: PartialFunction[Any, T]): Seq[T] = ???
+
+  def update(slot: String, value: Any): ExecutionContext = {
+    indexOf(slot) match {
+      case Some(idx) => data(idx) = value
+      case None      =>
+        keys = keys :+ slot
+        val oldData = data
+        data = new Array[Any](oldData.length + 1)
+        oldData.copyToArray(data)
+        data(oldData.length) = value
+    }
+
+    this
+  }
+
+  def copy(): ExecutionContext = ???
+
+  def toMap: Map[String, Any] = ???
+
+  override def toString: String = "ExecutionContext( TODO )"
+}
