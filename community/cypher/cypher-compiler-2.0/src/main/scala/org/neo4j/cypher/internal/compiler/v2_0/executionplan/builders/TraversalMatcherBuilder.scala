@@ -46,6 +46,8 @@ class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
 
         val solvedPatterns = longestTrail.patterns
 
+        val newIdentifiers = solvedPatterns.flatMap(_.identifiers)
+
         checkPattern(plan, tokens)
 
         val newWhereClause = markPredicatesAsSolved(plan, longestTrail)
@@ -58,7 +60,7 @@ class TraversalMatcherBuilder extends PlanBuilder with PatternGraphBuilder {
 
         val pipe = new TraversalMatchPipe(plan.pipe, matcher, longestTrail)
 
-        plan.copy(pipe = pipe, query = newQ)
+        plan.copy(pipe = pipe, query = newQ).addRegister(newIdentifiers)
     }
 
   private def checkPattern(plan: ExecutionPlanInProgress, tokens: Seq[QueryToken[StartItem]]) {

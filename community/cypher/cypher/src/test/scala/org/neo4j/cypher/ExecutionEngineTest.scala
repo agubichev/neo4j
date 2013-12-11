@@ -667,13 +667,15 @@ foreach(x in [1,2,3] |
 
     val result = execute("start a=node(0) match p=a-[:KNOWS*0..1]->b-[:FRIEND*0..1]->c return p,a,b,c")
 
-    assertEquals(
-      Set(
-        PathImpl(node("A")),
-        PathImpl(node("A"), r1, node("B")),
-        PathImpl(node("A"), r1, node("B"), r2, node("C"))
-      ),
-      result.columnAs[Path]("p").toSet)
+    graph.inTx {
+      assertEquals(
+        Set(
+          PathImpl(node("A")),
+          PathImpl(node("A"), r1, node("B")),
+          PathImpl(node("A"), r1, node("B"), r2, node("C"))
+        ),
+        result.columnAs[Path]("p").toSet)
+    }
   }
 
   @Test def testZeroLengthVarLenPathInTheMiddle() {

@@ -20,5 +20,5 @@
 package org.neo4j.cypher.internal.compiler.v2_0.pipes
 
 object QueryStateHelper {
-  def empty = new QueryState(null, null, Map.empty, NullDecorator)
+  def empty = new QueryState(null, null, Map.empty, NullDecorator, keys = Seq.empty)
 }

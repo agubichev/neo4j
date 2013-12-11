@@ -43,7 +43,7 @@ object ReattachAliasedExpressions {
   private def expressionRewriter(returnColumns: Seq[ReturnColumn])(expression: Expression): Expression = expression match {
     case e@Identifier(entityName) =>
       val returnItems = keepReturnItems(returnColumns)
-      val found = returnItems.find(_.name == e.entityName)
+      val found = returnItems.find(_.name == e.name)
 
       found match {
         case None             => e

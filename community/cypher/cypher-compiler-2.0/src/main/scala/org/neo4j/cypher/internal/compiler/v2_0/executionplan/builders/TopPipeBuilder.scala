@@ -52,7 +52,7 @@ class TopPipeBuilder extends PlanBuilder with SortingPreparations {
 
     val resultQ = q.copy(sort = solvedSort, slice = newSlice)
 
-    plan.copy(pipe = resultPipe, query = resultQ)
+    newPlan.copy(pipe = resultPipe, query = resultQ)
   }
 
   def canWorkWith(plan: ExecutionPlanInProgress, ctx: PlanContext) = {

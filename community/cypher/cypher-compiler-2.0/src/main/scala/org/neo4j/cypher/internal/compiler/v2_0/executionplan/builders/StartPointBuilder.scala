@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders
 
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import org.neo4j.cypher.internal.compiler.v2_0.pipes._
-import org.neo4j.graphdb.{Relationship, Node}
+import org.neo4j.graphdb.{PropertyContainer, Relationship, Node}
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.{PlanBuilder, ExecutionPlanInProgress}
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
@@ -37,10 +37,10 @@ class StartPointBuilder extends PlanBuilder {
         mapQueryToken().isDefinedAt((context, startItemToken))
       }).head
 
-
     val newPipe = mapQueryToken().apply((context, item))(p)
 
-    plan.copy(pipe = newPipe, query = q.copy(start = q.start.filterNot(_ == item) :+ item.solve))
+    plan.copy(pipe = newPipe, query = q.copy(start = q.start.filterNot(_ == item) :+ item.solve)).
+      addRegister(newPipe.name)
   }
 
   override def missingDependencies(plan: ExecutionPlanInProgress): Seq[String] = super.missingDependencies(plan)
@@ -65,11 +65,11 @@ class StartPointBuilder extends PlanBuilder {
       entityFactory.relationshipById orElse
       entityFactory.relationshipsAll
 
-  private def mapQueryToken(): PartialFunction[(PlanContext, QueryToken[StartItem]), (Pipe => Pipe)] = {
+  private def mapQueryToken(): PartialFunction[(PlanContext, QueryToken[StartItem]), (Pipe => StartPipe[_ <: PropertyContainer])] = {
     val entityFactory = new EntityProducerFactory
     val nodeStart = genNodeStart(entityFactory)
     val relationshipStart = genRelationshipStart(entityFactory)
-    val result: PartialFunction[(PlanContext, QueryToken[StartItem]), (Pipe => Pipe)] = {
+    val result: PartialFunction[(PlanContext, QueryToken[StartItem]), (Pipe => StartPipe[_ <: PropertyContainer])] = {
       case (planContext, Unsolved(item)) if nodeStart.isDefinedAt((planContext, item)) =>
         (p: Pipe) =>
           new NodeStartPipe(p, item.identifierName, nodeStart.apply((planContext, item)))

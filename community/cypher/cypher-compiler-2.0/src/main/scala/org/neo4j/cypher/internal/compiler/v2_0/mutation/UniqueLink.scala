@@ -46,6 +46,7 @@ case class UniqueLink(start: NamedExpectation, end: NamedExpectation, rel: Named
 
     def getNode(expect: NamedExpectation): Option[Node] = context.get(expect.name) match {
       case Some(n: Node)                             => Some(n)
+      case Some(null)                                => None
       case Some(x)                                   => throw new CypherTypeException("Expected `%s` to a node, but it is a %s".format(expect.name, x))
       case None if expect.e.isInstanceOf[Identifier] => None
       case None => expect.e(context)(state) match {

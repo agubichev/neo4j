@@ -33,7 +33,7 @@ import org.neo4j.kernel.api.index.IndexDescriptor
 
 class LabelActionTest extends GraphDatabaseTestBase with Assertions {
   val queryContext = new SnitchingQueryContext
-  val state = new QueryState(null, queryContext, Map.empty, NullDecorator)
+  val state = new QueryState(null, queryContext, Map.empty, NullDecorator, keys = Seq.empty)
   val ctx = ExecutionContext.empty
 
   @Test

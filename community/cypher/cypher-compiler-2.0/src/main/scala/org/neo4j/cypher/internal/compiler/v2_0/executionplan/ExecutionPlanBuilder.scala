@@ -33,17 +33,17 @@ import org.neo4j.cypher.internal.compiler.v2_0.spi.{QueryContext, PlanContext}
 
 class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuilder {
 
-  type PipeAndIsUpdating = (Pipe, Boolean)
+  type PipeAndIsUpdating = (Pipe, Boolean, Seq[String])
 
   def build(planContext: PlanContext, inputQuery: AbstractQuery): ExecutionPlan = {
 
-    val (p, isUpdating) = buildPipes(planContext, inputQuery)
+    val (p, isUpdating, keys) = buildPipes(planContext, inputQuery)
 
     val columns = getQueryResultColumns(inputQuery, p.symbols)
     val func = if (isUpdating) {
-      getEagerReadWriteQuery(p, columns)
+      getEagerReadWriteQuery(p, columns, keys)
     } else {
-      getLazyReadonlyQuery(p, columns)
+      getLazyReadonlyQuery(p, columns, keys)
     }
 
     new ExecutionPlan {
@@ -63,13 +63,13 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
 
   def buildUnionQuery(union: Union, context:PlanContext): PipeAndIsUpdating = unionBuilder.buildUnionQuery(union, context)
 
-  def buildIndexQuery(op: IndexOperation): PipeAndIsUpdating = (new IndexOperationPipe(op), true)
+  def buildIndexQuery(op: IndexOperation): PipeAndIsUpdating = (new IndexOperationPipe(op), true, Seq.empty)
 
   def buildConstraintQuery(op: UniqueConstraintOperation): PipeAndIsUpdating = {
     val label = KeyToken.Unresolved(op.label, TokenType.Label)
     val propertyKey = KeyToken.Unresolved(op.propertyKey, TokenType.PropertyKey)
 
-    (new ConstraintOperationPipe(op, label, propertyKey), true)
+    (new ConstraintOperationPipe(op, label, propertyKey), true, Seq.empty)
   }
 
   def buildQuery(inputQuery: Query, context: PlanContext): PipeAndIsUpdating = {
@@ -98,7 +98,7 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
       }
     }
 
-    (planInProgress.pipe, planInProgress.isUpdating)
+    (planInProgress.pipe, planInProgress.isUpdating, planInProgress.registerSlots)
   }
 
   private def getQueryResultColumns(q: AbstractQuery, currentSymbols: SymbolTable): List[String] = q match {
@@ -121,9 +121,9 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
   }
 
 
-  private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String]): (QueryContext, Map[String, Any], Boolean) => ExecutionResult = {
+  private def getLazyReadonlyQuery(pipe: Pipe, columns: List[String], keys: Seq[String]): (QueryContext, Map[String, Any], Boolean) => ExecutionResult = {
     val func = (queryContext: QueryContext, params: Map[String, Any], profile: Boolean) => {
-      val (state, results, descriptor) = prepareStateAndResult(queryContext, params, pipe, profile)
+      val (state, results, descriptor) = prepareStateAndResult(queryContext, params, pipe, profile, keys)
 
       new PipeExecutionResult(results, columns, state, descriptor)
     }
@@ -131,21 +131,21 @@ class ExecutionPlanBuilder(graph: GraphDatabaseService) extends PatternGraphBuil
     func
   }
 
-  private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): (QueryContext, Map[String, Any], Boolean) => ExecutionResult = {
+  private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String], keys: Seq[String]): (QueryContext, Map[String, Any], Boolean) => ExecutionResult = {
     val func = (queryContext: QueryContext, params: Map[String, Any], profile: Boolean) => {
-      val (state, results, descriptor) = prepareStateAndResult(queryContext, params, pipe, profile)
+      val (state, results, descriptor) = prepareStateAndResult(queryContext, params, pipe, profile, keys)
       new EagerPipeExecutionResult(results, columns, state, descriptor)
     }
 
     func
   }
 
-  private def prepareStateAndResult(queryContext: QueryContext, params: Map[String, Any], pipe: Pipe, profile:Boolean):
-    (QueryState, ClosingIterator, () => PlanDescription) = {
+  private def prepareStateAndResult(queryContext: QueryContext, params: Map[String, Any], pipe: Pipe, profile: Boolean, keys: Seq[String]):
+  (QueryState, ClosingIterator, () => PlanDescription) = {
 
     try {
       val decorator = if (profile) new Profiler() else NullDecorator
-      val state = new QueryState(graph, queryContext, params, decorator)
+      val state = new QueryState(graph, queryContext, params, decorator, keys = keys)
       val results: Iterator[Map[String, Any]] = pipe.createResults(state).map(_.toMap)
       val closingIterator = new ClosingIterator(results, queryContext)
       val descriptor = { () =>

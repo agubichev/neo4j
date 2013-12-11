@@ -30,7 +30,8 @@ case class QueryState(db: GraphDatabaseService,
                       params: Map[String, Any],
                       decorator: PipeDecorator,
                       timeReader: TimeReader = new TimeReader,
-                      var initialContext: Option[ExecutionContext] = None) {
+                      var initialContext: Option[ExecutionContext] = None,
+                      keys: Seq[String]) {
   def readTimeStamp(): Long = timeReader.getTime
 
   private val updateTrackingQryCtx: UpdateCountingQueryContext = new UpdateCountingQueryContext(inner)

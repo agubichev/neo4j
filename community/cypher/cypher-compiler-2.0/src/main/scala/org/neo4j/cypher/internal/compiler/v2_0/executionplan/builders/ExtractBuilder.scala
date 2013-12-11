@@ -107,7 +107,7 @@ object ExtractBuilder {
 
       val resultPipe = ExtractPipe(pipe, expressions)
       val resultQuery = newPsq.copy(extracted = true)
-      plan.copy(pipe = resultPipe, query = resultQuery)
+      plan.copy(pipe = resultPipe, query = resultQuery).addRegister(expressions.keys)
     } else {
       plan.copy(query = query.copy(extracted = true))
     }

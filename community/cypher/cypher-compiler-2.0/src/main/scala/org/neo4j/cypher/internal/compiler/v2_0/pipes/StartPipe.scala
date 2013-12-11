@@ -24,7 +24,7 @@ import data.SimpleVal._
 import symbols._
 import org.neo4j.graphdb.{Relationship, Node, PropertyContainer}
 
-abstract class StartPipe[T <: PropertyContainer](source: Pipe, name: String, createSource: EntityProducer[T]) extends PipeWithSource(source) {
+abstract class StartPipe[T <: PropertyContainer](source: Pipe, val name: String, createSource: EntityProducer[T]) extends PipeWithSource(source) {
   def identifierType: CypherType
 
   val symbols = source.symbols.add(name, identifierType)

@@ -58,7 +58,7 @@ trait Pipe {
 case class NullPipe(symbols: SymbolTable = SymbolTable(),
                     executionPlanDescription:PlanDescription = NullPlanDescription) extends Pipe {
   def internalCreateResults(state: QueryState) =
-    Iterator(state.initialContext getOrElse ExecutionContext.empty)
+    Iterator(state.initialContext getOrElse new ArrayExecutionContext(state.keys))
 
   def exists(pred: Pipe => Boolean) = pred(this)
 }

@@ -26,16 +26,20 @@ import org.neo4j.graphdb.NotFoundException
 import org.neo4j.helpers.ThisShouldNotHappenError
 
 object Identifier {
+  def apply(name:String)=new NamedIdentifier(name)
+
   def isNamed(x: String) = !notNamed(x)
 
   def notNamed(x: String) = x.startsWith("  UNNAMED")
+
+  def unapply(e: Identifier): Option[String] = e match {
+    case e: Identifier => Some(e.name)
+    case _ => None
+  }
 }
 
-case class Identifier(entityName: String) extends Expression with Typed {
-  def apply(ctx: ExecutionContext)(implicit state: QueryState): Any =
-    ctx.getOrElse(entityName, throw new NotFoundException("Unknown identifier `%s`.".format(entityName)))
-
-  override def toString: String = entityName
+abstract class Identifier(val name:String) extends Expression with Typed {
+  override def toString: String = name
 
   def rewrite(f: (Expression) => Expression) = f(this)
 
@@ -44,7 +48,17 @@ case class Identifier(entityName: String) extends Expression with Typed {
   def calculateType(symbols: SymbolTable) =
     throw new ThisShouldNotHappenError("Andres", "This class should override evaluateType, and this method should never be run")
 
-  override def evaluateType(expectedType: CypherType, symbols: SymbolTable) = symbols.evaluateType(entityName, expectedType)
+  override def evaluateType(expectedType: CypherType, symbols: SymbolTable) = symbols.evaluateType(name, expectedType)
 
-  def symbolTableDependencies = Set(entityName)
+  def symbolTableDependencies = Set(name)
+  
+}
+
+case class NamedIdentifier(override val name: String) extends Identifier(name) with Typed {
+  def apply(ctx: ExecutionContext)(implicit state: QueryState): Any =
+    ctx.getOrElse(name, throw new NotFoundException("Unknown identifier `%s`.".format(name)))
+}
+
+case class IndexedIdentifier(idx: Int, override val name:String) extends Identifier(name) with Typed {
+  def apply(ctx: ExecutionContext)(implicit state: QueryState) = ctx(idx)
 }

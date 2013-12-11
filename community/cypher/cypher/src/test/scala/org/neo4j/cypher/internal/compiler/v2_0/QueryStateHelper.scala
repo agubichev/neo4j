@@ -26,10 +26,10 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.{NullDecorator, QueryState}
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
 
 object QueryStateHelper {
-  def empty = new QueryState(null, null, Map.empty, NullDecorator)
+  def empty = new QueryState(null, null, Map.empty, NullDecorator, keys = Seq.empty)
 
   def queryStateFrom(db: GraphDatabaseAPI, tx: Transaction) = {
     val statement = db.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge]).instance()
-    new QueryState(db, new TransactionBoundExecutionContext(db, tx, statement), Map.empty, NullDecorator)
+    new QueryState(db, new TransactionBoundExecutionContext(db, tx, statement), Map.empty, NullDecorator, keys = Seq.empty)
   }
 }

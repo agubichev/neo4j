@@ -200,4 +200,21 @@ case class PartiallySolvedQuery(returns: Seq[QueryToken[ReturnColumn]],
     f(copy(tail = tail.map(_.rewriteFromTheTail(f))))
 }
 
-case class ExecutionPlanInProgress(query: PartiallySolvedQuery, pipe: Pipe, isUpdating: Boolean = false)
+case class ExecutionPlanInProgress(query: PartiallySolvedQuery, pipe: Pipe, isUpdating: Boolean = false, registerSlots: Seq[String] = Seq.empty) {
+  def addRegister(name: String): ExecutionPlanInProgress = {
+
+    val newSlots = registerSlots ++ (if(registerSlots.contains(name)) None else Some(name))
+
+    val newQuery = query
+//      .rewrite {
+//      case Identifier(key) if key == name => IndexedIdentifier(newSlots.indexOf(name), name)
+//      case x => x
+//    }
+
+    copy(query = newQuery, registerSlots = newSlots)
+  }
+
+  def addRegister(names: Iterable[String]): ExecutionPlanInProgress = names.foldLeft(this) {
+    case (plan, name) => plan.addRegister(name)
+  }
+}

@@ -42,7 +42,7 @@ class LabelsFunctionTest extends Assertions with MockitoSugar {
       def answer(invocation: InvocationOnMock): Iterator[Int] = ids.iterator
     })
     when(queryContext.getLabelName(12)).thenReturn("bambi")
-    val state = new QueryState(null, queryContext, Map.empty, NullDecorator)
+    val state = new QueryState(null, queryContext, Map.empty, NullDecorator, keys = Seq.empty)
     val ctx = ExecutionContext.empty.update("n", node)
 
     // WHEN

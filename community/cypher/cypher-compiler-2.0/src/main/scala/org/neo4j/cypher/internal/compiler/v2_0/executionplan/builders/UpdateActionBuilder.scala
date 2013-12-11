@@ -34,6 +34,7 @@ class UpdateActionBuilder extends PlanBuilder with UpdateCommandExpander {
     val updateActions = (startCmds ++ updateCmds).map(_.token)
 
     val commands = expandCommands(updateActions, plan.pipe.symbols)
+    val keys = commands.flatMap(_.identifiers.map(_._1))
 
     val resultPipe = new ExecuteUpdateCommandsPipe(plan.pipe, commands)
 
@@ -42,8 +43,8 @@ class UpdateActionBuilder extends PlanBuilder with UpdateCommandExpander {
       query = plan.query.copy(
         updates = plan.query.updates.filterNot(updateCmds.contains) ++ updateCmds.map(_.solve),
         start = plan.query.start.filterNot(startItems.contains) ++ startItems.map(_.solve)),
-      pipe = resultPipe
-    )
+      pipe = resultPipe).
+      addRegister(keys)
   }
 
   private def extractValidStartItems(plan: ExecutionPlanInProgress, p: Pipe): Seq[QueryToken[StartItem]] = {

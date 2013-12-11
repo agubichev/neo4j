@@ -26,8 +26,8 @@ import org.neo4j.cypher.SyntaxException
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 
-class UnionBuilder(queryBuilder: {def buildQuery(q: Query, context:PlanContext): (Pipe, Boolean)}) {
-  def buildUnionQuery(union: Union, context:PlanContext): (Pipe, Boolean) = {
+class UnionBuilder(queryBuilder: {def buildQuery(q: Query, context:PlanContext): (Pipe, Boolean, Seq[String])}) {
+  def buildUnionQuery(union: Union, context:PlanContext): (Pipe, Boolean, Seq[String]) = {
     checkQueriesHaveSameColumns(union)
 
     val combined = union.queries.map( q => queryBuilder.buildQuery(q, context))
@@ -43,7 +43,7 @@ class UnionBuilder(queryBuilder: {def buildQuery(q: Query, context:PlanContext):
       unionPipe
     }
 
-    (pipe, updating)
+    (pipe, updating, Seq.empty)
   }
 
   private def checkQueriesHaveSameColumns(union: Union) {

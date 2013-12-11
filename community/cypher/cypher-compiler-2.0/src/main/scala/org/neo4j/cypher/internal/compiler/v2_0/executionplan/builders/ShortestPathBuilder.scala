@@ -35,7 +35,12 @@ class ShortestPathBuilder extends PlanBuilder {
 
     val pipe = new ShortestPathPipe(p, shortestPath)
 
-    plan.copy(pipe = pipe, query = q.copy(patterns = q.patterns.filterNot(_ == item) :+ item.solve))
+    val newPlan = plan.copy(
+      pipe = pipe,
+      query = q.copy(patterns = q.patterns.replace(item, item.solve))
+    )
+
+    newPlan.addRegister(shortestPath.pathName)
   }
 
   def canWorkWith(plan: ExecutionPlanInProgress, ctx: PlanContext) = plan.query.patterns.exists(yesOrNo(plan.pipe, _))

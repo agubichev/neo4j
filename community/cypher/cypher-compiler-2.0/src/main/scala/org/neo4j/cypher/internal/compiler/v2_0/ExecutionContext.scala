@@ -38,6 +38,8 @@ abstract class ExecutionContext {
 
   def apply(slot: String): Any
 
+  def apply(index: Int): Any
+
   def collect[T](f: PartialFunction[(String, Any), T]): Seq[T]
 
   def collectValues[T](f: PartialFunction[Any, T]): Seq[T]
@@ -63,15 +65,32 @@ abstract class ExecutionContext {
   def toMap: Map[String, Any]
 }
 
+object ArrayExecutionContext {
+  case object EMPTY
+}
+
 class ArrayExecutionContext private(private var data: Array[Any], private var keys: Seq[String]) extends ExecutionContext {
+
+  import ArrayExecutionContext.EMPTY
 
   def this() = this(Array(), Seq())
 
+  def this(keys: Seq[String]) = {
+    this(null, keys)
+    assert(keys == keys.distinct)
+    data = Array.fill(keys.size)(EMPTY)
+  }
+
   def slots: Set[String] = keys.toSet
 
-  def contains(slot: String): Boolean = indexOf(slot).nonEmpty
+  def contains(slot: String): Boolean = get(slot).nonEmpty
 
-  def get(slot: String): Option[Any] = indexOf(slot).map(data(_))
+  def apply(index: Int): Any = data(index)
+
+  def get(slot: String): Option[Any] = indexOf(slot).map(data(_)) match {
+    case Some(EMPTY) => None
+    case x => x
+  }
 
   def getOrElse(slot: String, f: => Any): Any = get(slot).getOrElse(f)
 
@@ -125,5 +144,4 @@ class ArrayExecutionContext private(private var data: Array[Any], private var ke
 
     if (idx < 0) None else Some(idx)
   }
-
 }

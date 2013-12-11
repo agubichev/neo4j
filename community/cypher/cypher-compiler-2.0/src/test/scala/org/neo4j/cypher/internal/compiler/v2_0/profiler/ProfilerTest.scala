@@ -35,7 +35,7 @@ class ProfilerTest extends Assertions with MockitoSugar {
     val pipe = new ProfilerPipe(start, "foo", rows = 10, dbAccess = 20)
     val queryContext = mock[QueryContext]
     val profiler = new Profiler
-    val queryState = QueryState(null, queryContext, Map.empty, profiler)
+    val queryState = QueryState(null, queryContext, Map.empty, profiler, keys = Seq.empty)
 
     //WHEN
     materialize(pipe.createResults(queryState))
@@ -54,7 +54,7 @@ class ProfilerTest extends Assertions with MockitoSugar {
     val pipe3 = new ProfilerPipe(pipe2, "baz", rows = 1, dbAccess = 2)
     val queryContext = mock[QueryContext]
     val profiler = new Profiler
-    val queryState = QueryState(null, queryContext, Map.empty, profiler)
+    val queryState = QueryState(null, queryContext, Map.empty, profiler, keys = Seq.empty)
 
     //WHEN
     materialize(pipe3.createResults(queryState))
