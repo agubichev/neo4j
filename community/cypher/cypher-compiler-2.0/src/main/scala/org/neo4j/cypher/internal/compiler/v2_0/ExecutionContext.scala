@@ -63,15 +63,9 @@ abstract class ExecutionContext {
   def toMap: Map[String, Any]
 }
 
-class ArrayExecutionContext private (private var data:Array[Any], private var keys:Seq[String]) extends ExecutionContext {
+class ArrayExecutionContext private(private var data: Array[Any], private var keys: Seq[String]) extends ExecutionContext {
 
   def this() = this(Array(), Seq())
-
-  private def indexOf(key:String):Option[Int] = {
-    val idx = keys.indexOf(key)
-
-    if(idx < 0) None else Some(idx)
-  }
 
   def slots: Set[String] = keys.toSet
 
@@ -93,12 +87,7 @@ class ArrayExecutionContext private (private var data:Array[Any], private var ke
   def update(slot: String, value: Any): ExecutionContext = {
     indexOf(slot) match {
       case Some(idx) => data(idx) = value
-      case None      =>
-        keys = keys :+ slot
-        val oldData = data
-        data = new Array[Any](oldData.length + 1)
-        oldData.copyToArray(data)
-        data(oldData.length) = value
+      case None      => extendArrayAndSet(slot, value)
     }
 
     this
@@ -107,15 +96,34 @@ class ArrayExecutionContext private (private var data:Array[Any], private var ke
   def copy(): ExecutionContext =
     new ArrayExecutionContext(data.clone(), keys)
 
-
   def toMap: Map[String, Any] = (keys zip data).toMap
 
-  override def toString: String = "ExecutionContext( TODO )"
+  override def toString: String = {
+    val data = collect {
+      case (slot, value) => slot + " -> " + value.toString
+    }.mkString(", ")
+
+    "ExecutionContext( " + data + " )"
+  }
 
   override def equals(obj: Any): Boolean = obj match {
-    case m: Map[_, _]            => toMap.equals(m)
+    case m: Map[_, _] => toMap.equals(m)
     case other: ExecutionContext => toMap.equals(other.toMap)
-    case _                       => false
+    case _ => false
+  }
+
+  private def extendArrayAndSet(slot: String, value: Any) = {
+    keys = keys :+ slot
+    val oldData = data
+    data = new Array[Any](oldData.length + 1)
+    oldData.copyToArray(data)
+    data(oldData.length) = value
+  }
+
+  private def indexOf(key: String): Option[Int] = {
+    val idx = keys.indexOf(key)
+
+    if (idx < 0) None else Some(idx)
   }
 
 }
