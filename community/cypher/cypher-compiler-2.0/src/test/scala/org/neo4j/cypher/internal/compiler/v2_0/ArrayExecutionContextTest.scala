@@ -138,4 +138,17 @@ class ArrayExecutionContextTest extends FunSuite with BeforeAndAfter {
     assert(ctx("X") == 42)
     assert(newCtx("X") == 666)
   }
+
+  {
+    val ctx = new ArrayExecutionContext(Seq("X"))
+
+    test("when created with keys, should still know when a value is missing") {
+      assert(ctx.get("X").isEmpty, "Expected this to be empty")
+    }
+
+    test("when created with keys, should still know when a value is missing") {
+      ctx.update("X", 1)
+      assert(ctx.get("X").nonEmpty, "Expected this to not be empty")
+    }
+  }
 }

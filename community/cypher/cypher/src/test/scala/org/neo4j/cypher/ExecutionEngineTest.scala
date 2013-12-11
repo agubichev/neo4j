@@ -1069,6 +1069,7 @@ order by a.age""")
     val b = createNode("name" -> "B")
     val c = createNode("name" -> "C")
 
+    relate(a, c)
     relate(a, b)
     relate(a, c)
 

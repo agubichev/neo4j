@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v2_0
 
 import commands._
 import commands.expressions.Identifier
-import commands.values.TokenType.{Label, PropertyKey}
+import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType.{PropertyKey, Label}
 import pipes._
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.cypher.{GraphDatabaseTestBase, InternalException}
@@ -42,6 +42,8 @@ import org.neo4j.cypher.internal.compiler.v2_0.commands.HasLabel
 import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.QueryState
 import javax.transaction.TransactionManager
+import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken
+import org.neo4j.cypher.internal.compiler.v2_0.commands.values.KeyToken.Resolved
 
 class ExecutionPlanBuilderTest extends GraphDatabaseTestBase with Assertions with Timed with MockitoSugar {
   @Test def should_not_accept_returning_the_input_execution_plan() {
@@ -97,7 +99,10 @@ class ExecutionPlanBuilderTest extends GraphDatabaseTestBase with Assertions wit
       // when
       val commands = execPlanBuilder.buildPipes(planContext, q)._1.asInstanceOf[ExecuteUpdateCommandsPipe].commands
 
-      assertTrue("Property was not resolved", commands == Seq(DeletePropertyAction(identifier, PropertyKey("foo", pkId))))
+      commands.head match {
+        case (DeletePropertyAction(_, key: Resolved))  => assert(key.id == pkId)
+        case _ => fail("Expected a DeletePropertyAction here")
+      }
     } finally {
       tx.close()
     }
@@ -121,7 +126,10 @@ class ExecutionPlanBuilderTest extends GraphDatabaseTestBase with Assertions wit
       // when
       val predicate = execPlanBuilder.buildPipes(planContext, q)._1.asInstanceOf[FilterPipe].predicate
 
-      assertTrue("Label was not resolved", predicate == HasLabel(Identifier("x"), Label("Person", labelId)))
+      predicate match {
+        case (HasLabel(_, key: Resolved))  => assert(key.id == labelId)
+        case _ => fail("Expected a HasLabel here")
+      }
     } finally {
       tx.close()
     }

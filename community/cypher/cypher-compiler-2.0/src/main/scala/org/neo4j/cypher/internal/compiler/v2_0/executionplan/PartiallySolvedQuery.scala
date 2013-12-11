@@ -22,15 +22,18 @@ package org.neo4j.cypher.internal.compiler.v2_0.executionplan
 import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.{PatternGraphBuilder, QueryToken, Unsolved}
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import scala.collection.Seq
-import expressions.{Expression, AggregationExpression}
+import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions._
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.Pipe
 import org.neo4j.cypher.internal.compiler.v2_0.mutation.UpdateAction
-import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.commands.NamedPath
 import org.neo4j.cypher.internal.compiler.v2_0.commands.ReturnItem
 import org.neo4j.cypher.internal.compiler.v2_0.commands.SortItem
+import org.neo4j.cypher.internal.compiler.v2_0.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_0.commands.Slice
+import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.IndexedIdentifier
+import org.neo4j.cypher.internal.compiler.v2_0.commands.True
+import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.Unsolved
 
 
 object PartiallySolvedQuery {
@@ -205,11 +208,10 @@ case class ExecutionPlanInProgress(query: PartiallySolvedQuery, pipe: Pipe, isUp
 
     val newSlots = registerSlots ++ (if(registerSlots.contains(name)) None else Some(name))
 
-    val newQuery = query
-//      .rewrite {
-//      case Identifier(key) if key == name => IndexedIdentifier(newSlots.indexOf(name), name)
-//      case x => x
-//    }
+    val newQuery = query.rewrite {
+      case NamedIdentifier(key) if key == name => IndexedIdentifier(newSlots.indexOf(name), name)
+      case x => x
+    }
 
     copy(query = newQuery, registerSlots = newSlots)
   }
