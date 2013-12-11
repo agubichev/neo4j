@@ -19,13 +19,8 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0
 
-import pipes.MutableMaps
-import collection.mutable.{Map => MutableMap}
-
 object ExecutionContext {
-  def empty = new MapExecutionContext()
-  def empty(size: Int) = new MapExecutionContext(MutableMaps.create(size))
-
+  def empty = new ArrayExecutionContext()
   def from(in: (String, Any)*) = ExecutionContext.empty.update(in)
   def from(in: Iterable[(String, Any)]) = ExecutionContext.empty.update(in)
 }
@@ -68,43 +63,9 @@ abstract class ExecutionContext {
   def toMap: Map[String, Any]
 }
 
-case class MapExecutionContext(m: MutableMap[String, Any] = MutableMaps.empty) extends ExecutionContext {
+class ArrayExecutionContext private (private var data:Array[Any], private var keys:Seq[String]) extends ExecutionContext {
 
-  def slots: Set[String] = m.keySet.toSet
-
-  def contains(slot: String): Boolean = m.contains(slot)
-
-  def get(slot: String): Option[Any] = m.get(slot)
-
-  def getOrElse(slot: String, f: => Any): Any = m.getOrElse(slot, f)
-
-  def apply(slot: String): Any = m(slot)
-
-  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T] = m.collect(f).toSeq
-
-  def collectValues[T](f: PartialFunction[Any, T]): Seq[T] = m.values.collect(f).toSeq
-
-  def update(slot: String, value: Any): ExecutionContext = {
-    m.put(slot, value)
-    this
-  }
-
-  def copy(): ExecutionContext = new MapExecutionContext(m.clone())
-
-  def toMap: Map[String, Any] = m.toMap
-
-  override def toString: String = "ExecutionContext(" + m.mkString(", ") + ")"
-
-  override def equals(obj: Any): Boolean = obj match {
-    case m: Map[String, Any]        => m.equals(m)
-    case other: MapExecutionContext => m.equals(other.m)
-    case _                          => false
-  }
-}
-
-class ArrayExecutionContext() extends ExecutionContext {
-  private var data:Array[Any] = Array()
-  private var keys:Seq[String] = Seq()
+  def this() = this(Array(), Seq())
 
   private def indexOf(key:String):Option[Int] = {
     val idx = keys.indexOf(key)
@@ -118,14 +79,16 @@ class ArrayExecutionContext() extends ExecutionContext {
 
   def get(slot: String): Option[Any] = indexOf(slot).map(data(_))
 
-  def getOrElse(slot: String, f: => Any): Any = ???
+  def getOrElse(slot: String, f: => Any): Any = get(slot).getOrElse(f)
 
   def apply(slot: String): Any = get(slot).
     getOrElse(throw new NoSuchElementException("The " + slot + " was not found"))
 
-  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T] = ???
+  def collect[T](f: PartialFunction[(String, Any), T]): Seq[T] =
+    (keys zip data).collect(f)
 
-  def collectValues[T](f: PartialFunction[Any, T]): Seq[T] = ???
+  def collectValues[T](f: PartialFunction[Any, T]): Seq[T] =
+    data.collect(f)
 
   def update(slot: String, value: Any): ExecutionContext = {
     indexOf(slot) match {
@@ -141,9 +104,18 @@ class ArrayExecutionContext() extends ExecutionContext {
     this
   }
 
-  def copy(): ExecutionContext = ???
+  def copy(): ExecutionContext =
+    new ArrayExecutionContext(data.clone(), keys)
 
-  def toMap: Map[String, Any] = ???
+
+  def toMap: Map[String, Any] = (keys zip data).toMap
 
   override def toString: String = "ExecutionContext( TODO )"
+
+  override def equals(obj: Any): Boolean = obj match {
+    case m: Map[_, _]            => toMap.equals(m)
+    case other: ExecutionContext => toMap.equals(other.toMap)
+    case _                       => false
+  }
+
 }

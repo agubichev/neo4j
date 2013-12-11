@@ -37,7 +37,7 @@ class ColumnFilterPipe(source: Pipe, val returnItems: Seq[ReturnItem])
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
     input.map(ctx => {
-      val result = ExecutionContext.empty(numItems)
+      val result = ExecutionContext.empty
 
       returnItems.foreach {
         case ReturnItem(Identifier(oldName), newName, _) if isNamed(newName) => result(newName) = ctx(oldName)

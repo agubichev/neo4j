@@ -69,4 +69,73 @@ class ArrayExecutionContextTest extends FunSuite with BeforeAndAfter {
     ctx.update("X", 2)
     assert(ctx.get("X") == Some(2))
   }
+
+  test("getOrElse should run the else method when value is missing") {
+    var elsed = false
+    ctx.getOrElse("X", elsed = true)
+
+    assert(elsed, "Expected else to have run already")
+  }
+
+  test("getOrElse should not run the else method when value is present") {
+    ctx.update("X", 42)
+    var elsed = false
+    ctx.getOrElse("X", elsed = true)
+
+    assert(!elsed, "Expected else to not have run already")
+  }
+
+  test("collect should see all keys and values") {
+    ctx.update("X", 42)
+    ctx.update("Y", "Apa")
+    ctx.update("XXX", 666)
+
+    val result = ctx.collect {
+      case (key,value) if key.startsWith("X") => value
+    }
+
+    assert(result == List(42, 666))
+  }
+
+  test("collectValues should see values") {
+    ctx.update("X", 42)
+    ctx.update("Y", "Apa")
+    ctx.update("XXX", 666)
+    ctx.update("YYY", "Foo")
+
+    val result = ctx.collectValues {
+      case value:String => value
+    }
+
+    assert(result == List("Apa", "Foo"))
+  }
+  
+  test("toMap should see values") {
+    ctx.update("X", 42)
+    ctx.update("Y", "Apa")
+    ctx.update("XXX", 666)
+    ctx.update("YYY", "Foo")
+
+    val result = Map(
+      "X" -> 42,
+      "Y" -> "Apa",
+      "XXX" -> 666,
+      "YYY" -> "Foo")
+    assert(ctx.toMap == result)
+  }
+
+  test("toMap on empty context should be empty") {
+    assert(ctx.toMap == Map.empty)
+  }
+
+  test("copy should not affect the original") {
+    ctx.update("X", 42)
+
+    val newCtx = ctx.copy()
+
+    newCtx.update("X", 666)
+
+    assert(ctx("X") == 42)
+    assert(newCtx("X") == 666)
+  }
 }

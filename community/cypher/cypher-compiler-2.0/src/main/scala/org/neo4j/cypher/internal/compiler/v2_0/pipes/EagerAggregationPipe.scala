@@ -66,7 +66,7 @@ class EagerAggregationPipe(source: Pipe, val keyExpressions: Map[String, Express
 
     def createEmptyResult(params: Map[String,Any]): Iterator[ExecutionContext] = {
       val aggregationNamesAndFunctions = aggregationNames zip aggregations.map(_._2.createAggregationFunction.result)
-      val result = ExecutionContext.empty(aggregationNamesAndFunctions.size)
+      val result = ExecutionContext.empty
 
       aggregationNamesAndFunctions.foreach(result.update)
       Iterator.single(result)
