@@ -28,7 +28,6 @@ import org.neo4j.graphdb.Direction._
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching._
 import org.neo4j.cypher.internal.compiler.v2_0.commands.values.TokenType._
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.VarLengthStep
-import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.NodeIdentifier
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions.Literal
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.VariableLengthStepTrail
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.SingleStep
@@ -122,8 +121,8 @@ class TrailToStepTest extends Assertions {
     // MATCH (a)-[r1]->(b)-[r2]->(c)<-[r3]-(d)
     // WHERE c.name = 'c ' and b.name = 'b '
 
-    val predForB = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("b"))
-    val predForC = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("c"))
+    val predForB = Equals(Property(Identifier("b"), PropertyKey("name")), Literal("b"))
+    val predForC = Equals(Property(Identifier("c"), PropertyKey("name")), Literal("c"))
 
     val forward3 = step(2, Seq(), Direction.INCOMING, None)
     val forward2 = step(1, Seq(), Direction.OUTGOING, Some(forward3), nodePredicate = predForC)

@@ -40,7 +40,7 @@ final case class SingleStepTrail(next: Trail,
   def toSteps(id: Int) = {
     val steps = next.toSteps(id + 1)
 
-    Some(SingleStep(id, typ, dir, steps, relPred, nodePred))
+    Some(SingleStep(id, typ, dir, steps, relPred, nodePred, relName, next.start))
   }
 
   val isEndPoint: Boolean = false

@@ -96,12 +96,9 @@ class TrailBuilderTest extends Assertions {
     val r2Pred = Equals(Property(Identifier("pr2"), PropertyKey("prop")), Literal("FOO"))
     val predicates = Seq(r1Pred, r2Pred)
 
-    val rewrittenR1 = Equals(Property(RelationshipIdentifier(), PropertyKey("prop")), Literal(42))
-    val rewrittenR2 = Equals(Property(RelationshipIdentifier(), PropertyKey("prop")), Literal("FOO"))
-
     val boundPoint = EndPoint("c")
-    val second = SingleStepTrail(boundPoint, Direction.OUTGOING, "pr2", Seq("B"), "b", rewrittenR2, True(), pattern = BtoC, Seq(r2Pred))
-    val first = SingleStepTrail(second, Direction.OUTGOING, "pr1", Seq("A"), "a", rewrittenR1, True(), pattern = AtoB, Seq(r1Pred))
+    val second = SingleStepTrail(boundPoint, Direction.OUTGOING, "pr2", Seq("B"), "b", r2Pred, True(), pattern = BtoC, Seq(r2Pred))
+    val first = SingleStepTrail(second, Direction.OUTGOING, "pr1", Seq("A"), "a", r1Pred, True(), pattern = AtoB, Seq(r1Pred))
     val expectedTrail = Some(LongestTrail("a", Some("c"), first))
 
     val foundTrail = TrailBuilder.findLongestTrail(Seq(AtoB, BtoC, BtoB2), Seq("a", "c"), predicates)
@@ -115,11 +112,9 @@ class TrailBuilderTest extends Assertions {
     val nodePred = Equals(Property(Identifier("b"), PropertyKey("prop")), Literal(42))
     val predicates = Seq(nodePred)
 
-    val rewrittenPredicate = Equals(Property(NodeIdentifier(), PropertyKey("prop")), Literal(42))
-
     val boundPoint = EndPoint("c")
     val second = SingleStepTrail(boundPoint, Direction.OUTGOING, "pr2", Seq("B"), "b", True(), True(), BtoC, Seq())
-    val first = SingleStepTrail(second, Direction.OUTGOING, "pr1", Seq("A"), "a", True(), rewrittenPredicate, AtoB, Seq(nodePred))
+    val first = SingleStepTrail(second, Direction.OUTGOING, "pr1", Seq("A"), "a", True(), nodePred, AtoB, Seq(nodePred))
     val expectedTrail = Some(LongestTrail("a", Some("c"), first))
 
     val foundTrail = TrailBuilder.findLongestTrail(Seq(AtoB, BtoC, BtoB2), Seq("a", "c"), predicates)
@@ -315,17 +310,14 @@ class TrailBuilderTest extends Assertions {
     val predForB = Equals(Property(Identifier("b"), PropertyKey("name")), Literal("b"))
     val predForC = Equals(Property(Identifier("c"), PropertyKey("name")), Literal("c"))
 
-    val expectedForB = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("b"))
-    val expectedForC = Equals(Property(NodeIdentifier(), PropertyKey("name")), Literal("c"))
-
     val s1 = RelatedTo(SingleNode("a"), SingleNode("b"), "r1", Seq(), Direction.OUTGOING, Map.empty)
     val s2 = RelatedTo(SingleNode("b"), SingleNode("c"), "r2", Seq(), Direction.OUTGOING, Map.empty)
     val s3 = RelatedTo(SingleNode("c"), SingleNode("d"), "r3", Seq(), Direction.INCOMING, Map.empty)
 
     val fourth = EndPoint("d")
     val third = SingleStepTrail(fourth, Direction.INCOMING, "r3", Seq(), "c", True(), True(), s3, Seq())
-    val second = SingleStepTrail(third, Direction.OUTGOING, "r2", Seq(), "b", True(), expectedForC, s2, Seq(predForC))
-    val first = SingleStepTrail(second, Direction.OUTGOING, "r1", Seq(), "a", True(), expectedForB, s1, Seq(predForB))
+    val second = SingleStepTrail(third, Direction.OUTGOING, "r2", Seq(), "b", True(), predForC, s2, Seq(predForC))
+    val first = SingleStepTrail(second, Direction.OUTGOING, "r1", Seq(), "a", True(), predForB, s1, Seq(predForB))
 
     val result = TrailBuilder.findLongestTrail(Seq(s1, s2, s3), Seq("a"), Seq(predForB, predForC))
 

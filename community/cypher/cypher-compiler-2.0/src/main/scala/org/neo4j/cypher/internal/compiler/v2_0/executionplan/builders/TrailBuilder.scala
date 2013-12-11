@@ -26,7 +26,6 @@ import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching._
 import org.neo4j.helpers.ThisShouldNotHappenError
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.VariableLengthStepTrail
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.EndPoint
-import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.RelationshipIdentifier
 import org.neo4j.cypher.internal.compiler.v2_0.pipes.matching.SingleStepTrail
 import annotation.tailrec
 
@@ -61,13 +60,8 @@ final class TrailBuilder(patterns: Seq[Pattern], boundPoints: Seq[String], predi
         val orgRelPred: Seq[Predicate] = findPredicates(rel.relName)
         val orgNodePred: Seq[Predicate] = findPredicates(end)
 
-        val relPred: Predicate = Predicate.
-          fromSeq(orgRelPred).
-          rewrite(rewriteTo(rel.relName, RelationshipIdentifier()))
-
-        val nodePred: Predicate = Predicate.
-          fromSeq(orgNodePred).
-          rewrite(rewriteTo(end, NodeIdentifier()))
+        val relPred: Predicate = Predicate.fromSeq(orgRelPred)
+        val nodePred: Predicate = Predicate.fromSeq(orgNodePred)
 
         done.add(start => SingleStepTrail(EndPoint(end), dir, rel.relName, rel.relTypes, start, relPred, nodePred, rel, orgNodePred ++ orgRelPred))
       }
