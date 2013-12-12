@@ -104,10 +104,13 @@ case class AnyInCollection(collection: Expression, symbolName: String, inner: Pr
   def name = "any"
 
   def rewrite(f: (Expression) => Expression) =
-    f(AnyInCollection(
-      collection = collection.rewrite(f),
-      symbolName = symbolName,
-      inner = inner.typedRewrite[Predicate](f)))
+    {
+      val newPred = inner.typedRewrite[Predicate](f)
+      f(AnyInCollection(
+        collection = collection.rewrite(f),
+        symbolName = symbolName,
+        inner = newPred))
+    }
 }
 
 case class NoneInCollection(collection: Expression, symbolName: String, inner: Predicate)

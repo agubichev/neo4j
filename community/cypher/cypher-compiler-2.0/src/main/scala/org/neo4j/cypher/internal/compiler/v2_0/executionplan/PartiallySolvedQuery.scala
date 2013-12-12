@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.executionplan
 
-import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.{PatternGraphBuilder, QueryToken, Unsolved}
+import org.neo4j.cypher.internal.compiler.v2_0.executionplan.builders.{PatternGraphBuilder, QueryToken}
 import org.neo4j.cypher.internal.compiler.v2_0.commands._
 import scala.collection.Seq
 import org.neo4j.cypher.internal.compiler.v2_0.commands.expressions._
@@ -155,7 +155,9 @@ case class PartiallySolvedQuery(returns: Seq[QueryToken[ReturnColumn]],
         case Unsolved(namedPath) => Unsolved(namedPath.rewrite(f))
         case x => x
       },
-      start = start.map { (qt: QueryToken[StartItem]) => qt.map( _.rewrite(f) ) } )
+      start = start.map { (qt: QueryToken[StartItem]) => qt.map( _.rewrite(f) ) },
+      tail = tail.map(_.rewrite(f))
+    )
   }
 
   def unsolvedExpressions = {

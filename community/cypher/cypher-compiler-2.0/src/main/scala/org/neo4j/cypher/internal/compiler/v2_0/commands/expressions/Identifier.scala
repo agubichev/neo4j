@@ -39,8 +39,6 @@ object Identifier {
 }
 
 abstract class Identifier(val name:String) extends Expression with Typed {
-  override def toString: String = name
-
   def rewrite(f: (Expression) => Expression) = f(this)
 
   def arguments = Seq()
