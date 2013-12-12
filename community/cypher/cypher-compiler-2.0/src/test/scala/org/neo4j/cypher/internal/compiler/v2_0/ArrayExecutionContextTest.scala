@@ -91,7 +91,7 @@ class ArrayExecutionContextTest extends FunSuite with BeforeAndAfter {
     ctx.update("XXX", 666)
 
     val result = ctx.collect {
-      case (key,value) if key.startsWith("X") => value
+      case (key, value) if key.startsWith("X") => value
     }
 
     assert(result == List(42, 666))
@@ -104,12 +104,12 @@ class ArrayExecutionContextTest extends FunSuite with BeforeAndAfter {
     ctx.update("YYY", "Foo")
 
     val result = ctx.collectValues {
-      case value:String => value
+      case value: String => value
     }
 
     assert(result == List("Apa", "Foo"))
   }
-  
+
   test("toMap should see values") {
     ctx.update("X", 42)
     ctx.update("Y", "Apa")
@@ -139,16 +139,19 @@ class ArrayExecutionContextTest extends FunSuite with BeforeAndAfter {
     assert(newCtx("X") == 666)
   }
 
-  {
+  test("when created with keys, should still know when a value is missing") {
     val ctx = new ArrayExecutionContext(Seq("X"))
+    assert(ctx.get("X").isEmpty, "Expected this to be empty")
+  }
 
-    test("when created with keys, should still know when a value is missing") {
-      assert(ctx.get("X").isEmpty, "Expected this to be empty")
-    }
+  test("once a value is set, it should show up") {
+    val ctx = new ArrayExecutionContext(Seq("X"))
+    ctx.update("X", 1)
+    assert(ctx.get("X").nonEmpty, "Expected this to not be empty")
+  }
 
-    test("when created with keys, should still know when a value is missing") {
-      ctx.update("X", 1)
-      assert(ctx.get("X").nonEmpty, "Expected this to not be empty")
-    }
+  test("toMap returns empty map until values are set") {
+    val ctx = new ArrayExecutionContext(Seq("X"))
+    assert(ctx.toMap == Map.empty)
   }
 }

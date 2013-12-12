@@ -115,7 +115,10 @@ class ArrayExecutionContext private(private var data: Array[Any], private var ke
   def copy(): ExecutionContext =
     new ArrayExecutionContext(data.clone(), keys)
 
-  def toMap: Map[String, Any] = (keys zip data).toMap
+  def toMap: Map[String, Any] = (keys zip data).toMap.filter {
+    case (_, EMPTY) => false
+    case _          => true
+  }
 
   override def toString: String = {
     val data = collect {
