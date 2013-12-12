@@ -40,7 +40,7 @@ class DistinctBuilder extends PlanBuilder {
       returns = plan.query.returns.map(_.solve)
     )
 
-    plan.copy(pipe = pipe, query = query)
+    plan.copy(pipe = pipe, query = query).addRegister(expressions.keys)
   }
 
   private def getExpressions(plan:ExecutionPlanInProgress): Map[String, Expression] =

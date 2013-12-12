@@ -33,11 +33,13 @@ class DistinctPipe(source: Pipe, expressions: Map[String, Expression]) extends P
 
     // Run the return item expressions, and replace the execution context's with their values
     val returnExpressions = input.map(ctx => {
+      val result = new ArrayExecutionContext(state.keys)
       expressions.foreach {
-        case (k, v) => ctx.update(k, v(ctx)(state))
+        case (k, v) => result(k) = v(ctx)(state)
       }
-      ctx
+      result
     })
+
 
     /*
      * The filtering is done by extracting from the context the values of all return expressions, and keeping them
