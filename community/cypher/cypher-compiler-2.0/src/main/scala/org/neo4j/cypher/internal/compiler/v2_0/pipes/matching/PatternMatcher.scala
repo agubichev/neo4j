@@ -151,7 +151,7 @@ class PatternMatcher(bindings: Map[String, MatchingPair],
 
     val (pNode, gNode) = currentNode.getPatternAndGraphPoint
 
-    val relationships = currentNode.getGraphRelationships(currentRel, state.query)
+    val relationships = currentNode.getGraphRelationships(currentRel, state, history.toMap)
 
     val notVisitedRelationships: Seq[GraphRelationship] = history.
       removeSeen(relationships).

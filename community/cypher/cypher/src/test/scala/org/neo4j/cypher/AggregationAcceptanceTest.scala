@@ -17,14 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v2_0.pipes.matching
+package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.compiler.v2_0._
-import pipes.QueryState
-import org.neo4j.graphdb.Path
-import org.neo4j.cypher.internal.compiler.v2_0.data.SimpleVal
+import org.junit.Test
 
-trait TraversalMatcher {
-  def findMatchingPaths(state: QueryState, context: ExecutionContext): Iterator[Path]
-  def description: Seq[(String, SimpleVal)]
+class AggregationAcceptanceTest extends ExecutionEngineHelper {
+  @Test def should_handle_aggregates_inside_non_aggregate_expressions() {
+    val result = execute("MATCH (a { name: 'Andres' })<-[:FATHER_OF]-(child) RETURN {foo:a.name='Andres',kids:collect(child.name)}")
+    println(result.dumpToString())
+  }
 }

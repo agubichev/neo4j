@@ -175,12 +175,13 @@ public enum ProposerState
                                     context.cancelTimeout( instance.id );
 
                                     // No promises contained a value
+                                    Object readyValue = instance.value_2 == null ?
+                                            context.getBookedInstance( instance.id ).getPayload() : instance
+                                            .value_2;
                                     if ( instance.value_1 == null )
                                     {
                                         // R0
-                                        instance.ready( instance.value_2 == null ?
-                                                context.getBookedInstance( instance.id ).getPayload() : instance
-                                                .value_2, true );
+                                        instance.ready( readyValue, true );
                                     }
                                     else
                                     {
@@ -193,10 +194,7 @@ public enum ProposerState
 
                                             instance.ready( instance.value_1, false );
                                         }
-                                        else if ( instance.value_1.equals( instance.value_2 == null ?
-                                                context.getBookedInstance( instance.id ).getPayload() :
-                                                instance
-                                                .value_2 ) )
+                                        else if ( instance.value_1.equals( readyValue ) )
                                         {
                                             instance.ready( instance.value_2, instance.clientValue );
                                         }
@@ -304,7 +302,7 @@ public enum ProposerState
                                 instance.accepted( acceptedState );
 
                                 // Value has been accepted! Now distribute to all learners
-                                if ( instance.accepts.size() == context.getMinimumQuorumSize( instance.getAcceptors()
+                                if ( instance.accepts.size() >= context.getMinimumQuorumSize( instance.getAcceptors()
                                 ) )
                                 {
                                     context.cancelTimeout( instance.id );
@@ -372,9 +370,9 @@ public enum ProposerState
                                         outgoing.offer( proposeMessage );
                                     }
                                 }
-                                else
-                                {
-                                }
+                            } else
+                            {
+                                context.getLogger( ProposerState.class ).debug( "Instance receiving an accepted is in the wrong state:"+instance );
                             }
                             break;
                         }
@@ -429,8 +427,8 @@ public enum ProposerState
                         ballot ) ).setHeader( InstanceId.INSTANCE, instanceId.toString() ) );
             }
 
-            context.setTimeout( instanceId, Message.timeout( ProposerMessage.phase1Timeout, message,
-                    instanceId ).setHeader( InstanceId.INSTANCE, instanceId.toString() ) );
+            context.setTimeout( instanceId, Message.timeout( ProposerMessage.phase1Timeout, message )
+                    .setHeader( InstanceId.INSTANCE, instanceId.toString() ) );
         }
         else
         {

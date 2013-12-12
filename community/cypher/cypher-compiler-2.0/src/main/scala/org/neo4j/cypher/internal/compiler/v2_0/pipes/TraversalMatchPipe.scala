@@ -46,7 +46,9 @@ class TraversalMatchPipe(source: Pipe, matcher: TraversalMatcher, trail: Trail) 
 
   def symbols = trail.symbols(source.symbols)
 
-  def executionPlanDescription =
-    source.executionPlanDescription.andThen(this, "TraversalMatcher", "trail" -> SimpleVal.fromStr(trail))
+  def executionPlanDescription ={
+    val description = matcher.description :+ ("trail" -> SimpleVal.fromStr(trail))
+    source.executionPlanDescription.andThen(this, "TraversalMatcher", description:_*)
+  }
 
 }

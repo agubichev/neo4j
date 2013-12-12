@@ -34,7 +34,7 @@ case class FilterFunction(collection: Expression, id: String, predicate: Predica
     makeTraversable(value).filter(element => predicate.isTrue(innerMap.update(id, element)  ))
   }
 
-  def rewrite(f: (Expression) => Expression) = f(FilterFunction(collection.rewrite(f), id, predicate.rewrite(f)))
+  def rewrite(f: (Expression) => Expression) = f(FilterFunction(collection.rewrite(f), id, predicate.typedRewrite[Predicate](f)))
 
   override def children = Seq(collection, predicate)
 
