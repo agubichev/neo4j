@@ -19,11 +19,12 @@
  */
 package org.neo4j.cypher.javacompat;
 
-import static org.junit.Assert.assertTrue;
-
 import org.junit.Test;
 import org.neo4j.test.JavaDocsGenerator;
 import org.neo4j.visualization.asciidoc.AsciidocHelper;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.junit.Assert.assertThat;
 
 public class JavaQueryDocTest
 {
@@ -34,16 +35,17 @@ public class JavaQueryDocTest
 
         JavaQuery jq = new JavaQuery();
         jq.run();
-        assertTrue( jq.columnsString.contains( "n," ) );
-        assertTrue( jq.columnsString.contains( "n.name" ) );
-        assertTrue( jq.resultString.contains( "Node[" ) );
-        assertTrue( jq.resultString.contains( "name" ) );
-        assertTrue( jq.resultString.contains( "my" ) );
-        assertTrue( jq.resultString.contains( "1 row" ) );
-        assertTrue( jq.nodeResult.contains( "Node[" ) );
-        assertTrue( jq.nodeResult.contains( "my" ) );
-        assertTrue( jq.rows.contains( "n.name: my node; n: Node[" ) );
-        assertTrue( jq.rows.contains( "];" ) );
+        assertThat( jq.columnsString, containsString( "n" ) );
+
+        assertThat( jq.columnsString, containsString( "n.name" ) );
+        assertThat( jq.resultString, containsString( "Node[" ) );
+        assertThat( jq.resultString, containsString( "name" ) );
+        assertThat( jq.resultString, containsString( "my" ) );
+        assertThat( jq.resultString, containsString( "1 row" ) );
+        assertThat( jq.nodeResult, containsString( "Node[" ) );
+        assertThat( jq.nodeResult, containsString( "my" ) );
+        assertThat( jq.rows, containsString( "n.name: my node" ) );
+        assertThat( jq.rows, containsString( "n: Node[" ) );
 
         gen.saveToFile( "result", AsciidocHelper.createOutputSnippet( jq.resultString ) );
         gen.saveToFile( "columns", AsciidocHelper.createOutputSnippet( jq.columnsString ) );
