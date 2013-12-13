@@ -4,5 +4,5 @@ import org.neo4j.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.kernel.api.exceptions.PropertyNotFoundException;
 
 public interface Visitor {
-    void visit(Register register) throws EntityNotFoundException, PropertyNotFoundException;
+    void visit(Register register) throws Exception;
 }

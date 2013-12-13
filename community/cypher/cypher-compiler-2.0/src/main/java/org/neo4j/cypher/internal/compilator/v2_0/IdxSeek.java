@@ -21,7 +21,7 @@ public class IdxSeek implements Operation {
     }
 
     @Override
-    public void accept(Visitor visitor, Statement statement) throws IndexNotFoundKernelException, EntityNotFoundException, PropertyNotFoundException {
+    public void accept(Visitor visitor, Statement statement) throws Exception {
         Register register = registerCreator.create();
 
         Object value = valueExpression.execute(register, statement);

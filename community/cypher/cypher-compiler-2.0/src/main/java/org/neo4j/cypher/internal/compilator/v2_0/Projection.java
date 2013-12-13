@@ -31,7 +31,7 @@ public class Projection implements Operation {
         }
 
         @Override
-        public void visit(Register register) throws EntityNotFoundException, PropertyNotFoundException {
+        public void visit(Register register) throws Exception {
             Object value = expression.execute(register, statement);
             register.setObject(slotIndex, value);
             inner.visit(register);

@@ -8,8 +8,11 @@ class VisitorTest extends ExecutionEngineHelper {
   @Test
   def should_apa() {
 
-    (0 to 1000) foreach (x =>
-      createLabeledNode(Map("NAME" -> "Andres", "AGE" -> x), "PERSON"))
+    (0 to 1000) foreach (y =>
+      graph.inTx {
+        (0 to 1000) foreach (x =>
+          createLabeledNode(Map("NAME" -> "Andres", "AGE" -> x), "PERSON"))
+      })
 
     graph.createIndex("PERSON", "NAME")
 
@@ -19,21 +22,22 @@ class VisitorTest extends ExecutionEngineHelper {
     val projection = new Projection(seek, 0, propertyRead)
 
     val visitor = new Visitor {
+      var x = 0L
+
       def visit(register: Register) {
-        // Do nothing
+        x = register.getNode(0)
       }
     }
 
     (0 to 5) foreach {
       x =>
-      // Warmp up
+      // Warm up
         graph.inTx {
           projection.accept(visitor, statement)
         }
 
-        execute("match (n:PERSON {name:'ANDRES'}) RETURN n.AGE").toList
+        execute("match (n:PERSON {NAME:'Andres'}) RETURN n.AGE").toList
     }
-
 
     (0 to 100) foreach {
       x =>
@@ -46,7 +50,7 @@ class VisitorTest extends ExecutionEngineHelper {
         println("New code: " + ((t2 - t1) * 1e-6) + " milliseconds")
 
         val t3 = System.nanoTime()
-        execute("match (n:PERSON {name:'ANDRES'}) RETURN n.AGE").toList
+        execute("match (n:PERSON {NAME:'Andres'}) RETURN n.AGE").toList
         val t4 = System.nanoTime()
         println("Old code: " + ((t4 - t3) * 1e-6) + " milliseconds")
     }
