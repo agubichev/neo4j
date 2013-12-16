@@ -31,11 +31,9 @@ class ExtractExpressionTest extends Assertions {
     TypeSet(CollectionType(NodeType()), BooleanType(), CollectionType(StringType())),
     DummyToken(2,3))
 
-  val extractExpression = new Expression with SimpleTypedExpression {
+  val extractExpression = new DummyExpression with SimpleTypedExpression {
     def token: InputToken = DummyToken(2,3)
     protected def possibleTypes: TypeSet = Set(NodeType(), NumberType())
-
-    def toCommand = ???
   }
 
   @Test

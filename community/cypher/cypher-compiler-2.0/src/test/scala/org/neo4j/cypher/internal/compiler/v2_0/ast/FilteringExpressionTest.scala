@@ -40,22 +40,18 @@ class FilteringExpressionTest extends Assertions {
 
   @Test
   def shouldSemanticCheckPredicateInStateContainingTypedIdentifier() {
-    val expression = new Expression with SimpleTypedExpression {
+    val expression = new DummyExpression with SimpleTypedExpression {
       def token = DummyToken(5,6)
       protected def possibleTypes = Set(CollectionType(NodeType()), BooleanType(), CollectionType(StringType()))
-
-      def toCommand = ???
     }
 
     val error = SemanticError("dummy error", DummyToken(8,9))
-    val predicate = new Expression {
+    val predicate = new DummyExpression {
       def token = DummyToken(7,9)
       def semanticCheck(ctx: SemanticContext) = s => {
         assertEquals(Set(NodeType(), BooleanType(), StringType()), s.symbolTypes("x"))
         SemanticCheckResult.error(s, error)
       }
-
-      def toCommand = ???
     }
 
     val filter = TestableFilteringExpression(Identifier("x", DummyToken(2,3)), expression, Some(predicate))

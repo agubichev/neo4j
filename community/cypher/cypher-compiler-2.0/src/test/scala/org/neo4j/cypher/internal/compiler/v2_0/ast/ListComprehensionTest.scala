@@ -42,11 +42,11 @@ class ListComprehensionTest extends Assertions {
 
   @Test
   def shouldHaveCollectionWithInnerTypesOfExtractExpression() {
-    val extractExpression = new Expression with SimpleTypedExpression {
+    val extractExpression = new DummyExpression with SimpleTypedExpression {
       def token: InputToken = DummyToken(2,3)
       protected def possibleTypes: TypeSet = Set(NodeType(), NumberType())
 
-      def toCommand = ???
+
     }
 
     val filter = ListComprehension(Identifier("x", DummyToken(5,6)), dummyExpression, None, Some(extractExpression), DummyToken(0, 10))
@@ -58,14 +58,12 @@ class ListComprehensionTest extends Assertions {
   @Test
   def shouldSemanticCheckPredicateInStateContainingTypedIdentifier() {
     val error = SemanticError("dummy error", DummyToken(8,9))
-    val predicate = new Expression {
+    val predicate = new DummyExpression {
       def token = DummyToken(7,9)
       def semanticCheck(ctx: SemanticContext) = s => {
         assertEquals(Set(NodeType(), StringType(), BooleanType()), s.symbolTypes("x"))
         SemanticCheckResult.error(s, error)
       }
-
-      def toCommand = ???
     }
 
     val filter = ListComprehension(Identifier("x", DummyToken(2,3)), dummyExpression, Some(predicate), None, DummyToken(0, 10))

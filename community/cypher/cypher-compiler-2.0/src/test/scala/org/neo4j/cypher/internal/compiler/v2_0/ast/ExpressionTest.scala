@@ -28,10 +28,9 @@ class ExpressionTest extends Assertions {
 
   @Test
   def shouldReturnEmptyTypeSetIfTypesRequestedButNotEvaluated() {
-    val expression = new Expression() {
+    val expression = new DummyExpression() {
       val token = DummyToken(0, 1)
       def semanticCheck(ctx: Expression.SemanticContext) = ???
-      def toCommand = ???
     }
 
     assert(expression.types(SemanticState.clean) === TypeSet.empty)
@@ -39,10 +38,9 @@ class ExpressionTest extends Assertions {
 
   @Test
   def shouldReturnSpecifiedAndConstrainedTypes() {
-    val expression = new Expression() {
+    val expression = new DummyExpression() {
       val token = DummyToken(0, 1)
       def semanticCheck(ctx: Expression.SemanticContext) = ???
-      def toCommand = ???
     }
     val state = (
       expression.specifyType(NodeType(), IntegerType()) then
