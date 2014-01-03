@@ -399,6 +399,39 @@ class TypeSpecTest extends Assertions {
   }
 
   @Test
+  def shouldIdentifyCoercions() {
+    assertEquals(CTBoolean: TypeSpec, (T <:< CTDouble).coercions)
+    assertEquals(CTBoolean | CTDouble, (T <:< CTLong).coercions)
+    assertEquals(CTBoolean | CTDouble, (CTDouble | CTLong).coercions)
+    assertEquals(CTBoolean: TypeSpec, CTCollectionT.coercions)
+    assertEquals(CTBoolean: TypeSpec, TypeSpec.exact(CTCollection(CTPath)).coercions)
+    assertEquals(CTBoolean | CTDouble | CTLong, TypeSpec.all.coercions)
+    assertEquals(CTBoolean: TypeSpec, (T <:< CTCollectionAny).coercions)
+  }
+
+  @Test
+  def shouldIntersectWithCoercions() {
+    assertEquals(CTInteger: TypeSpec, T =%= CTInteger)
+    assertEquals(CTDouble: TypeSpec, CTInteger =%= CTDouble)
+    assertEquals(TypeSpec.none, CTNumber =%= CTDouble)
+    assertEquals(CTBoolean: TypeSpec, CTCollectionT =%= CTBoolean)
+    assertEquals(CTBoolean: TypeSpec, (T <:< CTNumber) =%= CTBoolean)
+    assertEquals(CTBoolean: TypeSpec, CTCollectionT intersectWithCoercion (CTBoolean | CTString))
+    assertEquals(TypeSpec.none, CTInteger =%= CTString)
+  }
+
+  @Test
+  def shouldConstrainWithCoercions() {
+    assertEquals(CTInteger: TypeSpec, T <%< CTInteger)
+    assertEquals(CTDouble: TypeSpec, CTInteger <%< CTDouble)
+    assertEquals(TypeSpec.none, CTNumber <%< CTDouble)
+    assertEquals(CTBoolean: TypeSpec, CTCollectionT <%< CTBoolean)
+    assertEquals(CTBoolean: TypeSpec, (T <:< CTNumber) <%< CTBoolean)
+    assertEquals(CTBoolean: TypeSpec, CTCollectionT constrainWithCoercion (CTBoolean | CTString))
+    assertEquals(TypeSpec.none, CTInteger <%< CTString)
+  }
+
+  @Test
   def equalTypeSpecsShouldEqual() {
     assertEquals(CTString: TypeSpec, CTString: TypeSpec)
 

@@ -67,15 +67,41 @@ class TypeSpec private (private val ranges: Seq[TypeRange]) extends Equals {
   })
   def &(that: TypeSpec): TypeSpec = intersect(that)
 
+  def =%=(that: CypherType): TypeSpec = intersectWithCoercion(TypeSpec.exact(that))
+  def intersectWithCoercion(that: TypeSpec): TypeSpec = {
+    val intersection = intersect(that)
+    if (intersection.nonEmpty)
+      intersection
+    else
+      coercions intersect that
+  }
+
   def <:<(that: CypherType): TypeSpec = constrain(TypeSpec.exact(that))
   def constrain(that: TypeSpec): TypeSpec = TypeSpec(ranges.flatMap {
     r => that.ranges.flatMap(r constrain _.lower)
   })
 
+  def <%<(that: CypherType): TypeSpec = constrainWithCoercion(TypeSpec.exact(that))
+  def constrainWithCoercion(that: TypeSpec): TypeSpec = {
+    val constrained = constrain(that)
+    if (constrained.nonEmpty)
+      constrained
+    else
+      coercions constrain that
+  }
+
   def >:>(that: CypherType): TypeSpec = mergeUp(TypeSpec.exact(that))
   def mergeUp(that: TypeSpec): TypeSpec = TypeSpec(ranges.flatMap {
     r => that.ranges.flatMap(r mergeUp)
   })
+
+  def coercions: TypeSpec = {
+    val simpleCoercions = TypeSpec.simpleTypes.filter(this contains).flatMap(_.coercibleTo)
+    if (this.containsAny(CTCollectionT))
+      TypeSpec.exact(simpleCoercions ++ CTCollectionAny.coercibleTo)
+    else
+      TypeSpec.exact(simpleCoercions)
+  }
 
   def reparent(f: CypherType => CypherType): TypeSpec = TypeSpec(ranges.map(_.reparent(f)))
 
