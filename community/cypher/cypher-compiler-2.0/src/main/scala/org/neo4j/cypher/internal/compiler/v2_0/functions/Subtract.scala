@@ -20,18 +20,31 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
+import commands.{expressions => commandexpressions}
+import symbols._
 
-case object Subtract extends Function {
-  def name = "-"
+case object Subtract extends ArithmeticInfixFunction {
+  val name = "-"
 
-  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
+  override def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkMinArgs(invocation, 1) then checkMaxArgs(invocation, 2) then
-    invocation.arguments.expectType(T <:< CTNumber) then
-    invocation.specifyType(CTNumber)
+    when(invocation.arguments.length == 1) {
+      semanticCheckUnary(ctx, invocation)
+    } then when(invocation.arguments.length == 2) {
+      semanticCheckInfix(ctx, invocation)
+    }
 
-  def toCommand(invocation: ast.FunctionInvocation) = {
+  private def semanticCheckUnary(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
+    invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+    invocation.specifyType(invocation.arguments(0).types)
+
+  private def semanticCheckInfix(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
+    checkArgs(invocation, 2) ifOkThen {
+      invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+      invocation.specifyType(infixOutputTypes(invocation.arguments(0), invocation.arguments(1)))
+    }
+
+  def toCommand(invocation: ast.FunctionInvocation) =
     if (invocation.arguments.length == 1) {
       commandexpressions.Subtract(commandexpressions.Literal(0), invocation.arguments(0).toCommand)
     } else {
@@ -39,5 +52,4 @@ case object Subtract extends Function {
       val right = invocation.arguments(1)
       commandexpressions.Subtract(left.toCommand, right.toCommand)
     }
-  }
 }

@@ -20,19 +20,21 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands
-import org.neo4j.cypher.internal.compiler.v2_0.ast.FunctionInvocation
+import symbols._
 
 case object LessThanOrEqual extends PredicateFunction {
   def name = "<="
 
-  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation) : SemanticCheck =
-    checkArgs(invocation, 2) then
-//    invocation.arguments.constrainType(???) then // TODO: should constrain types
-    invocation.specifyType(CTBoolean)
+  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
+    checkArgs(invocation, 2) ifOkThen {
+      val lhs = invocation.arguments(0)
+      val rhs = invocation.arguments(1)
 
-  protected def internalToPredicate(invocation: FunctionInvocation) = {
+      lhs.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble | T <:< CTString) then
+      rhs.expectType(lhs.types)
+    } then invocation.specifyType(CTBoolean)
+
+  protected def internalToPredicate(invocation: ast.FunctionInvocation) = {
     val left = invocation.arguments(0)
     val right = invocation.arguments(1)
     commands.LessThanOrEqual(left.toCommand, right.toCommand)

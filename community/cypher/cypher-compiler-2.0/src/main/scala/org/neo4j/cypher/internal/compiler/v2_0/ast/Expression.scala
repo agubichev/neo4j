@@ -48,7 +48,10 @@ object Expression {
 
   implicit class InferrableTypeTraversableOnce[A <: Expression](traversable: TraversableOnce[A]) {
     def mergeUpTypes: TypeGenerator =
-      (state: SemanticState) => traversable.map { _.types(state) } reduce { _ mergeUp _ }
+      if (traversable.isEmpty)
+        _ => CTAny
+      else
+        (state: SemanticState) => traversable.map { _.types(state) } reduce { _ mergeUp _ }
 
     def expectType(possibleTypes: => TypeSpec): SemanticCheck =
       traversable.foldSemanticCheck { _.expectType(possibleTypes) }

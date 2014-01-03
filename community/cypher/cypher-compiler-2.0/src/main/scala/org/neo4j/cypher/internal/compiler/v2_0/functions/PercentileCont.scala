@@ -20,17 +20,16 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
+import commands.{expressions => commandexpressions}
+import symbols._
 
 case object PercentileCont extends AggregatingFunction {
   def name = "percentileCont"
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
-    checkArgs(invocation, 2) ifOkThen {
-      invocation.arguments.expectType(T <:< CTNumber) then
-      invocation.specifyType(CTDouble)
-    }
+    checkArgs(invocation, 2) then
+    invocation.arguments.expectType(T <:< CTDouble) then
+    invocation.specifyType(CTDouble)
 
   def toCommand(invocation: ast.FunctionInvocation) = {
     val firstArg = invocation.arguments(0).toCommand

@@ -20,16 +20,10 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
+import commands.{expressions => commandexpressions}
 
-case object Divide extends Function {
-  def name = "/"
-
-  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
-    checkArgs(invocation, 2) then
-    invocation.arguments.expectType(T <:< CTNumber) then
-    invocation.specifyType(CTNumber)
+case object Divide extends ArithmeticInfixFunction {
+  val name = "/"
 
   def toCommand(invocation: ast.FunctionInvocation) = {
     val left = invocation.arguments(0)

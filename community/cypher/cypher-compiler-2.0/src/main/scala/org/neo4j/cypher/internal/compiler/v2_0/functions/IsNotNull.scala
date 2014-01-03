@@ -20,9 +20,7 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands
-import org.neo4j.cypher.internal.compiler.v2_0.ast.FunctionInvocation
+import symbols._
 
 case object IsNotNull extends PredicateFunction {
   def name = "IS NOT NULL"
@@ -32,6 +30,6 @@ case object IsNotNull extends PredicateFunction {
     invocation.specifyType(CTBoolean)
 
 
-  protected def internalToPredicate(invocation: FunctionInvocation) =
+  protected def internalToPredicate(invocation: ast.FunctionInvocation) =
     commands.Not(commands.IsNull(invocation.arguments(0).toCommand))
 }

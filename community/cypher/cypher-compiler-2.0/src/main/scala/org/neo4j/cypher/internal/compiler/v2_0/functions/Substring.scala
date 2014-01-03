@@ -20,18 +20,19 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
+import commands.{expressions => commandexpressions}
+import symbols._
 
 case object Substring extends Function {
   def name = "substring"
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
-    checkMinArgs(invocation, 2) then checkMaxArgs(invocation, 3) then when(invocation.arguments.length >= 2) {
+    checkMinArgs(invocation, 2) then checkMaxArgs(invocation, 3) then
+    when(invocation.arguments.length >= 2) {
       invocation.arguments(0).expectType(T <:< CTString) then
-      invocation.arguments(1).expectType((T <:< CTInteger) | (T <:< CTLong))
+      invocation.arguments(1).expectType(T <:< CTLong)
     } then when(invocation.arguments.length == 3) {
-      invocation.arguments(2).expectType((T <:< CTInteger) | (T <:< CTLong))
+      invocation.arguments(2).expectType(T <:< CTLong)
     } then invocation.specifyType(CTString)
 
   def toCommand(invocation: ast.FunctionInvocation) = {

@@ -20,7 +20,7 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
+import commands.{expressions => commandexpressions}
 
 case object Coalesce extends Function {
   def name = "coalesce"

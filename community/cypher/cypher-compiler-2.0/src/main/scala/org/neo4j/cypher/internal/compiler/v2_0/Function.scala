@@ -19,9 +19,9 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0
 
-import ast.FunctionInvocation
 import commands.{Predicate => CommandPredicate}
 import commands.expressions.{Expression => CommandExpression}
+import symbols._
 import org.neo4j.cypher.SyntaxException
 
 object Function {
@@ -124,42 +124,68 @@ abstract class Function extends SemanticChecking {
 
   protected def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation) : SemanticCheck
 
-  protected def checkArgs(invocation: ast.FunctionInvocation, n: Int) : Option[SemanticError] = {
+  protected def checkArgs(invocation: ast.FunctionInvocation, n: Int): Option[SemanticError] =
     Seq(checkMinArgs(invocation, n), checkMaxArgs(invocation, n)).flatten.headOption
-  }
 
-  protected def checkMaxArgs(invocation: ast.FunctionInvocation, n: Int) : Option[SemanticError] = {
+  protected def checkMaxArgs(invocation: ast.FunctionInvocation, n: Int): Option[SemanticError] =
     if (invocation.arguments.length > n)
       Some(SemanticError(s"Too many parameters for function '$name'", invocation.token))
     else
       None
-  }
 
-  protected def checkMinArgs(invocation: ast.FunctionInvocation, n: Int) : Option[SemanticError] = {
+  protected def checkMinArgs(invocation: ast.FunctionInvocation, n: Int): Option[SemanticError] =
     if (invocation.arguments.length < n)
       Some(SemanticError(s"Insufficient parameters for function '$name'", invocation.token))
     else
       None
-  }
 
-  def toCommand(invocation: ast.FunctionInvocation) : CommandExpression
+  def toCommand(invocation: ast.FunctionInvocation): CommandExpression
 
   def toPredicate(invocation: ast.FunctionInvocation): CommandPredicate =
     throw new SyntaxException(s"Expression must return a boolean")
 }
 
+
 abstract class PredicateFunction extends Function {
-  def toCommand(invocation: FunctionInvocation): CommandExpression = internalToPredicate(invocation)
+  def toCommand(invocation: ast.FunctionInvocation): CommandExpression = internalToPredicate(invocation)
 
-  protected def internalToPredicate(invocation: ast.FunctionInvocation) : CommandPredicate
+  protected def internalToPredicate(invocation: ast.FunctionInvocation): CommandPredicate
 
-  override def toPredicate(invocation: ast.FunctionInvocation) : CommandPredicate = internalToPredicate(invocation)
+  override def toPredicate(invocation: ast.FunctionInvocation): CommandPredicate = internalToPredicate(invocation)
 }
 
 
 abstract class AggregatingFunction extends Function {
-  override def semanticCheckHook(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation) : SemanticCheck =
+  override def semanticCheckHook(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     when(ctx == ast.Expression.SemanticContext.Simple) {
       SemanticError(s"Invalid use of aggregating function $name(...) in this context", invocation.token)
     } then invocation.arguments.semanticCheck(ctx) then semanticCheck(ctx, invocation)
+}
+
+
+abstract class ArithmeticInfixFunction extends Function {
+
+  def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
+    checkArgs(invocation, 2) ifOkThen {
+      invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+      invocation.specifyType(infixOutputTypes(invocation.arguments(0), invocation.arguments(1)))
+    }
+
+  protected def infixOutputTypes(lhs: ast.Expression, rhs: ast.Expression): TypeGenerator = s => {
+    val lhsTypes = lhs.types(s)
+    val rhsTypes = rhs.types(s)
+
+    def when(fst: TypeSpec, snd: TypeSpec)(result: CypherType): TypeSpec =
+      if (lhsTypes.containsAny(fst) && rhsTypes.containsAny(snd) || lhsTypes.containsAny(snd) && rhsTypes.containsAny(fst))
+        result
+      else
+        TypeSpec.none
+
+    val numberTypes: TypeSpec =
+      when(T <:< CTDouble, T <:< CTDouble | T <:< CTLong | T <:< CTInteger)(CTDouble) |
+      when(T <:< CTLong, T <:< CTLong | T <:< CTInteger)(CTLong) |
+      when(T <:< CTInteger, T <:< CTInteger)(CTInteger)
+
+    numberTypes
+  }
 }

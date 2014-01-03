@@ -20,10 +20,8 @@
 package org.neo4j.cypher.internal.compiler.v2_0.functions
 
 import org.neo4j.cypher.internal.compiler.v2_0._
-import org.neo4j.cypher.internal.compiler.v2_0.symbols._
-import org.neo4j.cypher.internal.compiler.v2_0.commands
-import org.neo4j.cypher.internal.compiler.v2_0.commands.{expressions => commandexpressions}
-import org.neo4j.cypher.internal.compiler.v2_0.ast.FunctionInvocation
+import commands.{expressions => commandexpressions}
+import symbols._
 
 case object RegularExpression extends PredicateFunction {
   def name = "=~"
@@ -33,7 +31,7 @@ case object RegularExpression extends PredicateFunction {
     invocation.arguments.expectType(T <:< CTString) then
     invocation.specifyType(CTBoolean)
 
-  protected def internalToPredicate(invocation: FunctionInvocation) = {
+  protected def internalToPredicate(invocation: ast.FunctionInvocation) = {
     val left = invocation.arguments(0)
     val right = invocation.arguments(1)
     right.toCommand match {
