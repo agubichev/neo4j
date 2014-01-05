@@ -35,12 +35,12 @@ case object Subtract extends ArithmeticInfixFunction {
     }
 
   private def semanticCheckUnary(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
-    invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+    invocation.arguments.expectType(T <:< CTInteger | T <:< CTDouble) then
     invocation.specifyType(invocation.arguments(0).types)
 
   private def semanticCheckInfix(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkArgs(invocation, 2) ifOkThen {
-      invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+      invocation.arguments.expectType(T <:< CTInteger | T <:< CTDouble) then
       invocation.specifyType(infixOutputTypes(invocation.arguments(0), invocation.arguments(1)))
     }
 

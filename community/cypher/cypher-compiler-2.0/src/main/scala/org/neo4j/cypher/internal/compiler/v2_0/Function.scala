@@ -167,7 +167,7 @@ abstract class ArithmeticInfixFunction extends Function {
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkArgs(invocation, 2) ifOkThen {
-      invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+      invocation.arguments.expectType(T <:< CTInteger | T <:< CTDouble) then
       invocation.specifyType(infixOutputTypes(invocation.arguments(0), invocation.arguments(1)))
     }
 
@@ -182,8 +182,7 @@ abstract class ArithmeticInfixFunction extends Function {
         TypeSpec.none
 
     val numberTypes: TypeSpec =
-      when(T <:< CTDouble, T <:< CTDouble | T <:< CTLong | T <:< CTInteger)(CTDouble) |
-      when(T <:< CTLong, T <:< CTLong | T <:< CTInteger)(CTLong) |
+      when(T <:< CTDouble, T <:< CTDouble | T <:< CTInteger)(CTDouble) |
       when(T <:< CTInteger, T <:< CTInteger)(CTInteger)
 
     numberTypes

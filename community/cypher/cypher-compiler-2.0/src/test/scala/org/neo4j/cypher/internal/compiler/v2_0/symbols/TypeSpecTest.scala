@@ -56,9 +56,9 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def shouldUnionTypeSpecs() {
-    assertEquals(CTNumber | CTInteger | CTDouble | CTLong | CTString,
+    assertEquals(CTNumber | CTDouble | CTInteger | CTString,
       (T <:< CTNumber) | (T <:< CTString))
-    assertEquals(CTNumber | CTInteger | CTDouble | CTLong | CTCollection(CTString),
+    assertEquals(CTNumber | CTDouble | CTInteger | CTCollection(CTString),
       (T <:< CTNumber) | (T <:< CTCollection(CTString)))
   }
 
@@ -82,14 +82,14 @@ class TypeSpecTest extends Assertions {
   @Test
   def shouldConstrainTypeSpecs() {
     assertEquals(TypeSpec.exact(CTInteger), T <:< CTInteger)
-    assertEquals(CTNumber | CTInteger | CTDouble | CTLong, T <:< CTNumber)
+    assertEquals(CTNumber | CTDouble | CTInteger, T <:< CTNumber)
 
     assertEquals(CTInteger: TypeSpec, CTInteger <:< CTNumber)
     assertEquals(CTInteger: TypeSpec, T <:< CTNumber <:< CTInteger)
     assertEquals(TypeSpec.none, CTNumber <:< CTInteger)
 
-    assertEquals(CTInteger | CTLong,
-      (CTInteger | CTLong | CTString | CTMap) constrain (CTNode | CTNumber))
+    assertEquals(CTInteger: TypeSpec,
+      (CTInteger | CTString | CTMap) constrain (CTNode | CTNumber))
     assertEquals(TypeSpec.exact(CTCollection(CTString)),
       (CTInteger | CTCollection(CTString)) constrain CTCollectionAny)
     assertEquals(TypeSpec.none,
@@ -114,9 +114,8 @@ class TypeSpecTest extends Assertions {
     val constrainedToCollectionOfNumber = T <:< CTCollection(CTNumber)
     assertEquals(
       CTCollection(CTNumber) |
-      CTCollection(CTInteger) |
       CTCollection(CTDouble) |
-      CTCollection(CTLong)
+      CTCollection(CTInteger)
     , constrainedToCollectionOfNumber)
   }
 
@@ -134,7 +133,7 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def unionTwoConstrainedBranches() {
-    assertEquals(CTNumber | CTInteger | CTDouble | CTLong | CTString,
+    assertEquals(CTNumber | CTDouble | CTInteger | CTString,
       T <:< CTNumber | T <:< CTString)
   }
 
@@ -181,7 +180,7 @@ class TypeSpecTest extends Assertions {
     assertEquals(TypeSpec.exact(CTMap),
       TypeSpec.exact(CTRelationship) mergeUp TypeSpec.exact(CTNode))
     assertEquals(CTMap | CTNumber | CTAny,
-      (CTRelationship | CTLong) mergeUp (CTNode | CTNumber))
+      (CTRelationship | CTInteger) mergeUp (CTNode | CTNumber))
 
     assertEquals(CTNumber | CTCollectionAny | CTAny,
       (CTInteger | CTCollection(CTString)) mergeUp (CTNumber | CTCollection(CTInteger)))
@@ -210,25 +209,25 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def mergeUpToMultipleTypes() {
-    val mergedWithIntegerOrString = (T >:> CTInteger) | (T >:> CTString)
-    assertEquals(CTAny | CTNumber | CTInteger | CTString, mergedWithIntegerOrString)
+    val mergedWithLongOrString = (T >:> CTInteger) | (T >:> CTString)
+    assertEquals(CTAny | CTNumber | CTInteger | CTString, mergedWithLongOrString)
 
-    val mergedWithCollectionOfStringOrInteger = (T >:> CTCollection(CTString)) | (T >:> CTInteger)
+    val mergedWithCollectionOfStringOrLong = (T >:> CTCollection(CTString)) | (T >:> CTInteger)
     assertEquals(
       CTAny |
       CTNumber |
       CTInteger |
       CTCollectionAny |
       CTCollection(CTString)
-    , mergedWithCollectionOfStringOrInteger)
+    , mergedWithCollectionOfStringOrLong)
   }
 
   @Test
   def mergeUpFromDifferentBranchesToSingleSuperType() {
-    val mergedWithCollectionOfStringOrInteger = (T >:> CTCollection(CTString)) | (T >:> CTInteger)
-    assertEquals(CTAny | CTNumber, mergedWithCollectionOfStringOrInteger >:> CTNumber)
+    val mergedWithCollectionOfStringOrLong = (T >:> CTCollection(CTString)) | (T >:> CTInteger)
+    assertEquals(CTAny | CTNumber, mergedWithCollectionOfStringOrLong >:> CTNumber)
     assertEquals(CTAny | CTCollectionAny,
-      mergedWithCollectionOfStringOrInteger >:> CTCollectionAny)
+      mergedWithCollectionOfStringOrLong >:> CTCollectionAny)
   }
 
   @Test
@@ -249,8 +248,8 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def mergeUpFromConstrainedBranchToSuperType() {
-    val constrainedToInteger = T <:< CTInteger
-    assertEquals(CTNumber: TypeSpec, constrainedToInteger >:> CTNumber)
+    val constrainedToLong = T <:< CTInteger
+    assertEquals(CTNumber: TypeSpec, constrainedToLong >:> CTNumber)
   }
 
   @Test
@@ -258,8 +257,8 @@ class TypeSpecTest extends Assertions {
     val constrainedToNumber = T <:< CTNumber
     assertEquals(CTAny: TypeSpec, constrainedToNumber >:> CTString)
 
-    val constrainedToInteger = T <:< CTInteger
-    assertEquals(CTAny: TypeSpec, constrainedToInteger >:> CTString)
+    val constrainedToLong = T <:< CTInteger
+    assertEquals(CTAny: TypeSpec, constrainedToLong >:> CTString)
   }
 
   @Test
@@ -298,7 +297,7 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def mergeUpFromBranchToSameSet() {
-    assertEquals(T <:< CTNumber, T <:< CTNumber mergeUp (CTNumber | CTInteger | CTLong | CTDouble))
+    assertEquals(T <:< CTNumber, T <:< CTNumber mergeUp (CTNumber | CTInteger | CTDouble))
   }
 
   @Test
@@ -321,9 +320,9 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def constrainFromMergedUpSpecToSuperType() {
-    val allMergedWithInteger = T >:> CTInteger
+    val allMergedWithLong = T >:> CTInteger
     assertEquals(CTNumber | CTInteger,
-      allMergedWithInteger <:< CTNumber)
+      allMergedWithLong <:< CTNumber)
   }
 
   @Test
@@ -349,10 +348,10 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def constrainFromMergedUpSpecToSuperSet() {
-    val allMergedWithInteger = T >:> CTInteger
+    val allMergedWithLong = T >:> CTInteger
     val allMergedWithNumber = T >:> CTNumber
     assertEquals(CTAny | CTNumber,
-      allMergedWithNumber constrain allMergedWithInteger)
+      allMergedWithNumber constrain allMergedWithLong)
   }
 
   @Test
@@ -364,30 +363,30 @@ class TypeSpecTest extends Assertions {
 
   @Test
   def constrainFromMergedUpSpecToSubSet() {
-    val allMergedWithInteger = T >:> CTInteger
+    val allMergedWithLong = T >:> CTInteger
     val allMergedWithNumber = T >:> CTNumber
     assertEquals(CTAny | CTNumber | CTInteger,
-      allMergedWithInteger constrain allMergedWithNumber)
+      allMergedWithLong constrain allMergedWithNumber)
   }
 
   @Test
   def constrainFromMergedUpSpecToIntersectingSet() {
-    val allMergedWithInteger = T >:> CTInteger
+    val allMergedWithLong = T >:> CTInteger
     val allMergedWithString = T >:> CTString
     assertEquals(CTAny | CTNumber | CTInteger,
-      allMergedWithInteger constrain allMergedWithString)
+      allMergedWithLong constrain allMergedWithString)
 
     val allMergedWithStringAndNumber = (T >:> CTString) | (T >:> CTNumber)
     assertEquals(CTAny | CTNumber | CTInteger,
-      allMergedWithInteger constrain allMergedWithStringAndNumber)
+      allMergedWithLong constrain allMergedWithStringAndNumber)
   }
 
   @Test
   def mergeUpFromMergedUpSpecToSuperSet() {
-    val allMergedWithInteger = T >:> CTInteger
+    val allMergedWithLong = T >:> CTInteger
     val allMergedWithNumber = T >:> CTNumber
     assertEquals(CTAny | CTNumber,
-      allMergedWithNumber mergeUp allMergedWithInteger)
+      allMergedWithNumber mergeUp allMergedWithLong)
   }
 
   @Test
@@ -401,11 +400,11 @@ class TypeSpecTest extends Assertions {
   @Test
   def shouldIdentifyCoercions() {
     assertEquals(CTBoolean: TypeSpec, (T <:< CTDouble).coercions)
-    assertEquals(CTBoolean | CTDouble, (T <:< CTLong).coercions)
-    assertEquals(CTBoolean | CTDouble, (CTDouble | CTLong).coercions)
+    assertEquals(CTBoolean | CTDouble, (T <:< CTInteger).coercions)
+    assertEquals(CTBoolean | CTDouble, (CTDouble | CTInteger).coercions)
     assertEquals(CTBoolean: TypeSpec, CTCollectionT.coercions)
     assertEquals(CTBoolean: TypeSpec, TypeSpec.exact(CTCollection(CTPath)).coercions)
-    assertEquals(CTBoolean | CTDouble | CTLong, TypeSpec.all.coercions)
+    assertEquals(CTBoolean | CTDouble, TypeSpec.all.coercions)
     assertEquals(CTBoolean: TypeSpec, (T <:< CTCollectionAny).coercions)
   }
 
@@ -438,9 +437,9 @@ class TypeSpecTest extends Assertions {
     assertEquals(T <:< CTString, CTString: TypeSpec)
     assertEquals(CTString: TypeSpec, T <:< CTString)
 
-    assertEquals(CTNumber | CTLong | CTInteger | CTDouble, CTDouble | CTInteger | CTLong | CTNumber)
-    assertEquals(CTNumber | CTLong | CTInteger | CTDouble, T <:< CTNumber)
-    assertEquals(T <:< CTNumber, CTNumber | CTLong | CTInteger | CTDouble)
+    assertEquals(CTNumber | CTInteger | CTDouble, CTDouble | CTInteger | CTNumber)
+    assertEquals(CTNumber | CTInteger | CTDouble, T <:< CTNumber)
+    assertEquals(T <:< CTNumber, CTNumber | CTInteger | CTDouble)
 
     assertEquals(T <:< CTNumber, (T <:< CTNumber) | (T <:< CTInteger))
     assertNotEquals(T <:< CTNumber, (T <:< CTNumber) | (T <:< CTString))
@@ -525,8 +524,8 @@ class TypeSpecTest extends Assertions {
   def shouldFormatToStringForDefiniteSizedSet() {
     assertEquals("Any", TypeSpec.exact(CTAny).mkString(", "))
     assertEquals("String", TypeSpec.exact(CTString).mkString(", "))
-    assertEquals("Double, Integer, Long, Number", (T <:< CTNumber).mkString(", "))
-    assertEquals("Boolean, Double, Integer, Long, Number",
+    assertEquals("Double, Integer, Number", (T <:< CTNumber).mkString(", "))
+    assertEquals("Boolean, Double, Integer, Number",
       ((T <:< CTNumber) | (T <:< CTBoolean)).mkString(", "))
     assertEquals("Any, Number", (T >:> CTNumber).mkString(", "))
     assertEquals("Boolean, String, Collection<Boolean>, Collection<String>",
@@ -540,9 +539,9 @@ class TypeSpecTest extends Assertions {
   def shouldIterateOverDefiniteSizedSet() {
     assertEquals(Seq(CTString),
       TypeSpec.exact(CTString).iterator.toSeq)
-    assertEquals(Seq(CTDouble, CTInteger, CTLong, CTNumber),
+    assertEquals(Seq(CTDouble, CTInteger, CTNumber),
       (T <:< CTNumber).iterator.toSeq)
-    assertEquals(Seq(CTBoolean, CTDouble, CTInteger, CTLong, CTNumber),
+    assertEquals(Seq(CTBoolean, CTDouble, CTInteger, CTNumber),
       ((T <:< CTNumber) | (T <:< CTBoolean)).iterator.toSeq)
     assertEquals(Seq(CTAny, CTNumber),
       (T >:> CTNumber).iterator.toSeq)

@@ -28,8 +28,8 @@ case object Range extends Function {
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkMinArgs(invocation, 2) then checkMaxArgs(invocation, 3) then
-    invocation.arguments.expectType(T <:< CTLong) then
-    invocation.specifyType(CTCollection(CTLong))
+    invocation.arguments.expectType(T <:< CTInteger) then
+    invocation.specifyType(CTCollection(CTInteger))
 
   def toCommand(invocation: ast.FunctionInvocation) = {
     val commands = invocation.arguments.map(_.toCommand)

@@ -35,7 +35,7 @@ case object Add extends ArithmeticInfixFunction {
     }
 
   private def semanticCheckUnary(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
-    invocation.arguments.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+    invocation.arguments.expectType(T <:< CTInteger | T <:< CTDouble) then
     invocation.specifyType(invocation.arguments(0).types)
 
   private def semanticCheckInfix(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck = {
@@ -55,7 +55,7 @@ case object Add extends ArithmeticInfixFunction {
     // "a" + 1.1 => "a1.1"
     val stringTypes =
       if (lhsTypes.containsAny(T <:< CTString))
-        T <:< CTString | T <:< CTInteger | T <:< CTLong | T <:< CTDouble
+        T <:< CTString | T <:< CTInteger | T <:< CTDouble
       else
         TypeSpec.none
 
@@ -66,8 +66,8 @@ case object Add extends ArithmeticInfixFunction {
     // 1.1 + 1 => 2.1
     // 1.1 + 1.1 => 2.2
     val numberTypes =
-      if (lhsTypes.containsAny(T <:< CTInteger | T <:< CTLong | T <:< CTDouble))
-        T <:< CTString | T <:< CTInteger | T <:< CTLong | T <:< CTDouble
+      if (lhsTypes.containsAny(T <:< CTInteger | T <:< CTDouble))
+        T <:< CTString | T <:< CTInteger | T <:< CTDouble
       else
         TypeSpec.none
 
@@ -96,7 +96,7 @@ case object Add extends ArithmeticInfixFunction {
     // "a" + 1.1 => "a1.1"
     // 1 + "b" => "1b"
     // 1.1 + "b" => "1.1b"
-    val stringTypes: TypeSpec = when(T <:< CTString, T <:< CTInteger | T <:< CTLong | T <:< CTDouble | T <:< CTString)(CTString)
+    val stringTypes: TypeSpec = when(T <:< CTString, T <:< CTInteger | T <:< CTDouble | T <:< CTString)(CTString)
 
     // 1 + 1 => 2
     // 1 + 1.1 => 2.1

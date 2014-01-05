@@ -30,7 +30,7 @@ case object GreaterThanOrEqual extends PredicateFunction {
       val lhs = invocation.arguments(0)
       val rhs = invocation.arguments(1)
 
-      lhs.expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble | T <:< CTString) then
+      lhs.expectType(T <:< CTInteger | T <:< CTDouble | T <:< CTString) then
       rhs.expectType(lhs.types)
     } then invocation.specifyType(CTBoolean)
 

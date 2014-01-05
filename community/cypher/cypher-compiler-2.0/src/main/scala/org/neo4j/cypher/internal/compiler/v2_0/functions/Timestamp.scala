@@ -28,7 +28,7 @@ case object Timestamp extends Function {
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation) : SemanticCheck =
     checkArgs(invocation, 0) then
-    invocation.specifyType(CTLong)
+    invocation.specifyType(CTInteger)
 
   def toCommand(invocation: ast.FunctionInvocation) =
     commandexpressions.TimestampFunction()

@@ -30,7 +30,6 @@ object TypeSpec {
     CTBoolean,
     CTDouble,
     CTInteger,
-    CTLong,
     CTMap,
     CTNode,
     CTNumber,

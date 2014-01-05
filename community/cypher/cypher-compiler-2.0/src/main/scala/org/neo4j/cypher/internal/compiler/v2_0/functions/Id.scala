@@ -29,7 +29,7 @@ case object Id extends Function {
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkArgs(invocation, 1) then
     invocation.arguments.expectType((T <:< CTRelationship) | (T <:< CTNode)) then
-    invocation.specifyType(CTLong)
+    invocation.specifyType(CTInteger)
 
   def toCommand(invocation: ast.FunctionInvocation) =
     commandexpressions.IdFunction(invocation.arguments(0).toCommand)

@@ -28,7 +28,7 @@ case object Avg extends AggregatingFunction {
 
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkArgs(invocation, 1) ifOkThen {
-      invocation.arguments(0).expectType(T <:< CTInteger | T <:< CTLong | T <:< CTDouble) then
+      invocation.arguments(0).expectType(T <:< CTInteger | T <:< CTDouble) then
       invocation.specifyType(invocation.arguments(0).types)
     }
 

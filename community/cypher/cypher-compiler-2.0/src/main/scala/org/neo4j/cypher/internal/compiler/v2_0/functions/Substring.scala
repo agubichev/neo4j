@@ -30,9 +30,9 @@ case object Substring extends Function {
     checkMinArgs(invocation, 2) then checkMaxArgs(invocation, 3) then
     when(invocation.arguments.length >= 2) {
       invocation.arguments(0).expectType(T <:< CTString) then
-      invocation.arguments(1).expectType(T <:< CTLong)
+      invocation.arguments(1).expectType(T <:< CTInteger)
     } then when(invocation.arguments.length == 3) {
-      invocation.arguments(2).expectType(T <:< CTLong)
+      invocation.arguments(2).expectType(T <:< CTInteger)
     } then invocation.specifyType(CTString)
 
   def toCommand(invocation: ast.FunctionInvocation) = {

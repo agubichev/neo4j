@@ -29,7 +29,7 @@ case object Length extends Function {
   def semanticCheck(ctx: ast.Expression.SemanticContext, invocation: ast.FunctionInvocation): SemanticCheck =
     checkArgs(invocation, 1) then
     invocation.arguments.expectType(CTCollectionT | (T <:< CTPath) | (T <:< CTString)) then
-    invocation.specifyType(CTLong)
+    invocation.specifyType(CTInteger)
 
   def toCommand(invocation: ast.FunctionInvocation) =
     commandexpressions.LengthFunction(invocation.arguments(0).toCommand)
