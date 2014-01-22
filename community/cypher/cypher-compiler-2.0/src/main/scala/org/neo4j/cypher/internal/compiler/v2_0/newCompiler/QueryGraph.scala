@@ -3,45 +3,64 @@ package org.neo4j.cypher.internal.compiler.v2_0.newCompiler
 import org.neo4j.cypher.internal.compiler.v2_0.ast.Expression
 import org.neo4j.graphdb.Direction
 import scala.collection.mutable
+import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 
 case class QueryGraph(maxId: Id,
                       edges: Seq[QueryEdge],
                       selections: Seq[(Id, Selection)],
                       projection: Seq[(Expression, Int)]) {
+
   // build bitmap of connected nodes
 
   val selectionsByNode: Map[Id, Seq[Selection]] =
     selections.groupBy(_._1).mapValues(_.map(_._2)).withDefault(_ => Seq.empty)
-  
-  val edgesByIds: Map[JoinLink, Seq[QueryEdge]] = Map.empty
-  
-  def optJoinMethods(leftIds: Set[Id], rightIds: Set[Id]): Seq[PropertyJoin] = {
-    var joins = Seq.newBuilder[PropertyJoin]
-    for (leftId <- leftIds;
-         rightId <- rightIds if leftId.id <= rightId.id) {
-      val link = new JoinLink(leftId, rightId)
-      edgesByIds.get(link) match {
-        case Some(propertyJoins) => joins ++= propertyJoins
-        case None =>
-      }
-    }
-    joins.result()
-  }
+
+  val graphRelsById: Map[Id, Seq[GraphRelationship]] =
+    edges.collect {
+      case edge: GraphRelationship if edge.start == edge.end =>
+        Seq(edge.start -> edge)
+      case edge: GraphRelationship =>
+        Seq(edge.start -> edge, edge.end -> edge)
+    }.flatten.groupBy(_._1).mapValues(_.map(_._2))
+
+//  val edgesByIds: Map[QueryEdge.Key, Seq[QueryEdge]] = Map.empty
+//
+//  def optJoinMethods(leftIds: Set[Id], rightIds: Set[Id]): Seq[PropertyJoin] = {
+//    var joins = Seq.newBuilder[PropertyJoin]
+//    for (leftId <- leftIds;
+//         rightId <- rightIds if leftId.id < rightId.id) {
+//      val link = QueryEdge.Key(leftId, rightId)
+//      edgesByIds.get(link) match {
+//        case Some(propertyJoins) => joins ++= propertyJoins.collect { case edge: PropertyJoin => edge }
+//        case None =>
+//      }
+//    }
+//    joins.result()
+//  }
 }
 
-class JoinLink(left: Id, right: Id) {
-  val (start, end) =
-    if (left.id <= right.id)
-      (left, right)
-    else
-      (right, left)
+object QueryEdge {
+  case class Key(start: Id, end: Id)
+}
+
+object QueryEdgeKey {
+  def apply(start: Id, end: Id): QueryEdge.Key =
+    if (start <= end) QueryEdge.Key(start, end) else QueryEdge.Key(end, start)
 }
 
 trait QueryEdge {
   def start: Id
   def end: Id
   
-  val link = new JoinLink(start, end)
+  val key = QueryEdgeKey(start, end)
+
+  def other(id: Id) =
+    if (start == id)
+      end
+    else if (end == id)
+      start
+    else
+      throw new IllegalArgumentException("Provided Id is neither the start nor the end Id")
 }
 
 trait Comparison
@@ -58,11 +77,20 @@ case class NodePropertySelection(property: PropertyKey, value: Option[Any], comp
 case class NodeLabelSelection(label: Label) extends Selection
 
 case class Id(id: Int) extends AnyVal {
+  def <=(other: Id) = id < other.id
   def allIncluding: Seq[Id] = 0.to(id).map(Id(_))
 }
 
-case class PropertyKey(name: String) extends AnyVal
-case class RelationshipType(name: String) extends AnyVal
-case class Label(name: String) extends AnyVal
+case class PropertyKey(name: String) extends AnyVal {
+  def apply(planContext: PlanContext) = Token(planContext.getPropertyKeyId(name))
+}
+
+case class RelationshipType(name: String) extends AnyVal {
+  def apply(planContext: PlanContext) = Token(planContext.getRelationshipTypeId(name))
+}
+
+case class Label(name: String) extends AnyVal {
+  def apply(planContext: PlanContext) = Token(planContext.getLabelId(name))
+}
 
 case class Token(value: Int) extends AnyVal

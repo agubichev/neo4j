@@ -28,6 +28,12 @@ trait TokenContext {
 
   def getLabelId(labelName: String): Int
 
+  def getRelationshipTypeName(id: Int): String
+
+  def getOptRelationshipTypeId(relationshipTypeName: String): Option[Int]
+
+  def getRelationshipTypeId(relationshipTypeName: String): Int
+
   def getPropertyKeyName(id: Int): String
 
   def getOptPropertyKeyId(propertyKeyName: String): Option[Int]

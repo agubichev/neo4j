@@ -3,8 +3,18 @@ package org.neo4j.cypher.internal.compiler.v2_0.newCompiler
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.graphdb.Direction
 
+case class PartialPlan(lhs: Set[Id], rhs: Set[Id], plan: PhysicalPlan) {
+  def update(current: Option[PartialPlan]): Option[PartialPlan] = current match {
+    case None                                         => Some(this)
+    case Some(best) if best.plan.effort > plan.effort => Some(this)
+    case _                                            => current
+  }   
+}
+
 class PlanGenerator(estimator: CostEstimator) {
-  def joinPlans(table: PlanTable, qg: QueryGraph): JoinPlanResult = {
+  def findImprovedPartialPlan(planContext: PlanContext, table: PlanTable, qg: QueryGraph): PartialPlan = {
+    var result: Option[PartialPlan] = None
+    
 //    for(leftIds <- table.m.keys;
 //        rightIds <- table.m.keys) {
 //
@@ -15,18 +25,37 @@ class PlanGenerator(estimator: CostEstimator) {
 //        case None =>
 //      }
 //    }
+
     for (ids <- table.m.keys) {
       val plan = table(ids)
 
+      // find extensions
+      for (id <- ids) {
+        for (rel <- qg.graphRelsById(id)) {
+          val otherId = rel.other(id)
+          
+          if (! ids(otherId)) {
+            // construct plan and candidate
+            val relTypeTokens = rel.types.map(_(planContext))
+            val expandedPlan = ExpandRelationships(plan, rel.direction, estimator.costForExpandRelationship(Seq.empty, relTypeTokens, rel.direction))
+            val candidate = PartialPlan(ids, Set(otherId), expandedPlan)
+            
+            result = candidate.update(result)
+          }
+        }
+      }
+
     }
+    
+    result.get
   }
 
   def generatePlan(planContext: PlanContext, qg: QueryGraph): PhysicalPlan = {
     var currentPlan: PlanTable = buildInitialTable(planContext, qg)
 
     while(currentPlan.m.size > 1) {
-      val cheapestNewPlan: JoinPlanResult = joinPlans(currentPlan)
-      currentPlan = currentPlan.add(cheapestNewPlan)
+      val cheapestNewPlan: PartialPlan = findImprovedPartialPlan(planContext, currentPlan, qg)
+      currentPlan = (currentPlan += cheapestNewPlan)
     }
 
     currentPlan.plan
@@ -39,14 +68,17 @@ class PlanGenerator(estimator: CostEstimator) {
         val labelScans = selections.collect {
           case NodeLabelSelection(label) =>
             val tokenId = Token(planContext.getLabelId(label.name))
-            val cardinality = estimator.cardinalityForScan(tokenId)
-            LabelScan(id, tokenId, cardinality)
+            LabelScan(id, tokenId, estimator.costForScan(tokenId))
         }
 
-        val plan = if (labelScans.isEmpty)
-          AllNodesScan(id, estimator.cardinalityForAllNodes())
+        val plan = if ( labelScans.isEmpty )
+        {
+          AllNodesScan(id, estimator.costForAllNodes())
+        }
         else
+        {
           labelScans.head
+        }
 
         Set(id) -> plan
     }.toMap
@@ -54,24 +86,33 @@ class PlanGenerator(estimator: CostEstimator) {
   }
 }
 
-case class JoinPlanResult(lhs: Set[Id], rhs: Set[Id], plan: PhysicalPlan)
+case class Cost(cardinality: Int, effort: Int) extends Ordered[Cost] {
+  // TODO: Include effort here
+  def compare(that: Cost): Int = cardinality - that.cardinality
+}
 
 trait CostEstimator {
-  def cardinalityForScan(labelId: Token): Int
-
-  def cardinalityForAllNodes(): Int
-
-  def cardinalityForRelationshipExpand(labelId: Token, relationshipType: Token, dir: Direction): Int
+  def costForScan(labelId: Token): Cost
+  def costForAllNodes(): Cost
+  def costForExpandRelationship(labelId: Seq[Token], relationshipType: Seq[Token], dir: Direction): Cost
 }
 
 case class PlanTable(m: Map[Set[Id], PhysicalPlan]) {
-  def apply(nodes: Set[Id]): PhysicalPlan = m(nodes)
-
   def plan: PhysicalPlan = m.values.head
 
-  def add(plan: JoinPlanResult): PlanTable =
-    PlanTable(((m - plan.lhs) - plan.rhs) + ((plan.lhs ++ plan.rhs) -> plan.plan))
+  def apply(nodes: Set[Id]): PhysicalPlan = m(nodes)
+
+  def +=(plan: PartialPlan): PlanTable = {
+    var builder = Map.newBuilder[Set[Id], PhysicalPlan]
+    for ( pair @ (k, v) <- m if k != plan.lhs && k != plan.rhs) {
+      builder += pair
+    }
+    builder += (plan.lhs ++ plan.rhs) -> plan.plan
+    PlanTable(builder.result())
+  }
 }
+
+trait Operator
 
 /**
  * The physical plan. Stateless thing that knows how to create the operator tree which
@@ -79,30 +120,25 @@ case class PlanTable(m: Map[Set[Id], PhysicalPlan]) {
  */
 trait PhysicalPlan {
   def lhs: Option[PhysicalPlan]
-
   def rhs: Option[PhysicalPlan]
 
   def createPhysicalPlan(): Operator = ???
 
-  def cost: Int
+  def effort: Cost
 }
-
-trait Operator
 
 trait PhysicalPlanLeaf {
   self: PhysicalPlan =>
 
   def lhs: Option[PhysicalPlan] = None
-
   def rhs: Option[PhysicalPlan] = None
 }
 
-case class AllNodesScan(id: Id, cost: Int) extends PhysicalPlan with PhysicalPlanLeaf
+case class AllNodesScan(id: Id, effort: Cost) extends PhysicalPlan with PhysicalPlanLeaf
 
-case class LabelScan(id: Id, label: Token, cost: Int) extends PhysicalPlan with PhysicalPlanLeaf
+case class LabelScan(id: Id, label: Token, effort: Cost) extends PhysicalPlan with PhysicalPlanLeaf
 
-case class Expand(left: PhysicalPlan, direction: Direction, cost: Int) extends PhysicalPlan {
+case class ExpandRelationships(left: PhysicalPlan, direction: Direction, effort: Cost) extends PhysicalPlan {
   def lhs: Option[PhysicalPlan] = Some(left)
-
   def rhs: Option[PhysicalPlan] = None
 }

@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.spi.v2_0
 
-import org.neo4j.kernel.api.exceptions.{PropertyKeyNotFoundException, LabelNotFoundKernelException}
+import org.neo4j.kernel.api.exceptions.{RelationshipTypeNotFoundException, PropertyKeyNotFoundException,LabelNotFoundKernelException}
 import org.neo4j.kernel.api.Statement
 import org.neo4j.cypher.internal.compiler.v2_0.spi.TokenContext
 import org.neo4j.kernel.impl.api.operations.KeyReadOperations
@@ -54,4 +54,18 @@ abstract class TransactionBoundTokenContext(statement: Statement) extends TokenC
     TokenContext.tryGet[LabelNotFoundKernelException](getLabelId(labelName))
 
   def getLabelName(labelId: Int): String = statement.readOperations().labelGetName(labelId)
+
+  def getRelationshipTypeName(id: Int): String = statement.readOperations().relationshipTypeGetName(id)
+
+  def getOptRelationshipTypeId(relationshipTypeName: String): Option[Int] =
+    TokenContext.tryGet[RelationshipTypeNotFoundException](getRelationshipTypeId(relationshipTypeName))
+
+  def getRelationshipTypeId(relationshipTypeName: String): Int = {
+    val relTypeId = statement.readOperations().relationshipTypeGetForName(relationshipTypeName)
+    if ( relTypeId == KeyReadOperations.NO_SUCH_RELATIONSHIP_TYPE )
+    {
+      throw new RelationshipTypeNotFoundException("No such relationship type", null)
+    }
+    relTypeId
+  }
 }

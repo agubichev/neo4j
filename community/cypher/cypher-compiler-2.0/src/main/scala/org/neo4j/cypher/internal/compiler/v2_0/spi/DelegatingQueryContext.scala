@@ -85,6 +85,14 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
   def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = inner.withAnyOpenQueryContext(work)
 
   def exactUniqueIndexSearch(index: IndexDescriptor, value: Any): Option[Node] = inner.exactUniqueIndexSearch(index, value)
+
+  def getRelationshipTypeName(id: Int): String = inner.getRelationshipTypeName(id)
+
+  def getOptRelationshipTypeId(relationshipTypeName: String): Option[Int] =
+    inner.getOptRelationshipTypeId(relationshipTypeName)
+
+  def getRelationshipTypeId(relationshipTypeName: String): Int =
+    inner.getRelationshipTypeId(relationshipTypeName)
 }
 
 class DelegatingOperations[T <: PropertyContainer](protected val inner: Operations[T]) extends Operations[T] {
@@ -113,6 +121,7 @@ class DelegatingOperations[T <: PropertyContainer](protected val inner: Operatio
   def indexQuery(name: String, query: Any): Iterator[T] = inner.indexQuery(name, query)
 
   def all: Iterator[T] = inner.all
+
 
 
 }

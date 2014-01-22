@@ -140,4 +140,10 @@ class SnitchingQueryContext extends QueryContext {
   def withAnyOpenQueryContext[T](work: (QueryContext) => T): T = ???
 
   def exactUniqueIndexSearch(index: IndexDescriptor, value: Any): Option[Node] = ???
+
+  def getRelationshipTypeName(id: Int): String = ???
+
+  def getOptRelationshipTypeId(relationshipTypeName: String): Option[Int] = ???
+
+  def getRelationshipTypeId(relationshipTypeName: String): Int = ???
 }
