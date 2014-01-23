@@ -21,7 +21,10 @@ package org.neo4j.cypher.internal.compiler.v2_0.newCompiler
 
 import org.neo4j.cypher.internal.compiler.v2_0.spi.QueryContext
 import org.neo4j.graphdb.{Direction, Relationship, Node}
-import collection.mutable
+import scala.collection.mutable
+import org.neo4j.kernel.api.Statement
+import org.neo4j.kernel.impl.util.PrimitiveLongIterator
+import org.neo4j.helpers.collection.IteratorUtil
 
 trait Operator {
   def open()
@@ -45,8 +48,12 @@ trait Operator {
   }
 }
 
-case class AllNodesScanOp(qtx: QueryContext, id: Int, data: mutable.Map[Int, Any]) extends Operator {
-  private val allNodes: Iterator[Node] = qtx.nodeOps.all
+case class StatementContext(statement: Statement) {
+  def read = statement.readOperations()
+}
+
+case class AllNodesScanOp(stx: StatementContext, id: Int, data: mutable.Map[Int, Any]) extends Operator {
+  private val allNodes: Iterator[Node] = ???
 
   def open() {}
 
@@ -59,15 +66,15 @@ case class AllNodesScanOp(qtx: QueryContext, id: Int, data: mutable.Map[Int, Any
   def close() {}
 }
 
-case class LabelScanOp(qtx: QueryContext, id: Int, labelToken: Int, data: mutable.Map[Int, Any]) extends Operator {
+case class LabelScanOp(stx: StatementContext, id: Int, labelToken: Int, data: mutable.Map[Int, Any]) extends Operator {
 
-  private val labeledNodes: Iterator[Node] = qtx.getNodesByLabel(labelToken)
+  private val labeledNodes: PrimitiveLongIterator = stx.read.nodesGetForLabel(labelToken)
 
   def open() {}
 
   def next(): Boolean =
     if (labeledNodes.hasNext) {
-      data(id) = labeledNodes.next().getId
+      data(id) = labeledNodes.next()
       true
     } else false
 
@@ -75,30 +82,67 @@ case class LabelScanOp(qtx: QueryContext, id: Int, labelToken: Int, data: mutabl
 
 }
 
-case class ExpandOp(qtx: QueryContext, sourceId: Int, destinationId: Int, sourceOp: Operator, data: mutable.Map[Int, Any]) extends Operator {
+case class ExpandOp(ctx: QueryContext, sourceId: Int, destinationId: Int, sourceOp: Operator, data: mutable.Map[Int, Any]) extends Operator {
 
   var currentRelationships: Iterator[Relationship] = Iterator.empty
-  def fromNode: Node = {
-    val fromNode = data(sourceId).asInstanceOf[Long]
-    qtx.nodeOps.getById(fromNode)
-  }
 
   def open() {
     sourceOp.open()
   }
 
   def next(): Boolean = {
-    while (currentRelationships.isEmpty && sourceOp.next()) {
-      currentRelationships = qtx.getRelationshipsFor(fromNode, Direction.OUTGOING, Seq.empty)
+    while (!currentRelationships.hasNext && sourceOp.next()) {
+      val fromNode: Long = data(sourceId).asInstanceOf[Long]
+      currentRelationships = ctx.getRelationshipsFor(ctx.nodeOps.getById(fromNode), Direction.OUTGOING, Seq.empty)
     }
 
-    if(currentRelationships.hasNext) {
+    if (currentRelationships.hasNext) {
       val r: Relationship = currentRelationships.next()
-      data(destinationId) = r.getOtherNode(fromNode).getId
+      data(destinationId) = r.getEndNode().getId()
       true
     } else false
   }
 
   def close() {}
+
+}
+
+case class HashJoinOp(stx: StatementContext, joinKeyId: Int, lhsExtractIds: Seq[Int], rhsExtractIds: Seq[Int], lhs: Operator, rhs: Operator, data: mutable.Map[Int, Any]) extends Operator {
+  val map = new mutable.HashMap[Long, mutable.Set[Seq[Long]]] with mutable.MultiMap[Long, Seq[Long]]
+  var bucket: Seq[Seq[Long]] = Seq.empty
+  var bucketPos: Int = 0
+
+  def open() {
+    lhs.open()
+    rhs.open()
+  }
+
+  def next(): Boolean = {
+    while (lhs.next()) {
+      val join = data(joinKeyId)
+      map.addBinding(join.asInstanceOf[Long], lhsExtractIds.map(data(_).asInstanceOf[Long]))
+    }
+
+    while (bucketPos >= bucket.size) {
+      if (!rhs.next()) {
+        return false
+      }
+      val join = data(joinKeyId)
+      bucket = map.getOrElse(join.asInstanceOf[Long], Set.empty).toSeq
+      bucketPos = 0
+    }
+
+    val lhsValues = bucket(bucketPos)
+    bucketPos += 1
+    lhsExtractIds.zipWithIndex.foreach { case (index: Int, targetId: Int) =>
+      data(targetId) = lhsValues(index)
+    }
+    true
+  }
+
+  def close() {
+    lhs.close()
+    rhs.close()
+  }
 
 }
