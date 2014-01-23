@@ -3,11 +3,15 @@ package org.neo4j.cypher.internal.compiler.v2_0.newCompiler
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.graphdb.Direction
 
-class PlanGenerator(estimator: CostEstimator) {
-  def joinPlans(table: PlanTable, qg: QueryGraph): JoinPlanResult = {
-//    for(leftIds <- table.m.keys;
-//        rightIds <- table.m.keys) {
-//
+class PlanGenerator(estimator: CardinalityEstimator, calculator: CostCalculator) {
+
+  def tryCombineAllPlans(table: PlanTable, graph: QueryGraph)
+
+
+  def joinPlans(table: PlanTable, qg: QueryGraph, planContext: PlanContext): JoinPlanResult = {
+    //    for(leftIds <- table.m.keys;
+    //        rightIds <- table.m.keys) {
+    //
 //      qg.optJoinMethods(leftIds, rightIds) match {
 //        case Some(methods) =>
 //          val leftPlan = table(leftIds)
@@ -15,21 +19,61 @@ class PlanGenerator(estimator: CostEstimator) {
 //        case None =>
 //      }
 //    }
-    for (ids <- table.m.keys) {
-      val plan = table(ids)
 
+    //    val combinedPlans = tryCombineAllPlans(table, qg)
+    val cheapestPlan: JoinPlanResult = expandPlans(table, qg, planContext).sortBy(_.plan.cost).head
+
+    table.add(cheapestPlan)
+  }
+
+  private def expandPlans(table: PlanTable, qg: QueryGraph, planContext: PlanContext): Seq[JoinPlanResult] = {
+    table.flatMap {
+      case (ids: Set[Id], plan: PhysicalPlan) =>
+
+        // Find query relationships where one end is outside the physical plan and one end is inside
+        val expansions: Seq[GraphRelationship] = qg.edges.collect {
+          case rel: GraphRelationship if ids.contains(rel.end) ^ ids.contains(rel.start) => rel
+        }
+        expansions.flatMap {
+          case rel =>
+            // Find known labels on this node, and calculate expected cardinality based on this
+            createExpandOperators(qg, rel, planContext, plan) // TODO: This is NOT CORRECT! Find out how to combine cardinalities and test it correctly
+        }
     }
   }
 
-  def generatePlan(planContext: PlanContext, qg: QueryGraph): PhysicalPlan = {
-    var currentPlan: PlanTable = buildInitialTable(planContext, qg)
+  private def createExpandOperators(qg: QueryGraph, rel: GraphRelationship, planContext: PlanContext, plan: PhysicalPlan): Any = {
+    val expandCardinality = {
+      val labelCardinalities: Seq[Int] = qg.selectionsByNode(rel.start).collect {
+        case NodeLabelSelection(label) =>
+          planContext.getOptLabelId(label).map {
+            id =>
+              val labelToken = LabelToken(id)
+              estimator.cardinalityForRelationshipExpand(labelToken, rel.direction)
+          }
+      }
 
-    while(currentPlan.m.size > 1) {
-      val cheapestNewPlan: JoinPlanResult = joinPlans(currentPlan)
-      currentPlan = currentPlan.add(cheapestNewPlan)
+      if (labelCardinalities.isEmpty) {
+        // We don't know about any labels used on this node.
+        val cardinality = estimator.cardinalityForRelationshipExpand(rel.direction)
+      } else
+        labelCardinalities.reduce((a, b) => (a + b) / 2)
     }
 
-    currentPlan.plan
+    val cost = calculator.expand(expandCardinality)
+
+    Expand(rel.start, plan, rel.direction, cost)
+  }
+
+  def generatePlan(planContext: PlanContext, qg: QueryGraph): PhysicalPlan = {
+    var planTable: PlanTable = buildInitialTable(planContext, qg)
+
+    while (planTable.m.size > 1) {
+      val cheapestNewPlan: JoinPlanResult = joinPlans(planTable, qg, planContext)
+      planTable = planTable.add(cheapestNewPlan)
+    }
+
+    planTable.plan
   }
 
   private def buildInitialTable(planContext: PlanContext, qg: QueryGraph) = {
@@ -38,7 +82,7 @@ class PlanGenerator(estimator: CostEstimator) {
         val selections: Seq[Selection] = qg.selectionsByNode(id)
         val labelScans = selections.collect {
           case NodeLabelSelection(label) =>
-            val tokenId = Token(planContext.getLabelId(label.name))
+            val tokenId = LabelToken(planContext.getLabelId(label.name))
             val cardinality = estimator.cardinalityForScan(tokenId)
             LabelScan(id, tokenId, cardinality)
         }
@@ -54,14 +98,27 @@ class PlanGenerator(estimator: CostEstimator) {
   }
 }
 
-case class JoinPlanResult(lhs: Set[Id], rhs: Set[Id], plan: PhysicalPlan)
+case class JoinPlanResult(id: Set[Id], plan: PhysicalPlan) {
+  def doesNotCover(ids: Set[Id]) = (ids intersect id).nonEmpty
+}
 
-trait CostEstimator {
-  def cardinalityForScan(labelId: Token): Int
-
+trait CardinalityEstimator {
+  def cardinalityForScan(labelId: LabelToken): Int
   def cardinalityForAllNodes(): Int
 
-  def cardinalityForRelationshipExpand(labelId: Token, relationshipType: Token, dir: Direction): Int
+  def cardinalityForRelationshipExpand(labelId: LabelToken, relationshipType: TypeToken, dir: Direction): Int
+
+  def cardinalityForRelationshipExpand(labelId: LabelToken, dir: Direction): Int
+
+  def cardinalityForRelationshipExpand(relationshipType: TypeToken, dir: Direction): Int
+
+  def cardinalityForRelationshipExpand(dir: Direction): Int
+
+  def cardinalityForRelationshipExpand(): Int
+}
+
+trait CostCalculator {
+  def expand(cardinality: Int): Int
 }
 
 case class PlanTable(m: Map[Set[Id], PhysicalPlan]) {
@@ -69,8 +126,11 @@ case class PlanTable(m: Map[Set[Id], PhysicalPlan]) {
 
   def plan: PhysicalPlan = m.values.head
 
-  def add(plan: JoinPlanResult): PlanTable =
-    PlanTable(((m - plan.lhs) - plan.rhs) + ((plan.lhs ++ plan.rhs) -> plan.plan))
+  def add(plan: JoinPlanResult): PlanTable = {
+    m.filterKeys {
+      ids =>
+    }
+  }
 }
 
 /**
@@ -99,9 +159,9 @@ trait PhysicalPlanLeaf {
 
 case class AllNodesScan(id: Id, cost: Int) extends PhysicalPlan with PhysicalPlanLeaf
 
-case class LabelScan(id: Id, label: Token, cost: Int) extends PhysicalPlan with PhysicalPlanLeaf
+case class LabelScan(id: Id, label: LabelToken, cost: Int) extends PhysicalPlan with PhysicalPlanLeaf
 
-case class Expand(left: PhysicalPlan, direction: Direction, cost: Int) extends PhysicalPlan {
+case class Expand(fromNode: Id, left: PhysicalPlan, direction: Direction, cost: Int) extends PhysicalPlan {
   def lhs: Option[PhysicalPlan] = Some(left)
 
   def rhs: Option[PhysicalPlan] = None
