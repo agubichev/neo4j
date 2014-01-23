@@ -28,11 +28,9 @@ abstract class TransactionBoundTokenContext(statement: Statement) extends TokenC
   def getOptPropertyKeyId(propertyKeyName: String): Option[Int] =
     TokenContext.tryGet[PropertyKeyNotFoundException](getPropertyKeyId(propertyKeyName))
 
-  def getPropertyKeyId(propertyKeyName: String) =
-  {
+  def getPropertyKeyId(propertyKeyName: String) = {
     val propertyId: Int = statement.readOperations().propertyKeyGetForName(propertyKeyName)
-    if ( propertyId == KeyReadOperations.NO_SUCH_PROPERTY_KEY )
-    {
+    if ( propertyId == KeyReadOperations.NO_SUCH_PROPERTY_KEY ) {
       throw new PropertyKeyNotFoundException("No such property.", null)
     }
     propertyId
@@ -40,11 +38,9 @@ abstract class TransactionBoundTokenContext(statement: Statement) extends TokenC
 
   def getPropertyKeyName(propertyKeyId: Int): String = statement.readOperations().propertyKeyGetName(propertyKeyId)
 
-  def getLabelId(labelName: String): Int =
-  {
+  def getLabelId(labelName: String): Int = {
     val labelId: Int = statement.readOperations().labelGetForName(labelName)
-    if ( labelId == KeyReadOperations.NO_SUCH_LABEL )
-    {
+    if ( labelId == KeyReadOperations.NO_SUCH_LABEL ) {
       throw new LabelNotFoundKernelException("No such label", null)
     }
     labelId
@@ -62,8 +58,7 @@ abstract class TransactionBoundTokenContext(statement: Statement) extends TokenC
 
   def getRelationshipTypeId(relationshipTypeName: String): Int = {
     val relTypeId = statement.readOperations().relationshipTypeGetForName(relationshipTypeName)
-    if ( relTypeId == KeyReadOperations.NO_SUCH_RELATIONSHIP_TYPE )
-    {
+    if ( relTypeId == KeyReadOperations.NO_SUCH_RELATIONSHIP_TYPE ) {
       throw new RelationshipTypeNotFoundException("No such relationship type", null)
     }
     relTypeId
