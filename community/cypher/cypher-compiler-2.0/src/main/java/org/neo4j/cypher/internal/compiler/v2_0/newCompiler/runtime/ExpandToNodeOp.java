@@ -28,16 +28,16 @@ public class ExpandToNodeOp implements Operator {
     private final int sourceIdx;
     private final int dstIdx;
     private final Operator sourceOp;
-    private final Register register;
+    private final Registers registers;
     private final Direction dir;
     private PrimitiveLongIterator currentNodes;
 
-    public ExpandToNodeOp(StatementContext ctx, int sourceIdx, int dstIdx, Operator sourceOp, Register register, Direction dir) {
+    public ExpandToNodeOp(StatementContext ctx, int sourceIdx, int dstIdx, Operator sourceOp, Registers registers, Direction dir) {
         this.ctx = ctx;
         this.sourceIdx = sourceIdx;
         this.dstIdx = dstIdx;
         this.sourceOp = sourceOp;
-        this.register = register;
+        this.registers = registers;
         this.dir = dir;
         this.currentNodes = IteratorUtil.emptyPrimitiveLongIterator();
     }
@@ -50,7 +50,7 @@ public class ExpandToNodeOp implements Operator {
     @Override
     public boolean next() {
         while (!currentNodes.hasNext() && sourceOp.next()) {
-            long fromNodeId = register.getLong(sourceIdx);
+            long fromNodeId = registers.getLongRegister(sourceIdx);
             currentNodes = ctx.FAKEgetNodesRelatedBy(fromNodeId, dir);
         }
 
@@ -58,7 +58,7 @@ public class ExpandToNodeOp implements Operator {
             return false;
 
         long nextNode = currentNodes.next();
-        register.setLong(dstIdx, nextNode);
+        registers.setLongRegister(dstIdx, nextNode);
 
         return true;
     }

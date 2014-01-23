@@ -23,12 +23,12 @@ import org.neo4j.kernel.impl.util.PrimitiveLongIterator;
 
 public class LabelScanOp implements Operator {
     private final int registerIdx;
-    private final Register register;
+    private final Registers registers;
     private final PrimitiveLongIterator nodes;
 
-    public LabelScanOp(StatementContext ctx, int registerIdx, int labelToken, Register register) {
+    public LabelScanOp(StatementContext ctx, int registerIdx, int labelToken, Registers registers) {
         this.registerIdx = registerIdx;
-        this.register = register;
+        this.registers = registers;
         nodes = ctx.read().nodesGetForLabel(labelToken);
     }
 
@@ -42,7 +42,7 @@ public class LabelScanOp implements Operator {
             return false;
         }
 
-        register.setLong(registerIdx, nodes.next());
+        registers.setLongRegister(registerIdx, nodes.next());
         return true;
     }
 

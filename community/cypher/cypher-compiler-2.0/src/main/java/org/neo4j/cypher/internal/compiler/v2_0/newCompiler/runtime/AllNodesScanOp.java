@@ -25,11 +25,11 @@ import org.neo4j.kernel.impl.util.PrimitiveLongIterator;
 public class AllNodesScanOp implements Operator {
 
     private final PrimitiveLongIterator allNodes;
-    private final Register register;
+    private final Registers registers;
     private final int dstIdx;
 
-    public AllNodesScanOp(StatementContext ctx, Register register, int dstIdx) {
-        this.register = register;
+    public AllNodesScanOp(StatementContext ctx, Registers registers, int dstIdx) {
+        this.registers = registers;
         this.dstIdx = dstIdx;
         allNodes = ctx.FAKEgetAllNodes();
     }
@@ -43,7 +43,7 @@ public class AllNodesScanOp implements Operator {
         if (!allNodes.hasNext())
             return false;
 
-        register.setLong(dstIdx, allNodes.next());
+        registers.setLongRegister(dstIdx, allNodes.next());
 
         return true;
     }

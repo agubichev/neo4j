@@ -30,18 +30,18 @@ public class HashJoinOp implements Operator {
     private final int[] lhsTailObjectIdx;
     private final Operator lhs;
     private final Operator rhs;
-    private final Register register;
-    private final Map<Long, List<Register>> bucket = new HashMap<>();
+    private final Registers registers;
+    private final Map<Long, List<Registers>> bucket = new HashMap<>();
     private int bucketPos = 0;
-    private List<Register> currentBucketEntry = null;
+    private List<Registers> currentBucketEntry = null;
 
-    public HashJoinOp(int joinKeyId, int[] lhsTailLongIdx, int[] lhsTailObjectIdx, Operator lhs, Operator rhs, Register register) {
+    public HashJoinOp(int joinKeyId, int[] lhsTailLongIdx, int[] lhsTailObjectIdx, Operator lhs, Operator rhs, Registers registers) {
         this.joinKeyId = joinKeyId;
         this.lhsTailLongIdx = lhsTailLongIdx;
         this.lhsTailObjectIdx = lhsTailObjectIdx;
         this.lhs = lhs;
         this.rhs = rhs;
-        this.register = register;
+        this.registers = registers;
 
         fillHashBucket();
     }
@@ -71,7 +71,7 @@ public class HashJoinOp implements Operator {
     }
 
     private void produceMatchIfPossible() {
-        long key = register.getLong(joinKeyId);
+        long key = registers.getLongRegister(joinKeyId);
         currentBucketEntry = bucket.get(key);
         bucketPos = 0;
     }
@@ -84,17 +84,15 @@ public class HashJoinOp implements Operator {
 
     private void fillHashBucket() {
         while (lhs.next()) {
-            long key = register.getLong(joinKeyId);
-            List<Register> objects = getTailEntriesForId(key);
-
-            Register tailEntry = copyToTailEntry();
-
+            long key = registers.getLongRegister(joinKeyId);
+            List<Registers> objects = getTailEntriesForId(key);
+            Registers tailEntry = copyToTailEntry();
             objects.add(tailEntry);
         }
     }
 
-    private List<Register> getTailEntriesForId(long key) {
-        List<Register> objects = bucket.get(key);
+    private List<Registers> getTailEntriesForId(long key) {
+        List<Registers> objects = bucket.get(key);
         if (objects == null) {
             objects = new LinkedList<>();
             bucket.put(key, objects);
@@ -104,31 +102,31 @@ public class HashJoinOp implements Operator {
 
     private void restoreFromTailEntry() {
         int idx = bucketPos++;
-        Register from = currentBucketEntry.get(idx);
-        Register to = register;
+        Registers from = currentBucketEntry.get(idx);
+        Registers to = registers;
 
         for (int i = 0; i < lhsTailLongIdx.length; i++) {
-            long temp = from.getLong(i);
-            to.setLong(lhsTailLongIdx[i], temp);
+            long temp = from.getLongRegister(i);
+            to.setLongRegister(lhsTailLongIdx[i], temp);
         }
 
         for (int i = 0; i < lhsTailObjectIdx.length; i++) {
-            Object temp = from.getObject(i);
-            to.setObject(lhsTailObjectIdx[i], temp);
+            Object temp = from.getObjectRegister(i);
+            to.setObjectRegister(lhsTailObjectIdx[i], temp);
         }
     }
 
-    private Register copyToTailEntry() {
-        Register tailEntry = new MapRegister();
+    private Registers copyToTailEntry() {
+        Registers tailEntry = new MapRegisters();
 
         for (int i = 0; i < lhsTailLongIdx.length; i++) {
-            long temp = register.getLong(lhsTailLongIdx[i]);
-            tailEntry.setLong(i, temp);
+            long temp = registers.getLongRegister(lhsTailLongIdx[i]);
+            tailEntry.setLongRegister(i, temp);
         }
 
         for (int i = 0; i < lhsTailObjectIdx.length; i++) {
-            Object temp = register.getObject(lhsTailLongIdx[i]);
-            tailEntry.setObject(i, temp);
+            Object temp = registers.getObjectRegister(lhsTailLongIdx[i]);
+            tailEntry.setObjectRegister(i, temp);
         }
 
         return tailEntry;

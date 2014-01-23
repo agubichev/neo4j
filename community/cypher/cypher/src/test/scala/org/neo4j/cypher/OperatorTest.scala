@@ -47,14 +47,14 @@ class OperatorTest extends ExecutionEngineHelper {
   case class Object(idx: Int) extends TableKey
 
   implicit class RichOperator(inner: Operator) {
-    def toList(data: Register)(implicit table: Map[String, TableKey]): List[Map[String, Any]] = {
+    def toList(data: Registers)(implicit table: Map[String, TableKey]): List[Map[String, Any]] = {
       val resultBuilder = List.newBuilder[Map[String, Any]]
 
       while (inner.next()) {
         val result = new mutable.HashMap[String, Any]()
         table.foreach {
-          case (name, Long(idx)) => result += name -> data.getLong(idx)
-          case (name, Object(idx)) => result += name -> data.getObject(idx)
+          case (name, Long(idx)) => result += name -> data.getLongRegister(idx)
+          case (name, Object(idx)) => result += name -> data.getObjectRegister(idx)
         }
         resultBuilder += result.toMap
       }
@@ -64,13 +64,13 @@ class OperatorTest extends ExecutionEngineHelper {
   }
 
   @Test def all_nodes_on_empty_database() {
-    val allNodesScan = new AllNodesScanOp(ctx, new MapRegister(), 0)
+    val allNodesScan = new AllNodesScanOp(ctx, new MapRegisters(), 0)
     allNodesScan.open()
     assert(allNodesScan.next() === false, "Expected not to find any nodes")
   }
 
   @Test def all_nodes_on_database_with_three_nodes() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
     val allNodesScan = new AllNodesScanOp(ctx, data, 0)
 
     createNode()
@@ -83,7 +83,7 @@ class OperatorTest extends ExecutionEngineHelper {
   }
   
   @Test def labelScan() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
     val registerIdx = 0
     val labelToken = 0
 
@@ -99,7 +99,7 @@ class OperatorTest extends ExecutionEngineHelper {
   }
 
   @Test def expand() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
 
     val source = createLabeledNode("A")
     val destination = createNode()
@@ -120,7 +120,7 @@ class OperatorTest extends ExecutionEngineHelper {
 
 
   @Test def hash_join() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
 
     for (i <- 0.until(10)) {
       val middle = createLabeledNode("A", "B")
@@ -156,7 +156,7 @@ class OperatorTest extends ExecutionEngineHelper {
   }
 
   @Test def hash_join2() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
     val b = createNode()
     
     for(i <- 0 until 4) {
@@ -188,7 +188,7 @@ class OperatorTest extends ExecutionEngineHelper {
   }
 
   @Ignore @Test def performance_of_expand() {
-    val data = new MapRegister()
+    val data = new MapRegisters()
 
     for (i <- 0.until(10000)) {
       val source = createLabeledNode("A")

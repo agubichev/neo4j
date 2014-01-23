@@ -19,12 +19,12 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_0.newCompiler.runtime;
 
-public interface Register {
-    void setObject(int idx, Object value);
-    void setLong(int idx, long value);
+public interface Registers {
+    void setObjectRegister(int idx, Object value);
+    void setLongRegister(int idx, long value);
 
-    Object getObject(int idx);
-    long getLong(int idx);
+    Object getObjectRegister(int idx);
+    long getLongRegister(int idx);
 
-    Register copy();
+    Registers copy();
 }
