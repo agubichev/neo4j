@@ -21,6 +21,7 @@ package org.neo4j.cypher.internal.compiler.v2_0.newCompiler
 
 import org.neo4j.cypher.internal.compiler.v2_0.spi.PlanContext
 import org.neo4j.graphdb.Direction
+import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.runtime.Operator
 
 case class PartialPlan(lhs: Set[Id], rhs: Set[Id], plan: PhysicalPlan) {
   def update(current: Option[PartialPlan]): Option[PartialPlan] = current match {

@@ -83,4 +83,28 @@ class PlanGeneratorTest extends Assertions with MockitoSugar {
     // Then
     assert(ExpandRelationships(LabelScan(Id(0), Token(personLabelId), Cost(100, 1)), Direction.OUTGOING, Cost(500, 1)) === result)
   }
+
+  @Test def longer_path_with_values_pushing_a_hash_join() {
+    // MATCH (a:Person) -[:KNOWS]-> (b) <-[:KNOWS]- (c) RETURN c
+    // Given
+
+    val personLabelId: Int = 1337
+    val knowsTypeId: Int = 12
+
+    when(planContext.getLabelId("Person")).thenReturn(personLabelId)
+    when(planContext.getRelationshipTypeId("KNOWS")).thenReturn(knowsTypeId)
+    val queryGraph = QueryGraph(Id(1), Seq(
+      GraphRelationship(Id(0), Id(1), Direction.OUTGOING, Seq(RelationshipType("KNOWS"))),
+      GraphRelationship(Id(0), Id(1), Direction.INCOMING, Seq(RelationshipType("KNOWS")))
+    ), Seq(Id(0) -> NodeLabelSelection(Label("Person"))), Seq.empty)
+    when(costEstimator.costForAllNodes()).thenReturn(Cost(1000, 1))
+    when(costEstimator.costForScan(Token(personLabelId))).thenReturn(Cost(100, 1))
+    when(costEstimator.costForExpandRelationship(Seq.empty, Seq(Token(knowsTypeId)), Direction.OUTGOING)).thenReturn(Cost(500, 1))
+
+    // When
+    val result = generator.generatePlan(planContext, queryGraph)
+
+    // Then
+    assert(ExpandRelationships(LabelScan(Id(0), Token(personLabelId), Cost(100, 1)), Direction.OUTGOING, Cost(500, 1)) === result)
+  }
 }

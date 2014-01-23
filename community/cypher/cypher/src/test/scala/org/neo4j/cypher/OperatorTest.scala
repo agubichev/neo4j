@@ -20,72 +20,86 @@
 package org.neo4j.cypher
 
 import org.junit.{Ignore, After, Before, Test}
-import org.neo4j.cypher.internal.compiler.v2_0.newCompiler._
 import org.neo4j.graphdb._
-import scala.collection.mutable
 import org.neo4j.tooling.GlobalGraphOperations
-import java.lang.Iterable
 import org.neo4j.kernel.impl.util.PrimitiveLongIterator
-import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.ExpandOp
-import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.StatementContext
-import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.LabelScanOp
-import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.AllNodesScanOp
-import org.neo4j.cypher.internal.compiler.v2_0.spi.QueryContext
-import org.neo4j.cypher.internal.spi.v2_0.TransactionBoundExecutionContext
+import org.neo4j.cypher.internal.compiler.v2_0.newCompiler.runtime._
+import collection.mutable
 
 class OperatorTest extends ExecutionEngineHelper {
 
   var tx: Transaction = _
-  var stx: StatementContext = _
-  var ctx: QueryContext = _
+  var ctx: StatementContext = _
 
   @Before def init() {
     tx = graph.beginTx()
-    stx = StatementContext(statement)
-    ctx = new TransactionBoundExecutionContext(graph, tx, statement)
+    ctx = new StatementContext(statement, graph)
   }
 
   @After def after() {
     tx.close()
   }
 
-  @Ignore
+  trait TableKey
+
+  case class Long(idx: Int) extends TableKey
+
+  case class Object(idx: Int) extends TableKey
+
+  implicit class RichOperator(inner: Operator) {
+    def toList(data: Register)(implicit table: Map[String, TableKey]): List[Map[String, Any]] = {
+      val resultBuilder = List.newBuilder[Map[String, Any]]
+
+      while (inner.next()) {
+        val result = new mutable.HashMap[String, Any]()
+        table.foreach {
+          case (name, Long(idx)) => result += name -> data.getLong(idx)
+          case (name, Object(idx)) => result += name -> data.getObject(idx)
+        }
+        resultBuilder += result.toMap
+      }
+
+      resultBuilder.result()
+    }
+  }
+
   @Test def all_nodes_on_empty_database() {
-    val allNodesScan = AllNodesScanOp(stx, 0, new mutable.HashMap[Int, Any]())
+    val allNodesScan = new AllNodesScanOp(ctx, new MapRegister(), 0)
     allNodesScan.open()
     assert(allNodesScan.next() === false, "Expected not to find any nodes")
   }
 
-  @Ignore
   @Test def all_nodes_on_database_with_three_nodes() {
-    val data = new mutable.HashMap[Int, Any]()
-    val allNodesScan = AllNodesScanOp(stx, 0, data)
+    val data = new MapRegister()
+    val allNodesScan = new AllNodesScanOp(ctx, data, 0)
 
     createNode()
     createNode()
     createNode()
 
-    assert(allNodesScan.toList(data) === List(Map(0 -> 0), Map(0 -> 1), Map(0 -> 2)))
+    implicit val table = Map("a" -> Long(0))
+
+    assert(allNodesScan.toList(data) === List(Map("a" -> 0), Map("a" -> 1), Map("a" -> 2)))
   }
   
   @Test def labelScan() {
-    val data = new mutable.HashMap[Int, Any]()
+    val data = new MapRegister()
     val registerIdx = 0
     val labelToken = 0
 
     createNode()
     val a1 = createLabeledNode("A")
-
     createLabeledNode("B")
     val a2 = createLabeledNode("A")
 
-    val allNodesScan = LabelScanOp(stx, registerIdx, labelToken, data)
+    val allNodesScan = new LabelScanOp(ctx, registerIdx, labelToken, data)
 
-    assert(allNodesScan.toList(data) === List(Map(0 -> a1.getId), Map(0 -> a2.getId)))
+    implicit val table = Map("a" -> Long(0))
+    assert(allNodesScan.toList(data) === List(Map("a" -> a1.getId), Map("a" -> a2.getId)))
   }
 
   @Test def expand() {
-    val data = new mutable.HashMap[Int, Any]()
+    val data = new MapRegister()
 
     val source = createLabeledNode("A")
     val destination = createNode()
@@ -96,16 +110,17 @@ class OperatorTest extends ExecutionEngineHelper {
 
     val lhs = {
       val labelToken = 0
-      LabelScanOp(stx, sourceId, labelToken, data)
+      new LabelScanOp(ctx, sourceId, labelToken, data)
     }
-    val expand = ExpandOp(ctx, sourceId, destinationId, lhs, data)
+    val expand = new ExpandToNodeOp(ctx, sourceId, destinationId, lhs, data, Direction.OUTGOING)
 
-    assert(expand.toList(data) === List(Map(0 -> source.getId, 1 -> destinationId)))
+    implicit val table: Map[String, TableKey] = Map("a" -> Long(0), "b" -> Long(1))
+    assert(expand.toList(data) === List(Map("a" -> source.getId, "b" -> destination.getId)))
   }
 
 
   @Test def hash_join() {
-    val data = new mutable.HashMap[Int, Any]()
+    val data = new MapRegister()
 
     for (i <- 0.until(10)) {
       val middle = createLabeledNode("A", "B")
@@ -127,19 +142,53 @@ class OperatorTest extends ExecutionEngineHelper {
     val labelAToken = 0
     val labelBToken = 1
 
-    val labelScan1 = LabelScanOp(stx, id1, labelAToken, data)
-    val lhs = ExpandOp(ctx, id1, joinKeyId, labelScan1, data)
+    val labelScan1 = new LabelScanOp(ctx, id1, labelAToken, data)
+    val lhs = new ExpandToNodeOp(ctx, id1, joinKeyId, labelScan1, data, Direction.OUTGOING)
 
-    val labelScan2 = LabelScanOp(stx, id2, labelBToken, data)
-    val rhs = ExpandOp(ctx, id2, joinKeyId, labelScan2, data)
+    val labelScan2 = new LabelScanOp(ctx, id2, labelBToken, data)
+    val rhs = new ExpandToNodeOp(ctx, id2, joinKeyId, labelScan2, data, Direction.OUTGOING)
 
-    val hashJoin = HashJoinOp(stx, joinKeyId, Seq(id1), Seq(id2), lhs, rhs, data)
+    val hashJoin = new HashJoinOp(joinKeyId, Array(id1), Array.empty, lhs, rhs, data)
+
+    implicit val table = Map("a" -> Long(0), "b" -> Long(1), "c" -> Long(2))
 
     assert(hashJoin.toList(data).size === 6)
   }
 
+  @Test def hash_join2() {
+    val data = new MapRegister()
+    val b = createNode()
+    
+    for(i <- 0 until 4) {
+      val a = createLabeledNode("A")
+      relate(a, b)
+    }
+    for(i <- 0 until 4) {
+      val a = createLabeledNode("B")
+      relate(a, b)
+    }
+
+    val id1 = 0
+    val id2 = 1
+    val joinKeyId = 2
+    val labelAToken = 0
+    val labelBToken = 1
+
+    val labelScan1 = new LabelScanOp(ctx, id1, labelAToken, data)
+    val lhs = new ExpandToNodeOp(ctx, id1, joinKeyId, labelScan1, data, Direction.OUTGOING)
+
+    val labelScan2 = new LabelScanOp(ctx, id2, labelBToken, data)
+    val rhs = new ExpandToNodeOp(ctx, id2, joinKeyId, labelScan2, data, Direction.OUTGOING)
+
+    val hashJoin = new HashJoinOp(joinKeyId, Array(id1), Array.empty, lhs, rhs, data)
+
+    implicit val table = Map("a" -> Long(0), "b" -> Long(1), "c" -> Long(2))
+
+    assert(hashJoin.toList(data).size === 16)
+  }
+
   @Ignore @Test def performance_of_expand() {
-    val data = new mutable.HashMap[Int, Any]()
+    val data = new MapRegister()
 
     for (i <- 0.until(10000)) {
       val source = createLabeledNode("A")
@@ -166,9 +215,9 @@ class OperatorTest extends ExecutionEngineHelper {
         val start = System.nanoTime()
 
         val lhs = {
-          LabelScanOp(stx, sourceId, labelToken, data)
+          new LabelScanOp(ctx, sourceId, labelToken, data)
         }
-        val expand = ExpandOp(ctx, sourceId, destinationId, lhs, data)
+        val expand = new ExpandToNodeOp(ctx, sourceId, destinationId, lhs, data, Direction.OUTGOING)
 
         var count = 0
         expand.open()
@@ -221,10 +270,10 @@ class OperatorTest extends ExecutionEngineHelper {
       x =>
         val start = System.nanoTime()
         var count = 0
-        val labeledNodes: PrimitiveLongIterator = stx.read.nodesGetForLabel(labelToken)
+        val labeledNodes: PrimitiveLongIterator = ctx.read.nodesGetForLabel(labelToken)
         while(labeledNodes.hasNext) {
           val current = labeledNodes.next()
-          val rels = stx.read.relationshipsGetFromNode(current, Direction.OUTGOING)
+          val rels = ctx.read.relationshipsGetFromNode(current, Direction.OUTGOING)
           while(rels.hasNext) {
             count += 1
             rels.next()
