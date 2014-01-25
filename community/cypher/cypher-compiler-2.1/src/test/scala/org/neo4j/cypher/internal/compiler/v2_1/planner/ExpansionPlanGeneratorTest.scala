@@ -19,34 +19,33 @@
 // */
 //package org.neo4j.cypher.internal.compiler.v2_1.planner
 //
-//import org.scalatest.Assertions
-//import org.junit.Test
+//import org.scalatest.FunSuite
 //import org.scalatest.mock.MockitoSugar
 //import org.neo4j.cypher.internal.compiler.v2_1.spi.PlanContext
 //import org.mockito.Mockito._
 //import org.neo4j.graphdb.Direction
 //
-//class ExpansionPlanGeneratorTest extends Assertions with MockitoSugar {
+//class ExpansionPlanGeneratorTest extends FunSuite with MockitoSugar with PlanGeneratorTest {
 //
 //  val planContext = mock[PlanContext]
 //  val calculator = mock[CostCalculator]
 //  val estimator = mock[CardinalityEstimator]
 //  val generator = new ExpansionPlanGenerator(calculator, estimator)
-////
-//  @Test def simplePattern() {
+//
+//  test("single node pattern") {
 //    // MATCH (a) RETURN a
 //    // GIVEN
+//    val GIVEN = table(plan(Set(0), "plan0", 10))
 //    val queryGraph = QueryGraph(Id(0), Seq.empty, Seq.empty, Seq.empty)
-//    when(calculator.costForAllNodes(estimator.estimateAllNodes())).thenReturn(Cost(1000, 1))
 //
 //    // WHEN
-//    val result = generator.generatePlan(planContext, queryGraph)
+//    val resultPlan = generator.generatePlan(planContext, queryGraph, GIVEN)
 //
 //    // THEN
-//    assert(AllNodesScan(Id(0), Cost(1000, 1)) === result)
+//    assert(resultPlan === GIVEN)
 //  }
 //
-//  @Test def simpleLabeledPattern() {
+//  test("simpleLabeledPattern") {
 //    // MATCH (a:Person) RETURN a
 //    // Given
 //    val personLabelId: Int = 1337
@@ -61,7 +60,7 @@
 //    assert(LabelScan(Id(0), Token(personLabelId), Cost(100, 1)) === result)
 //  }
 //
-//  @Test def simpleRelationshipPatternWithCheaperLabelScan() {
+//  test("simpleRelationshipPatternWithCheaperLabelScan") {
 //    // MATCH (a:Person) -[:KNOWS]-> (b) RETURN a
 //    // Given
 //
@@ -84,7 +83,7 @@
 //    assert(ExpandRelationships(LabelScan(Id(0), Token(personLabelId), Cost(100, 1)), Direction.OUTGOING, Cost(500, 1)) === result)
 //  }
 //
-//  @Test def longer_path_with_values_pushing_a_hash_join() {
+//  test("longer_path_with_values_pushing_a_hash_join") {
 //    // MATCH (a:Person) -[:KNOWS]-> (b) <-[:KNOWS]- (c) RETURN c
 //    // Given
 //

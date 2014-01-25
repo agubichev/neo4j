@@ -13,22 +13,32 @@ case class CullingPlanGenerator() extends PlanGenerator {
     if (planTable.size < 2)
       return planTable
 
-    var sortedPlans = planTable.m.sortWith {
+    val sortedPlans: Seq[AbstractPlan] = sortPlans(planTable)
+    val culledPlans = cullPlans(null, sortedPlans)
+
+    PlanTable(culledPlans)
+  }
+
+
+  def sortPlans(planTable: PlanTable): Seq[AbstractPlan] = {
+    planTable.m.sortWith {
       case (plan1, plan2) => plan1.effort < plan2.effort
     }
+  }
 
-    var currentPlan: AbstractPlan = null
-
-    while (currentPlan != sortedPlans.last) {
-      // Get the next plan, or the first if we don't have a current plan
-      currentPlan = sortedPlans.apply(sortedPlans.indexOf(currentPlan) + 1)
-
-      sortedPlans = sortedPlans.filter {
-        case plan if currentPlan.covers(plan) && currentPlan != plan => false
-        case _ => true
-      }
+  private def cullPlans(current: AbstractPlan, plans: Seq[AbstractPlan]): Seq[AbstractPlan] =
+    if (plans.size < 2 || current == plans.last)
+      plans
+    else {
+      val nextPlan = plans.apply(plans.indexOf(current) + 1)
+      val newPlans = plans removePlansCoveredBy nextPlan
+      cullPlans(nextPlan, newPlans)
     }
 
-    PlanTable(sortedPlans)
+  implicit class RichPlan(inner: Seq[AbstractPlan]) {
+    def removePlansCoveredBy(that: AbstractPlan) = inner.filter {
+      case plan if that.covers(plan) && that != plan => false
+      case _ => true
+    }
   }
 }

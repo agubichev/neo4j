@@ -2,7 +2,7 @@ package org.neo4j.cypher.internal.compiler.v2_1.planner
 
 import org.scalatest.FunSuite
 
-class CullingPlanGeneratorTest extends FunSuite {
+class CullingPlanGeneratorTest extends FunSuite with PlanGeneratorTest {
   val planGenerator = CullingPlanGenerator()
 
   test("empty plan returns empty") {
@@ -88,15 +88,5 @@ class CullingPlanGeneratorTest extends FunSuite {
     assert(generatedPlanTable === EXPECTED)
   }
 
-  private def table(plans: Plan*): PlanTable = new PlanTable(plans)
-
-  private def plan(ids: Set[Int], name: String, effort: Int) = Plan(ids.map(Id.apply), name, Cost(effort, 1))
-
   private def cull(planTable: PlanTable) = planGenerator.generatePlan(null, null, planTable)
-
-  private case class Plan(coveredIds: Set[Id], name: String, effort: Cost) extends AbstractPlan {
-    def lhs: Option[AbstractPlan] = ???
-
-    def rhs: Option[AbstractPlan] = ???
-  }
 }
