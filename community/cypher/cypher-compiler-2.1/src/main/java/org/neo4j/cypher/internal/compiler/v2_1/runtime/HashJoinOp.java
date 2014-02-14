@@ -19,37 +19,45 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_1.runtime;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class HashJoinOp implements Operator {
-    private final int joinKeyId;
-    private final int[] lhsTailLongIdx;
-    private final int[] lhsTailObjectIdx;
+    private final Register<Long> joinRegister;
+    private final ArrayList<Register<Long>> lhsIdTail;
+    private final ArrayList<Register<Object>> lhsObjectTail;
     private final Operator lhs;
     private final Operator rhs;
-    private final Registers registers;
-    private final Map<Long, List<Registers>> bucket = new HashMap<>();
-    private int bucketPos = 0;
-    private List<Registers> currentBucketEntry = null;
 
-    public HashJoinOp(int joinKeyId, int[] lhsTailLongIdx, int[] lhsTailObjectIdx, Operator lhs, Operator rhs, Registers registers) {
-        this.joinKeyId = joinKeyId;
-        this.lhsTailLongIdx = lhsTailLongIdx;
-        this.lhsTailObjectIdx = lhsTailObjectIdx;
+    // Hash table entry: just a wrapper around the tail IDs and Objects
+    private class Entry {
+        public Long[] idTailValues;
+        public Object[] objTailValues;
+
+        public Entry(int idCount, int objCount){
+            idTailValues = new Long[idCount];
+            objTailValues = new Object[objCount];
+        }
+    }
+
+    private final Map<Long, List<Entry>> bucket = new HashMap<>();
+    private int bucketPos = 0;
+    private List<Entry> currentBucketEntry = null;
+
+    public HashJoinOp(Register<Long> joinRegister, ArrayList<Register<Long>> lhsIdTail, ArrayList<Register<Object>> lhsObjectTail,
+                      Operator lhs, Operator rhs) {
+        this.joinRegister = joinRegister;
+        this.lhsIdTail = lhsIdTail;
+        this.lhsObjectTail = lhsObjectTail;
         this.lhs = lhs;
         this.rhs = rhs;
-        this.registers = registers;
-
-        fillHashBucket();
     }
 
     @Override
     public void open() {
         lhs.open();
         rhs.open();
+
+        fillHashBucket();
     }
 
     @Override
@@ -71,7 +79,7 @@ public class HashJoinOp implements Operator {
     }
 
     private void produceMatchIfPossible() {
-        long key = registers.getLongRegister(joinKeyId);
+        long key = joinRegister.value;
         currentBucketEntry = bucket.get(key);
         bucketPos = 0;
     }
@@ -84,15 +92,15 @@ public class HashJoinOp implements Operator {
 
     private void fillHashBucket() {
         while (lhs.next()) {
-            long key = registers.getLongRegister(joinKeyId);
-            List<Registers> objects = getTailEntriesForId(key);
-            Registers tailEntry = copyToTailEntry();
-            objects.add(tailEntry);
+            Long key = joinRegister.value;
+            List<Entry> entries = getTailEntriesForId(key);
+            Entry tailEntry = copyToTailEntry();
+            entries.add(tailEntry);
         }
     }
 
-    private List<Registers> getTailEntriesForId(long key) {
-        List<Registers> objects = bucket.get(key);
+    private List<Entry> getTailEntriesForId(long key) {
+        List<Entry> objects = bucket.get(key);
         if (objects == null) {
             objects = new LinkedList<>();
             bucket.put(key, objects);
@@ -102,31 +110,27 @@ public class HashJoinOp implements Operator {
 
     private void restoreFromTailEntry() {
         int idx = bucketPos++;
-        Registers from = currentBucketEntry.get(idx);
-        Registers to = registers;
+        Entry from = currentBucketEntry.get(idx);
+        //Register to = registers;
 
-        for (int i = 0; i < lhsTailLongIdx.length; i++) {
-            long temp = from.getLongRegister(i);
-            to.setLongRegister(lhsTailLongIdx[i], temp);
+        for (int i = 0; i < lhsIdTail.size(); i++) {
+            lhsIdTail.get(i).value = from.idTailValues[i];
         }
 
-        for (int i = 0; i < lhsTailObjectIdx.length; i++) {
-            Object temp = from.getObjectRegister(i);
-            to.setObjectRegister(lhsTailObjectIdx[i], temp);
+        for (int i = 0; i < lhsObjectTail.size(); i++) {
+            lhsObjectTail.get(i).value = from.objTailValues[i];
         }
     }
 
-    private Registers copyToTailEntry() {
-        Registers tailEntry = new MapRegisters();
+    private Entry copyToTailEntry() {
+        Entry tailEntry = new Entry(lhsIdTail.size(), lhsObjectTail.size());
 
-        for (int i = 0; i < lhsTailLongIdx.length; i++) {
-            long temp = registers.getLongRegister(lhsTailLongIdx[i]);
-            tailEntry.setLongRegister(i, temp);
+        for (int i = 0; i < lhsIdTail.size(); i++) {
+            tailEntry.idTailValues[i] = lhsIdTail.get(i).value;
         }
 
-        for (int i = 0; i < lhsTailObjectIdx.length; i++) {
-            Object temp = registers.getObjectRegister(lhsTailLongIdx[i]);
-            tailEntry.setObjectRegister(i, temp);
+        for (int i = 0; i < lhsObjectTail.size(); i++) {
+            tailEntry.objTailValues[i] = lhsObjectTail.get(i).value;
         }
 
         return tailEntry;

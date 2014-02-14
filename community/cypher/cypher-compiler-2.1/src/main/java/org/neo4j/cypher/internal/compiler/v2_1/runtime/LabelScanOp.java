@@ -19,17 +19,16 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_1.runtime;
 
+import org.neo4j.cypher.internal.compiler.v2_1.planner.Token;
 import org.neo4j.kernel.impl.util.PrimitiveLongIterator;
 
 public class LabelScanOp implements Operator {
-    private final int registerIdx;
-    private final Registers registers;
+    private final Register<Long> register;
     private final PrimitiveLongIterator nodes;
 
-    public LabelScanOp(StatementContext ctx, int registerIdx, int labelToken, Registers registers) {
-        this.registerIdx = registerIdx;
-        this.registers = registers;
-        nodes = ctx.read().nodesGetForLabel(labelToken);
+    public LabelScanOp(StatementContext ctx, Token labelToken, Register<Long> register) {
+        this.register = register;
+        nodes = ctx.read().nodesGetForLabel(labelToken.value());
     }
 
     @Override
@@ -41,8 +40,8 @@ public class LabelScanOp implements Operator {
         if(!nodes.hasNext()) {
             return false;
         }
-
-        registers.setLongRegister(registerIdx, nodes.next());
+        register.value = nodes.next();
+        register.bound = true;
         return true;
     }
 

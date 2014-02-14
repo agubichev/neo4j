@@ -19,34 +19,19 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_1.runtime;
 
+
+/**
+  * Register holds the value that is passed between different operators in the query plan.
+  * Since getting and setting the value is one of the most time-critical operations in query processing,
+  * we keep Register as a (C-like) struct with public fields
+  */
 public class Register<T> {
-    private T value;
-    private boolean bound;
+    public T value;
+    public boolean bound;
 
     public Register()
     {
         bound = false;
-    }
-
-    public void setValue(T value)
-    {
-        bound = true;
-        this.value = value;
-    }
-
-    public T getValue()
-    {
-        return value;
-    }
-
-    public void setUnbound()
-    {
-        bound = false;
-    }
-
-    public boolean isUnbound()
-    {
-        return bound;
     }
 
     void reset()

@@ -33,7 +33,7 @@ public class StatementContext {
     private final Statement statement;
     private final GraphDatabaseService graph;
 
-    public StatementContext(Statement statement, GraphDatabaseService graph) {
+    public StatementContext(GraphDatabaseService graph, Statement statement) {
         this.statement = statement;
         this.graph = graph;
     }

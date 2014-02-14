@@ -25,19 +25,16 @@ import org.neo4j.kernel.impl.util.PrimitiveLongIterator;
 
 public class ExpandToNodeOp implements Operator {
     private final StatementContext ctx;
-    private final int sourceIdx;
-    private final int dstIdx;
     private final Operator sourceOp;
-    private final Registers registers;
+    private final Register<Long> registerSource, registerDest;
     private final Direction dir;
     private PrimitiveLongIterator currentNodes;
 
-    public ExpandToNodeOp(StatementContext ctx, int sourceIdx, int dstIdx, Operator sourceOp, Registers registers, Direction dir) {
+    public ExpandToNodeOp(StatementContext ctx, Operator sourceOp, Register<Long> registerSource, Register<Long> registerDest, Direction dir) {
         this.ctx = ctx;
-        this.sourceIdx = sourceIdx;
-        this.dstIdx = dstIdx;
         this.sourceOp = sourceOp;
-        this.registers = registers;
+        this.registerSource = registerSource;
+        this.registerDest = registerDest;
         this.dir = dir;
         this.currentNodes = IteratorUtil.emptyPrimitiveLongIterator();
     }
@@ -50,15 +47,14 @@ public class ExpandToNodeOp implements Operator {
     @Override
     public boolean next() {
         while (!currentNodes.hasNext() && sourceOp.next()) {
-            long fromNodeId = registers.getLongRegister(sourceIdx);
-            currentNodes = ctx.FAKEgetNodesRelatedBy(fromNodeId, dir);
+            currentNodes = ctx.FAKEgetNodesRelatedBy(registerSource.value, dir);
         }
 
         if (!currentNodes.hasNext())
             return false;
 
-        long nextNode = currentNodes.next();
-        registers.setLongRegister(dstIdx, nextNode);
+        registerDest.value = currentNodes.next();
+        registerDest.bound = true;
 
         return true;
     }

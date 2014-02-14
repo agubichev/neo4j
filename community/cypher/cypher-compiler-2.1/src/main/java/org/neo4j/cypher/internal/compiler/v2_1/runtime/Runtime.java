@@ -25,12 +25,14 @@ import java.util.ArrayList;
 
 public class Runtime {
     private GraphDatabaseService graph;
+    private StatementContext context;
     private ArrayList<Register<Long>> idRegisters;
     private ArrayList<Register<Object>> objectRegisters;
 
-    public Runtime(GraphDatabaseService graph)
+    public Runtime(GraphDatabaseService graph, StatementContext context)
     {
         this.graph = graph;
+        this.context = context;
         idRegisters = new ArrayList<Register<Long>>();
         objectRegisters = new ArrayList<Register<Object>>();
     }
@@ -59,12 +61,18 @@ public class Runtime {
             objectRegisters.add(new Register<Object>());
     }
 
-    public Register getIdRegister(int slot){
+    public Register<Long> getIdRegister(int slot){
         return idRegisters.get(slot);
     }
 
-    public Register getObjectRegister(int slot){
+    public Register<Object> getObjectRegister(int slot){
         return objectRegisters.get(slot);
     }
+
+    public GraphDatabaseService getDB(){
+        return graph;
+    }
+
+    public StatementContext getStatementContext() { return context; }
 
 }
