@@ -25,6 +25,8 @@ import org.neo4j.cypher.internal.compiler.v2_1.spi.TokenContext
 import org.neo4j.kernel.impl.api.operations.KeyReadOperations
 
 abstract class TransactionBoundTokenContext(statement: Statement) extends TokenContext {
+  override def getStatement = statement
+
   def getOptPropertyKeyId(propertyKeyName: String): Option[Int] =
     TokenContext.tryGet[PropertyKeyNotFoundException](getPropertyKeyId(propertyKeyName))
 

@@ -19,9 +19,9 @@
  */
 package org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v2_1.planner.{PlannerQuery, CantHandleQueryException}
-import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.QueryPlan
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.LogicalPlanningContext
+import org.neo4j.cypher.internal.compiler.v2_1.planner.CantHandleQueryException
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.QueryPlan
 
 object verifyBestPlan {
   def apply(plan: QueryPlan)(implicit context: LogicalPlanningContext): QueryPlan = {

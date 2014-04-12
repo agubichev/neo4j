@@ -30,7 +30,6 @@ class ASTRewriter(rewritingMonitor: AstRewritingMonitor, shouldExtractParameters
     val (extractParameters: Rewriter, extractedParameters: Map[String, Any]) = literalReplacement(statement)
 
     val rewriters = Seq.newBuilder[Rewriter]
-    rewriters += foldConstants
 
     if (shouldExtractParameters)
       rewriters += extractParameters

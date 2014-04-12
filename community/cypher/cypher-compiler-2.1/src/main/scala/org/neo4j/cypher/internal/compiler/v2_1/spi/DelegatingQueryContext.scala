@@ -29,6 +29,8 @@ class DelegatingQueryContext(inner: QueryContext) extends QueryContext {
   protected def singleDbHit[A](value: A): A = value
   protected def manyDbHits[A](value: Iterator[A]): Iterator[A] = value
 
+  override def getStatement = inner.getStatement
+
   def isOpen: Boolean = inner.isOpen
 
   def isTopLevelTx: Boolean = inner.isTopLevelTx

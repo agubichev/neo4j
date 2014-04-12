@@ -37,3 +37,6 @@ Apache Software License, Version 2.0
 BSD - Scala License
   Scala Library
 
+GNU General Public License, version 2 with the Classpath Exception
+  truffle
+

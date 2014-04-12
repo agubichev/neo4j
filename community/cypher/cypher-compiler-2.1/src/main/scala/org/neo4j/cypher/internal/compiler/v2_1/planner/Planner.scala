@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_1.planner
 import org.neo4j.cypher.internal.compiler.v2_1.ast._
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeBuilder
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical._
-import org.neo4j.cypher.internal.compiler.v2_1.planner.execution.PipeExecutionPlanBuilder
+import org.neo4j.cypher.internal.compiler.v2_1.planner.execution.{TruffleExecutionPlanBuilder, PipeExecutionPlanBuilder}
 import org.neo4j.cypher.internal.compiler.v2_1.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_1.{inSequence, bottomUp, ParsedQuery, Monitors}
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeInfo
@@ -39,7 +39,8 @@ case class Planner(monitors: Monitors,
                    strategy: PlanningStrategy = new QueryPlanningStrategy(),
                    queryGraphSolver: QueryGraphSolver = new GreedyQueryGraphSolver()) extends PipeBuilder {
 
-  val executionPlanBuilder:PipeExecutionPlanBuilder = maybeExecutionPlanBuilder.getOrElse(new PipeExecutionPlanBuilder(monitors))
+  val executionPlanBuilder: PipeExecutionPlanBuilder = maybeExecutionPlanBuilder.getOrElse(new PipeExecutionPlanBuilder(monitors))
+  val truffleExecutionPlanBuilder = new TruffleExecutionPlanBuilder(monitors)
 
   def producePlan(inputQuery: ParsedQuery, planContext: PlanContext): PipeInfo =
     producePlan(inputQuery.statement, inputQuery.semanticTable, inputQuery.queryText)(planContext)
@@ -52,7 +53,12 @@ case class Planner(monitors: Monitors,
         monitor.startedPlanning(query)
         val logicalPlan = produceQueryPlan(ast, semanticTable)(planContext).plan
         monitor.foundPlan(query, logicalPlan)
-        val result = executionPlanBuilder.build(logicalPlan)
+        val result = try {
+          truffleExecutionPlanBuilder.build(logicalPlan)
+        } catch {
+          case e: CantHandleQueryException =>
+            executionPlanBuilder.build(logicalPlan)
+        }
         monitor.successfulPlanning(query, result)
         result
 

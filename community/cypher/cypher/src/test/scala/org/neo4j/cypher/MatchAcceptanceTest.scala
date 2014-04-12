@@ -40,7 +40,7 @@ class MatchAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTe
     val n2 = createNode()
     relate(n1, n2, "A", Map("foo" -> "bar"))
 
-    val result = executeWithNewPlanner("match a-[r]->b where r.foo =~ {param} return b", "param" -> "bar")
+    val result = executeWithNewPlanner("return 42")
 
     result.columnAs("b").toList should equal (List(n2))
   }

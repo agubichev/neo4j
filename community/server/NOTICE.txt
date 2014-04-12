@@ -87,6 +87,7 @@ GNU General Public License, version 2 with the Classpath Exception
   Jetty Orbit :: Servlet API
   jsr311-api
   MIME streaming extension
+  truffle
 
 GNU Lesser General Public License, Version 2.1
   Logback Access Module

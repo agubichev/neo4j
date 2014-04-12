@@ -20,8 +20,11 @@
 package org.neo4j.cypher.internal.compiler.v2_1.spi
 
 import org.neo4j.kernel.api.exceptions.KernelException
+import org.neo4j.kernel.api.Statement
 
 trait TokenContext {
+  def getStatement: Statement = ???
+
   def getLabelName(id: Int): String
 
   def getOptLabelId(labelName: String): Option[Int]

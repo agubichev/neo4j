@@ -45,6 +45,8 @@ final class TransactionBoundQueryContext(graph: GraphDatabaseAPI,
                                          var statement: Statement)
   extends TransactionBoundTokenContext(statement) with QueryContext {
 
+  override def getStatement = statement
+
   private var open = true
   private val txBridge = graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge])
 

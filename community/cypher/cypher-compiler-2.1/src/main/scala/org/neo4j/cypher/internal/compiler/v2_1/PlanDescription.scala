@@ -30,7 +30,7 @@ import collection.JavaConverters._
 /**
  * Abstract description of an execution plan
  */
-sealed trait PlanDescription extends cypher.PlanDescription {
+trait PlanDescription extends cypher.PlanDescription {
   def arguments: Seq[Argument]
   def cd(name: String): PlanDescription = children.find(name).head
   def pipe: Pipe
