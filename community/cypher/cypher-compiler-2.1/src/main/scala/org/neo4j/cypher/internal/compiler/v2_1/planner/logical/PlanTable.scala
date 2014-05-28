@@ -26,7 +26,6 @@ import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.QueryPlanPr
 
 case class PlanTable(m: Map[Set[IdName], QueryPlan] = Map.empty) {
   def size = m.size
-
   def isEmpty = m.isEmpty
   def nonEmpty = !isEmpty
 

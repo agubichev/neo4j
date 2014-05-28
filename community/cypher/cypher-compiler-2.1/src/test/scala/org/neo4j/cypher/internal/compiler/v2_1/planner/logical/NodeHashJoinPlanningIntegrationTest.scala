@@ -34,9 +34,10 @@ class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPla
     implicit val planContext = newMockedPlanContext
     val factory = newMockedMetricsFactory
     when(factory.newCardinalityEstimator(any(), any(), any())).thenReturn((plan: LogicalPlan) => plan match {
-      case _: AllNodesScan                      => 200
-      case Expand(_, IdName("b"), _, _, _, _,_) => 10000
-      case _: Expand                            => 10
+      case AllNodesScan(_) => 100
+      case Expand(AllNodesScan(IdName("c")), IdName("c"), _, _, IdName("b"), _,_) => 3
+      case Expand(AllNodesScan(IdName("a")), IdName("a"), _, _, IdName("b"), _,_) => 100
+      case _: Expand                            => 100000
       case _: NodeHashJoin                      => 20
       case _                                    => Double.MaxValue
     })
@@ -47,8 +48,8 @@ class NodeHashJoinPlanningIntegrationTest extends CypherFunSuite with LogicalPla
         Selection(
           Seq(NotEquals(Identifier("r1")_,Identifier("r2")_)_),
           NodeHashJoin("b",
-            Expand(AllNodesScan("a"), "a", Direction.INCOMING, Seq(), "b", "r1", SimplePatternLength),
-            Expand(AllNodesScan("c"), "c", Direction.INCOMING, Seq(), "b", "r2", SimplePatternLength)
+            Expand(AllNodesScan("c"), "c", Direction.INCOMING, Seq(), "b", "r1", SimplePatternLength),
+            Expand(AllNodesScan("a"), "a", Direction.INCOMING, Seq(), "b", "r2", SimplePatternLength)
           )
         ),
         expressions = Map("b" -> Identifier("b")_)

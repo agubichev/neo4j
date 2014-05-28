@@ -55,7 +55,7 @@ class OuterJoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
     val left = newMockedQueryPlan(Set(aNode, bNode))
     val planTable = PlanTable(Map(Set(aNode, bNode) -> left))
 
-    outerJoin(planTable) should equal(CandidateList(Seq.empty))
+    outerJoin(planTable.plans) should equal(CandidateList(Seq.empty))
   }
 
   test("solve optional match with outer join") {
@@ -85,6 +85,6 @@ class OuterJoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
 
     val expectedPlan = planOuterHashJoin(aNode, left, innerPlan)
 
-    outerJoin(planTable).plans.head should equal(expectedPlan)
+    outerJoin(planTable.plans).plans.head should equal(expectedPlan)
   }
 }

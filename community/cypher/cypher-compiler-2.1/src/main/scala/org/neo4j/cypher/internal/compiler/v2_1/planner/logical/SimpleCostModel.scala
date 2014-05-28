@@ -27,7 +27,7 @@ import Metrics._
 
 class SimpleCostModel(cardinality: CardinalityModel) extends CostModel {
 
-  val HASH_TABLE_CONSTRUCTION_OVERHEAD_PER_ROW = 0.001
+  val HASH_TABLE_CONSTRUCTION_OVERHEAD_PER_ROW = 0.1
   val HASH_TABLE_LOOKUP_OVERHEAD_PER_ROW = 0.0005
   val EXPRESSION_PROJECTION_OVERHEAD_PER_ROW = 0.01
   val EXPRESSION_SELECTION_OVERHEAD_PER_ROW = EXPRESSION_PROJECTION_OVERHEAD_PER_ROW
@@ -97,9 +97,9 @@ class SimpleCostModel(cardinality: CardinalityModel) extends CostModel {
 
     case join: NodeHashJoin =>
       cost(join.left) +
-        cost(join.right) +
-        cardinality(join.left) * HASH_TABLE_CONSTRUCTION_OVERHEAD_PER_ROW +
-        cardinality(join.right) * HASH_TABLE_LOOKUP_OVERHEAD_PER_ROW
+      cost(join.right) +
+      cardinality(join.left) * HASH_TABLE_CONSTRUCTION_OVERHEAD_PER_ROW +
+      cardinality(join.right) * HASH_TABLE_LOOKUP_OVERHEAD_PER_ROW
 
     case outerJoin: OuterHashJoin =>
       cost(outerJoin.left) +

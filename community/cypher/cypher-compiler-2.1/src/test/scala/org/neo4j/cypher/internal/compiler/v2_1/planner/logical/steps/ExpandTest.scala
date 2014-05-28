@@ -46,7 +46,7 @@ class ExpandTest
     )
     val plan = PlanTable(Map(Set(aNode) -> planAllNodesScan(aNode)))
 
-    expand(plan) should equal(Candidates())
+    expand(plan.plans) should equal(Candidates())
   }
 
   test("finds single pattern relationship when start point is picked") {
@@ -57,7 +57,7 @@ class ExpandTest
     val planA = newMockedQueryPlan("a")
     val plan = PlanTable(Map(Set(aNode) -> planA))
 
-    expand(plan) should equal(Candidates(
+    expand(plan.plans) should equal(Candidates(
       planExpand(left = planA, from = aNode, Direction.OUTGOING, types = Seq.empty, to = bNode, rName, SimplePatternLength, rRel))
     )
   }
@@ -71,7 +71,7 @@ class ExpandTest
     val planB = newMockedQueryPlan("b")
     val plan = PlanTable(Map(Set(aNode) -> planA, Set(bNode) -> planB))
 
-    expand(plan) should equal(CandidateList(Seq(
+    expand(plan.plans) should equal(CandidateList(Seq(
       planExpand(left = planA, from = aNode, Direction.OUTGOING, types = Seq.empty, to = bNode, rName, SimplePatternLength, rRel),
       planExpand(left = planB, from = bNode, Direction.INCOMING, types = Seq.empty, to = aNode, rName, SimplePatternLength, rRel)
     )))
@@ -85,7 +85,7 @@ class ExpandTest
     val aAndB = newMockedQueryPlanWithPatterns(Set("a", "b"), Seq(rRel))
     val plan = PlanTable(Map(Set(aNode, bNode) -> aAndB))
 
-    expand(plan) should equal(Candidates())
+    expand(plan.plans) should equal(Candidates())
   }
 
   test("self referencing pattern is handled correctly") {
@@ -96,7 +96,7 @@ class ExpandTest
     val planA = newMockedQueryPlan("a")
     val plan = PlanTable(Map(Set(aNode) -> planA))
 
-    expand(plan) should equal(CandidateList(Seq(
+    expand(plan.plans) should equal(CandidateList(Seq(
       planHiddenSelection(Seq(Equals(Identifier(aNode.name) _, Identifier(aNode.name + "$$$") _) _),
         planExpand(left = planA, from = aNode, dir = Direction.OUTGOING, types = Seq.empty,
                    to = IdName(aNode.name + "$$$"), relName = rName, SimplePatternLength, rSelfRel)
@@ -111,7 +111,7 @@ class ExpandTest
     val aAndB = newMockedQueryPlan("a", "b")
     val plan = PlanTable(Map(Set(aNode) -> aAndB))
 
-    expand(plan) should equal(Candidates(
+    expand(plan.plans) should equal(Candidates(
       planHiddenSelection(Seq(Equals(Identifier(bNode.name)_, Identifier(bNode.name + "$$$")_)_),
         planExpand(left = aAndB, from = aNode, dir = Direction.OUTGOING, types = Seq.empty,
           to = IdName(bNode.name + "$$$"), relName = rName, SimplePatternLength, mockRel)
@@ -131,7 +131,7 @@ class ExpandTest
     val planA = newMockedQueryPlan("a")
     val plan = PlanTable(Map(Set(aNode) -> planA))
 
-    expand(plan) should equal(Candidates(
+    expand(plan.plans) should equal(Candidates(
       planExpand(left = planA, from = aNode, dir = Direction.OUTGOING, types = Seq.empty, to = bNode, relName = rName, rVarRel.length, rVarRel)
     ))
   }

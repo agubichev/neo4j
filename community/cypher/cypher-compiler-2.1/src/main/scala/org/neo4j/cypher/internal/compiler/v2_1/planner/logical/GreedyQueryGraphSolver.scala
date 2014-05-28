@@ -38,11 +38,16 @@ class GreedyQueryGraphSolver(config: PlanningStrategyConfiguration = PlanningStr
       bestLeafPlans.foldLeft(startTable)(_ + _)
     }
 
-    def findBestPlan(planGenerator: CandidateGenerator[PlanTable]) = {
+    def findBestPlan(planGenerator: CandidateGenerator[Seq[QueryPlan]]) = {
       (planTable: PlanTable) =>
-        val generated = planGenerator(planTable).plans.toList
+        val generated = planGenerator(planTable.plans).plans.toList
         val selected = generated.map(select)
+        println("selected: "+selected.toString())
+        if (selected.size > 0) {
+          println("covered IDs: " + selected.apply(0).availableSymbols.toList)
+        }
         val best = pickBest(CandidateList(selected))
+        println("best plan: "+best.toString())
         best.fold(planTable)(planTable + _)
     }
 

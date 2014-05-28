@@ -27,10 +27,10 @@ import org.neo4j.cypher.internal.compiler.v2_1.ast.Identifier
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.QueryGraphSolvingContext
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.QueryPlanProducer._
 
-object expand extends CandidateGenerator[PlanTable] {
-  def apply(planTable: PlanTable)(implicit context: QueryGraphSolvingContext): CandidateList = {
+object expand extends CandidateGenerator[Seq[QueryPlan]] {
+  def apply(plans: Seq[QueryPlan])(implicit context: QueryGraphSolvingContext): CandidateList = {
     val expandPlans = for {
-      plan <- planTable.plans
+      plan <- plans
       nodeId <- plan.solved.graph.patternNodes
       patternRel <- context.queryGraph.findRelationshipsEndingOn(nodeId)
       if !plan.solved.graph.patternRelationships(patternRel)

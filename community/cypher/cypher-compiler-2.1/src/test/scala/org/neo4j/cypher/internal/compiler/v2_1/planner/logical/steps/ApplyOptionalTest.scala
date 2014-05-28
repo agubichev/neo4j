@@ -54,7 +54,7 @@ class ApplyOptionalTest extends CypherFunSuite with LogicalPlanningTestSupport {
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
     val innerPlan = Expand(SingleRow(Set("a"))(), "a", Direction.OUTGOING, Seq.empty, "b", "r", SimplePatternLength)
 
-    val candidates = applyOptional(planTable)
+    val candidates = applyOptional(planTable.plans)
 
     // Then
     candidates.plans should have size 1
@@ -72,6 +72,6 @@ class ApplyOptionalTest extends CypherFunSuite with LogicalPlanningTestSupport {
       query = qg
     )
 
-    applyOptional(PlanTable()) should equal(Candidates())
+    applyOptional(PlanTable().plans) should equal(Candidates())
   }
 }

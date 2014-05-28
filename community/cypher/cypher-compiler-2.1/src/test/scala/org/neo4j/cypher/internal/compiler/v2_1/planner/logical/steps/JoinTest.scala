@@ -52,7 +52,7 @@ class JoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
       Set(bNode, cNode) -> right
     ))
 
-    join(planTable) should equal(Candidates(
+    join(planTable.plans) should equal(Candidates(
       planNodeHashJoin(IdName("b"), left, right),
       planNodeHashJoin(IdName("b"), right, left)
     ))
@@ -72,7 +72,7 @@ class JoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
       Set(cNode, dNode) -> right
     ))
 
-    join(planTable) should equal(Candidates(
+    join(planTable.plans) should equal(Candidates(
       planNodeHashJoin(IdName("b"), left, middle),
       planNodeHashJoin(IdName("b"), middle, left),
       planNodeHashJoin(IdName("c"), middle, right),
@@ -91,7 +91,7 @@ class JoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
       Set(aNode, bNode) -> left,
       Set(cNode) -> right
     ))
-    join(planTable) should equal(CandidateList())
+    join(planTable.plans) should equal(CandidateList())
   }
 
   test("does not join a plan with itself") {
@@ -103,6 +103,6 @@ class JoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
     val planTable = PlanTable(Map(
       Set(aNode) -> left
     ))
-    join(planTable) should equal(CandidateList())
+    join(planTable.plans) should equal(CandidateList())
   }
 }

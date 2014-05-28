@@ -33,9 +33,10 @@ trait Visitable[T] {
 class QueryPlanTreeStringVisitor(optContext: Option[QueryGraphSolvingContext] = None) extends Visitor[QueryPlan, String] {
   def visit(target: QueryPlan) = {
     val planRepr = target.plan.toString
+    val symbolsCovered = target.plan.availableSymbols
     val pqRepr = PlannerQueryStringVisitor.visit(target.solved)
 
-    s"QueryPlan(\nplan = $planRepr,\nsolved = $pqRepr)\n"
+    s"QueryPlan(\nplan = $planRepr,\nsolved = $pqRepr \ncovered = $symbolsCovered)\n"
   }
 }
 

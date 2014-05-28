@@ -24,11 +24,11 @@ import org.neo4j.cypher.internal.compiler.v2_1.planner.QueryGraph
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.QueryPlanProducer._
 
-object applyOptional extends CandidateGenerator[PlanTable] {
-  def apply(planTable: PlanTable)(implicit context: QueryGraphSolvingContext): CandidateList = {
+object applyOptional extends CandidateGenerator[Seq[QueryPlan]] {
+  def apply(plans: Seq[QueryPlan])(implicit context: QueryGraphSolvingContext): CandidateList = {
     val applyCandidates =
       for (optionalQG <- context.queryGraph.optionalMatches;
-           lhs <- planTable.plans if applicable(lhs, optionalQG))
+           lhs <- plans if applicable(lhs, optionalQG))
       yield {
         val rhs = context.strategy.plan(context.copy(queryGraph = optionalQG))
         planApply(lhs, planOptional(rhs))
