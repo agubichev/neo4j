@@ -24,13 +24,13 @@ import org.neo4j.cypher.internal.compiler.v2_1.planner.logical._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.QueryPlanProducer._
 
-object optionalExpand extends CandidateGenerator[PlanTable] {
+object optionalExpand extends CandidateGenerator[Seq[QueryPlan]] {
 
-  def apply(planTable: PlanTable)(implicit context: QueryGraphSolvingContext): CandidateList = {
+  def apply(plans: Seq[QueryPlan])(implicit context: QueryGraphSolvingContext): CandidateList = {
 
     val outerJoinPlans: Seq[QueryPlan] = for {
       optionalQG <- context.queryGraph.optionalMatches
-      lhs <- planTable.plans
+      lhs <- plans
       patternRel <- findSinglePatternRelationship(lhs, optionalQG)
       argumentId = optionalQG.argumentIds.head
       otherSide = patternRel.otherSide( argumentId )

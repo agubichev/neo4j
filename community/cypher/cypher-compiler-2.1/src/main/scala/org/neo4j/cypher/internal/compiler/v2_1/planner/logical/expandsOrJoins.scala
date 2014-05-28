@@ -20,11 +20,12 @@
 package org.neo4j.cypher.internal.compiler.v2_1.planner.logical
 
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.{join, expand}
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.QueryPlan
 
-object expandsOrJoins extends CandidateGenerator[PlanTable] {
-  def apply(planTable: PlanTable)(implicit context: QueryGraphSolvingContext): CandidateList = {
-    val expansions = expand(planTable)
-    val joins = join(planTable)
+object expandsOrJoins extends CandidateGenerator[Seq[QueryPlan]] {
+  def apply(plans: Seq[QueryPlan])(implicit context: QueryGraphSolvingContext): CandidateList = {
+    val expansions = expand(plans)
+    val joins = join(plans)
     expansions ++ joins
   }
 }

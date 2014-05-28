@@ -40,7 +40,7 @@ class CartesianProductTest extends CypherFunSuite with LogicalPlanningTestSuppor
     val cost = Map(plan.plan -> 1.0)
     implicit val (table, context) = prepare(cost, plan)
 
-    cartesianProduct(table) should equal(Candidates())
+    cartesianProduct(table.plans) should equal(Candidates())
   }
 
   test("cartesian product produces all possible combinations") {
@@ -50,7 +50,7 @@ class CartesianProductTest extends CypherFunSuite with LogicalPlanningTestSuppor
 
     implicit val (table, context) = prepare(cost, plan1, plan2)
 
-    cartesianProduct(table).plans.toSet should equal(Set(planCartesianProduct(plan1, plan2), planCartesianProduct(plan2, plan1)))
+    cartesianProduct(table.plans).plans.toSet should equal(Set(planCartesianProduct(plan1, plan2), planCartesianProduct(plan2, plan1)))
   }
 
   private def prepare(cost: LogicalPlan => Double, plans: QueryPlan*) = {

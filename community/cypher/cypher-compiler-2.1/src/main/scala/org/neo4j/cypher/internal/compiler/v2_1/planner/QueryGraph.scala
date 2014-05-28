@@ -76,6 +76,10 @@ trait QueryGraph extends GeneratedPretty {
       selections.predicates.subsetOf(other.selections.predicates)
   }
 
+  def coversSameNodesAs(other: QueryGraph): Boolean = {
+    patternNodes.equals(other.patternNodes)
+  }
+
   def covers(other: QueryGraph): Boolean = other.isCoveredBy(this)
 }
 

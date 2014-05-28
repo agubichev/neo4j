@@ -22,11 +22,11 @@ package org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.steps.QueryPlanProducer._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.CandidateList
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.QueryPlan
 
-object cartesianProduct extends CandidateGenerator[PlanTable] {
-  def apply(planTable: PlanTable)(implicit context: QueryGraphSolvingContext): CandidateList = {
-    if (planTable.size > 1) {
-      val plans = planTable.plans
+object cartesianProduct extends CandidateGenerator[Seq[QueryPlan]] {
+  def apply(plans: Seq[QueryPlan])(implicit context: QueryGraphSolvingContext): CandidateList = {
+    if (plans.size > 1) {
       val cartesianProducts =
         for {
           planA <- plans

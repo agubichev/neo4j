@@ -52,7 +52,7 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
     val innerPlan = planOptionalExpand(inputPlan, IdName("a"), Direction.OUTGOING, Seq.empty, IdName("b"), IdName("r1"), SimplePatternLength, Seq.empty, optionalMatch)
 
-    optionalExpand(planTable) should equal(Candidates(innerPlan))
+    optionalExpand(planTable.plans) should equal(Candidates(innerPlan))
   }
 
   test("should not introduce optional expand when there's more than one unsolved pattern relationship") {
@@ -70,7 +70,7 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
 
     val inputPlan = planArgumentRow(Set("a"))
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
-    optionalExpand(planTable) should equal(Candidates())
+    optionalExpand(planTable.plans) should equal(Candidates())
   }
 
   test("should introduce optional expand and bring along predicates on the relationship") {
@@ -90,7 +90,7 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
     val innerPlan = planOptionalExpand(inputPlan, IdName("a"), Direction.OUTGOING, Seq.empty, IdName("b"), IdName("r1"), SimplePatternLength, Seq(r1Predicate), optionalMatch)
 
-    optionalExpand(planTable) should equal(Candidates(innerPlan))
+    optionalExpand(planTable.plans) should equal(Candidates(innerPlan))
   }
 
   test("should introduce optional expand and bring along predicates on the end node") {
@@ -110,7 +110,7 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
     val innerPlan = planOptionalExpand(inputPlan, IdName("a"), Direction.OUTGOING, Seq.empty, IdName("b"), IdName("r1"), SimplePatternLength, Seq(bPredicate), optionalMatch)
 
-    optionalExpand(planTable) should equal(Candidates(innerPlan))
+    optionalExpand(planTable.plans) should equal(Candidates(innerPlan))
   }
 
   test("should introduce optional expand with the right relationship direction") {
@@ -130,7 +130,7 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
     val planTable = PlanTable(Map(Set(IdName("a")) -> inputPlan))
     val innerPlan = planOptionalExpand(inputPlan, IdName("a"), Direction.INCOMING, Seq.empty, IdName("b"), IdName("r3"), SimplePatternLength, Seq(bPredicate), optionalMatch)
 
-    optionalExpand(planTable) should equal(Candidates(innerPlan))
+    optionalExpand(planTable.plans) should equal(Candidates(innerPlan))
   }
 
   test("should not introduce optional expand until predicates have their dependencies satisfied") {
@@ -152,6 +152,6 @@ class OptionalExpandTest extends CypherFunSuite with LogicalPlanningTestSupport 
     val inputPlan = planArgumentRow(Set("b"))
     val planTable = PlanTable(Map(Set(IdName("b")) -> inputPlan))
 
-    optionalExpand(planTable) should equal(CandidateList(Seq()))
+    optionalExpand(planTable.plans) should equal(CandidateList(Seq()))
   }
 }

@@ -148,6 +148,9 @@ trait LogicalPlanningTestSupport
   def newPlanner(metricsFactory: MetricsFactory): Planner =
     new Planner(monitors, metricsFactory, monitors.newMonitor[PlanningMonitor]())
 
+  def newDPPlanner(metricsFactory: MetricsFactory): Planner =
+    new Planner(monitors, metricsFactory, monitors.newMonitor[PlanningMonitor](), new SimpleTokenResolver(), new SimplePlannerQueryBuilder(), None, new QueryPlanningStrategy(), new DPQueryGraphSolver())
+
   def produceQueryPlan(queryText: String)(implicit planner: Planner, planContext: PlanContext): QueryPlan = {
     val parsedStatement = parser.parse(queryText)
     semanticChecker.check(queryText, parsedStatement)

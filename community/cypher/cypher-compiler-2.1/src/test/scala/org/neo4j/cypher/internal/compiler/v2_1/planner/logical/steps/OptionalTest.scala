@@ -58,7 +58,7 @@ class OptionalTest extends CypherFunSuite with LogicalPlanningTestSupport {
 
     val planTable = PlanTable(Map())
 
-    optional(planTable).plans should equal(Seq(planOptional(fakePlan)))
+    optional(planTable.plans).plans should equal(Seq(planOptional(fakePlan)))
   }
 
   test("should solve multiple optional matches") {
@@ -96,7 +96,7 @@ class OptionalTest extends CypherFunSuite with LogicalPlanningTestSupport {
 
     val planTable = PlanTable(Map())
 
-    optional(planTable).plans should equal(Seq(planOptional(fakePlan1)))
+    optional(planTable.plans).plans should equal(Seq(planOptional(fakePlan1)))
   }
 }
 
