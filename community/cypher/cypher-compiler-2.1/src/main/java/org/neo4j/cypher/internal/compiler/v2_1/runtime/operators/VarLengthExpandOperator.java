@@ -105,7 +105,6 @@ public class VarLengthExpandOperator extends Operator
                 if (!left.next( frame )) {
                     return false;
                 }
-
                 long nodeId = FrameUtil.getLongSafe( frame, fromSlot );
                 stack.push(new long[] { nodeId });
             }

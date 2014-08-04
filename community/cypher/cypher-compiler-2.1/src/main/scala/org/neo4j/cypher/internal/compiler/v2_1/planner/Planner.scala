@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.compiler.v2_1.planner
 import org.neo4j.cypher.internal.compiler.v2_1.ast._
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeBuilder
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical._
-import org.neo4j.cypher.internal.compiler.v2_1.planner.execution.{TruffleExecutionPlanBuilder, PipeExecutionPlanBuilder}
+import org.neo4j.cypher.internal.compiler.v2_1.planner.execution.{TrufflePushModelExecutionPlanBuilder, TruffleExecutionPlanBuilder, PipeExecutionPlanBuilder}
 import org.neo4j.cypher.internal.compiler.v2_1.spi.PlanContext
 import org.neo4j.cypher.internal.compiler.v2_1.{inSequence, bottomUp, ParsedQuery, Monitors}
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeInfo
@@ -40,7 +40,7 @@ case class Planner(monitors: Monitors,
                    queryGraphSolver: QueryGraphSolver = new GreedyQueryGraphSolver()) extends PipeBuilder {
 
   val executionPlanBuilder: PipeExecutionPlanBuilder = maybeExecutionPlanBuilder.getOrElse(new PipeExecutionPlanBuilder(monitors))
-  val truffleExecutionPlanBuilder = new TruffleExecutionPlanBuilder(monitors)
+  val truffleExecutionPlanBuilder = new TrufflePushModelExecutionPlanBuilder(monitors)
 
   def producePlan(inputQuery: ParsedQuery, planContext: PlanContext): PipeInfo =
     producePlan(inputQuery.statement, inputQuery.semanticTable, inputQuery.queryText)(planContext)
@@ -48,15 +48,20 @@ case class Planner(monitors: Monitors,
   private def producePlan(statement: Statement, semanticTable: SemanticTable, query: String)(planContext: PlanContext): PipeInfo = {
     // TODO: When Ronja is the only planner around, move this to ASTRewriter
     val rewrittenStatement = rewriteStatement(statement)
+
     rewrittenStatement match {
       case ast: Query =>
         monitor.startedPlanning(query)
         val logicalPlan = produceQueryPlan(ast, semanticTable)(planContext).plan
         monitor.foundPlan(query, logicalPlan)
         val result = try {
-          truffleExecutionPlanBuilder.build(logicalPlan)
+          val r = truffleExecutionPlanBuilder.build(logicalPlan)
+          println("Truffle succeded")
+          r
         } catch {
           case e: CantHandleQueryException =>
+            println("Truffle failed")
+            println(e.toString)
             executionPlanBuilder.build(logicalPlan)
         }
         monitor.successfulPlanning(query, result)

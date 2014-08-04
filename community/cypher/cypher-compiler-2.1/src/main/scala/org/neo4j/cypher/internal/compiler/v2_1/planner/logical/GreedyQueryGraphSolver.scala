@@ -42,12 +42,7 @@ class GreedyQueryGraphSolver(config: PlanningStrategyConfiguration = PlanningStr
       (planTable: PlanTable) =>
         val generated = planGenerator(planTable.plans).plans.toList
         val selected = generated.map(select)
-        println("selected: "+selected.toString())
-        if (selected.size > 0) {
-          println("covered IDs: " + selected.apply(0).availableSymbols.toList)
-        }
         val best = pickBest(CandidateList(selected))
-        println("best plan: "+best.toString())
         best.fold(planTable)(planTable + _)
     }
 
@@ -56,6 +51,8 @@ class GreedyQueryGraphSolver(config: PlanningStrategyConfiguration = PlanningStr
     val afterOptionalApplies = iterateUntilConverged(findBestPlan(optionalMatches))(afterExpandOrJoin)
     val afterCartesianProduct = iterateUntilConverged(findBestPlan(cartesianProduct))(afterOptionalApplies)
 
-    afterCartesianProduct.uniquePlan
+    var p = afterCartesianProduct.uniquePlan
+    println("best plan " + p)
+    p
   }
 }

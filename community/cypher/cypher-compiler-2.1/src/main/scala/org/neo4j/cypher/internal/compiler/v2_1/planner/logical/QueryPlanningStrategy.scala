@@ -59,6 +59,7 @@ class QueryPlanningStrategy(config: PlanningStrategyConfiguration = PlanningStra
     val selectedPlan = config.applySelections(plan)(context.asQueryGraphSolvingContext(graph))
     val projectedPlan = queryProjection match {
       case aggr:AggregationProjection =>
+        println("aggregation "+aggr)
         val aggregationPlan = aggregation(selectedPlan, aggr)
         sortSkipAndLimit(aggregationPlan)
 
@@ -66,6 +67,7 @@ class QueryPlanningStrategy(config: PlanningStrategyConfiguration = PlanningStra
         val sortedAndLimited = sortSkipAndLimit(selectedPlan)
         projection(sortedAndLimited, queryProjection.projections)
     }
+    println("projected plan: "+projectedPlan)
     projectedPlan
   }
 }

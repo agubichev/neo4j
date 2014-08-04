@@ -35,6 +35,7 @@ public abstract class Expression extends Node
     {
         try
         {
+            System.out.println("executing to bool");
             return executeToBoolean( frame );
         }
         catch ( UnexpectedResultException e )

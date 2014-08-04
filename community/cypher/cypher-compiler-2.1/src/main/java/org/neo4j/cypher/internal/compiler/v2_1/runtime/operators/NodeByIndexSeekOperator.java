@@ -24,6 +24,7 @@ import com.oracle.truffle.api.frame.FrameUtil;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.NodeInfo;
 
+import com.oracle.truffle.api.nodes.UnexpectedResultException;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.cypher.internal.compiler.v2_1.runtime.Expression;
 import org.neo4j.cypher.internal.compiler.v2_1.runtime.Operator;
@@ -72,6 +73,7 @@ public class NodeByIndexSeekOperator extends Operator
         {
             throw new RuntimeException( e );
         }
+
         frame.setObject( iteratorSlot, it );
     }
 

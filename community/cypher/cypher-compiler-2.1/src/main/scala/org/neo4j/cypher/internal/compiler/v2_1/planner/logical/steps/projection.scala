@@ -33,10 +33,12 @@ object projection {
     val projectAllCoveredIds = ids.map {
       case IdName(id) => id -> ast.Identifier(id)(null)
     }.toMap
-
-    if (projectionsMap == projectAllCoveredIds)
-      planStarProjection(plan, projectionsMap)
-    else
-      planRegularProjection(plan, projectionsMap)
+    //println("project all covered: "+projectAllCoveredIds)
+    //if (projectionsMap == projectAllCoveredIds){
+    //  println("plan star projection")
+    //  planStarProjection(plan, projectionsMap)
+   // }
+    //else
+    planRegularProjection(plan, projectionsMap)
   }
 }

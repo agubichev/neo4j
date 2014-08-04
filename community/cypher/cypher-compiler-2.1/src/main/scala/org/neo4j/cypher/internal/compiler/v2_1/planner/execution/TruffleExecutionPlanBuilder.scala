@@ -22,8 +22,8 @@ package org.neo4j.cypher.internal.compiler.v2_1.planner.execution
 import org.neo4j.cypher.internal.compiler.v2_1.pipes._
 import org.neo4j.cypher.internal.compiler.v2_1._
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans._
-import org.neo4j.cypher.internal.compiler.v2_1.planner.CantHandleQueryException
-import org.neo4j.cypher.internal.compiler.v2_1.runtime.{RootNode, Expression, Operator}
+import org.neo4j.cypher.internal.compiler.v2_1.planner.{AggregationProjection, CantHandleQueryException}
+import org.neo4j.cypher.internal.compiler.v2_1.runtime.{Expression, RootNode, Operator}
 import org.neo4j.cypher.internal.compiler.v2_1.runtime.operators._
 import com.oracle.truffle.api.frame._
 import org.neo4j.cypher.internal.compiler.v2_1.runtime.expressions.{RelationshipTypeId, PropertyKeyId,
@@ -42,7 +42,7 @@ import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeIndexSe
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.OptionalExpand
 import org.neo4j.cypher.internal.compiler.v2_1.Monitors
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Expand
-import org.neo4j.cypher.internal.compiler.v2_1.ast.RelTypeName
+import org.neo4j.cypher.internal.compiler.v2_1.ast.{FunctionName, NotEquals, RelTypeName}
 import org.neo4j.cypher.internal.compiler.v2_1.pipes.QueryState
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeByLabelScan
 import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeInfo
@@ -56,30 +56,37 @@ import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.AllNodesSca
 import org.neo4j.cypher.internal.compiler.v2_1.symbols.SymbolTable
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.SingleRow
 import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Projection
+import org.neo4j.cypher.internal.compiler.v2_1.pushruntime.OperatorPush
+import org.neo4j.cypher.internal.compiler.v2_1.pushruntime.{RootNode => PushRootNode}
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeIndexUniqueSeek
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeIndexSeek
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.OptionalExpand
+import org.neo4j.cypher.internal.compiler.v2_1.Monitors
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Expand
+import org.neo4j.cypher.internal.compiler.v2_1.PlanDescriptionImpl
+import org.neo4j.cypher.internal.compiler.v2_1.pipes.QueryState
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Limit
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeByLabelScan
+import org.neo4j.cypher.internal.compiler.v2_1.executionplan.PipeInfo
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.SemiApply
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.CartesianProduct
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Selection
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Sort
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeHashJoin
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.IdName
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Apply
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.NodeByIdSeek
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.AllNodesScan
+import org.neo4j.cypher.internal.compiler.v2_1.symbols.SymbolTable
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.SingleRow
+import org.neo4j.cypher.internal.compiler.v2_1.SingleChild
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Projection
+import org.neo4j.cypher.internal.compiler.v2_1.planner.logical.plans.Skip
 
-case class ProxyProjectionPipe(operator: Operator, projection: Array[String],
-                               descriptor: FrameDescriptor)
-                              (implicit val monitor: PipeMonitor) extends Pipe {
-  val paramSlots = descriptor.getSlots.toArray.map(_.asInstanceOf[FrameSlot]).filter { slot =>
-    val identifier = slot.getIdentifier.asInstanceOf[String]
-    identifier.startsWith("__param__")
-  }
-  val rootNode: RootNode = new RootNode(operator, descriptor, projection.length, paramSlots)
-  val target: CallTarget = Truffle.getRuntime.createCallTarget( rootNode )
-  val paramNames = paramSlots.map { slot =>
-    slot.getIdentifier.asInstanceOf[String].substring("__param__".length)
-  }
 
-  def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val paramValues = paramNames.map(state.params.getOrElse(_, null)).asInstanceOf[Array[Object]]
-    val result = target.call( state.db, state.query.getStatement, paramValues ).asInstanceOf[Array[Object]]
-    result.iterator.map { rowRef: AnyRef =>
-      val row = rowRef.asInstanceOf[Array[Object]]
-      ExecutionContext.empty.newFrom(projection.zip(row).toSeq)
-    }
-  }
-
+abstract class ProxyPipe extends Pipe {
   def exists(pred: Pipe => Boolean) = pred(this)
+  def rootNode: com.oracle.truffle.api.nodes.RootNode = null
 
   def planDescription: PlanDescription = {
     val that = this
@@ -134,82 +141,114 @@ case class ProxyProjectionPipe(operator: Operator, projection: Array[String],
   }
 
   def symbols = SymbolTable()
+
+}
+case class ProxyProjectionPipe(operator: Operator, projection: Array[String],
+                               descriptor: FrameDescriptor)
+                              (implicit val monitor: PipeMonitor) extends ProxyPipe {
+  val paramSlots = descriptor.getSlots.toArray.map(_.asInstanceOf[FrameSlot]).filter { slot =>
+    val identifier = slot.getIdentifier.asInstanceOf[String]
+    identifier.startsWith("__param__")
+  }
+  override def rootNode: RootNode = new RootNode(operator, descriptor, projection.length, paramSlots)
+  val target: CallTarget = Truffle.getRuntime.createCallTarget( rootNode )
+  val paramNamesCallTarget = paramSlots.map { slot =>
+    slot.getIdentifier.asInstanceOf[String].substring("__param__".length)
+  }
+
+  def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+    val paramValues = paramNames.map(state.params.getOrElse(_, null)).asInstanceOf[Array[Object]]
+    val result = target.call( state.db, state.query.getStatement, paramValues ).asInstanceOf[Array[Object]]
+    result.iterator.map { rowRef: AnyRef =>
+      val row = rowRef.asInstanceOf[Array[Object]]
+      ExecutionContext.empty.newFrom(projection.zip(row).toSeq)
+    }
+  }
 }
 
 class TruffleExecutionPlanBuilder(monitors: Monitors) {
+
+  var descriptor: FrameDescriptor = null
+
+  def addFrameSlot(name: String, kind: FrameSlotKind): FrameSlot =
+    descriptor.addFrameSlot(name, kind)
+  def findFrameSlot(name: String): FrameSlot =
+    descriptor.findFrameSlot(name)
+  def addNodeFrameSlot(name: String): FrameSlot =
+    descriptor.addFrameSlot("__node__" + name, FrameSlotKind.Long)
+  def addOptionalNodeFrameSlot(name: String): FrameSlot =
+    descriptor.addFrameSlot("__node__" + name, FrameSlotKind.Object)
+  def findNodeFrameSlot(name: String): FrameSlot =
+    descriptor.findFrameSlot("__node__" + name)
+  def findOrAddNodeFrameSlot(name: String): FrameSlot =
+    descriptor.findOrAddFrameSlot("__node__" + name, FrameSlotKind.Long)
+  def findOrAddOptionalNodeFrameSlot(name: String): FrameSlot =
+    descriptor.findOrAddFrameSlot("__node__" + name, FrameSlotKind.Object)
+  def addRelationshipFrameSlot(name: String): FrameSlot =
+    descriptor.addFrameSlot("__rel__" + name, FrameSlotKind.Long)
+  def addOptionalRelationshipFrameSlot(name: String): FrameSlot =
+    descriptor.addFrameSlot("__rel__" + name, FrameSlotKind.Object)
+  def findRelationshipFrameSlot(name: String): FrameSlot =
+    descriptor.findFrameSlot("__rel__" + name)
+
+  var i = 0
+  def addAnonymousFrameSlot(kind: FrameSlotKind): FrameSlot = {
+    i += 1
+    descriptor.addFrameSlot("__anonymous__" + i, kind)
+  }
+
+
+  def buildExpression(e: ast.Expression): Expression = e match {
+    case l: ast.BooleanLiteral =>
+      new BooleanLiteral(l.value.asInstanceOf[java.lang.Boolean])
+    case l: ast.IntegerLiteral =>
+      new LongLiteral(l.value)
+    case l: ast.StringLiteral =>
+      new StringLiteral(l.value)
+    case ast.Not(right) =>
+      NotFactory.create(buildExpression(right))
+    case ast.NotEquals(left, right) =>
+      NotFactory.create(EqualsFactory.create(buildExpression(left), buildExpression(right)))
+    case ast.And(left, right) =>
+      AndFactory.create(buildExpression(left), buildExpression(right))
+    case ast.Or(left, right) =>
+      OrFactory.create(buildExpression(left), buildExpression(right))
+    case ast.GreaterThan(left, right) =>
+      GreaterThanFactory.create(buildExpression(left), buildExpression(right))
+    case ast.LessThan(left, right) =>
+      LessThanFactory.create(buildExpression(left), buildExpression(right))
+    case ast.Equals(left, right) =>
+      EqualsFactory.create(buildExpression(left), buildExpression(right))
+    case ast.Property(identifier, ast.PropertyKeyName(propertyName)) =>
+      NodeGetPropertyFactory.create(
+        buildExpression(identifier),
+        new PropertyKeyId(propertyName)
+      )
+    case ast.HasLabels(identifier, Seq(ast.LabelName(labelName))) =>
+      HasLabelFactory.create(
+        buildExpression(identifier),
+        new LabelId(labelName)
+      )
+    case ast.Identifier(name) =>
+      val slot = Option(findNodeFrameSlot(name))
+        .orElse(Option(findRelationshipFrameSlot(name)))
+        .getOrElse(findFrameSlot(name))
+      ReadFactory.create(slot)
+    case ast.Parameter(name) =>
+      new ReadParam( descriptor.findOrAddFrameSlot( "__param__" + name, FrameSlotKind.Object ) )
+    case ast.FunctionInvocation(FunctionName(count), distinct, args)=>
+       ReadFactory.create(descriptor.addFrameSlot("__count__"+args.mkString, FrameSlotKind.Long))
+    case _ =>
+      throw new CantHandleQueryException()
+  }
+
   def build(plan: LogicalPlan): PipeInfo = {
     val updating = false
 
-    val descriptor = new FrameDescriptor()
-    def addFrameSlot(name: String, kind: FrameSlotKind): FrameSlot =
-      descriptor.addFrameSlot(name, kind)
-    def findFrameSlot(name: String): FrameSlot =
-      descriptor.findFrameSlot(name)
-    def addNodeFrameSlot(name: String): FrameSlot =
-      descriptor.addFrameSlot("__node__" + name, FrameSlotKind.Long)
-    def addOptionalNodeFrameSlot(name: String): FrameSlot =
-      descriptor.addFrameSlot("__node__" + name, FrameSlotKind.Object)
-    def findNodeFrameSlot(name: String): FrameSlot =
-      descriptor.findFrameSlot("__node__" + name)
-    def findOrAddNodeFrameSlot(name: String): FrameSlot =
-      descriptor.findOrAddFrameSlot("__node__" + name, FrameSlotKind.Long)
-    def findOrAddOptionalNodeFrameSlot(name: String): FrameSlot =
-      descriptor.findOrAddFrameSlot("__node__" + name, FrameSlotKind.Object)
-    def addRelationshipFrameSlot(name: String): FrameSlot =
-      descriptor.addFrameSlot("__rel__" + name, FrameSlotKind.Long)
-    def addOptionalRelationshipFrameSlot(name: String): FrameSlot =
-      descriptor.addFrameSlot("__rel__" + name, FrameSlotKind.Object)
-    def findRelationshipFrameSlot(name: String): FrameSlot =
-      descriptor.findFrameSlot("__rel__" + name)
-    var i = 0
-    def addAnonymousFrameSlot(kind: FrameSlotKind): FrameSlot = {
-      i += 1
-      descriptor.addFrameSlot("__anonymous__" + i, kind)
-    }
-
-    def buildExpression(e: ast.Expression): Expression = e match {
-      case l: ast.BooleanLiteral =>
-        new BooleanLiteral(l.value.asInstanceOf[java.lang.Boolean])
-      case l: ast.IntegerLiteral =>
-        new LongLiteral(l.value)
-      case l: ast.StringLiteral =>
-        new StringLiteral(l.value)
-      case ast.Not(right) =>
-        NotFactory.create(buildExpression(right))
-      case ast.NotEquals(left, right) =>
-        NotFactory.create(EqualsFactory.create(buildExpression(left), buildExpression(right)))
-      case ast.And(left, right) =>
-        AndFactory.create(buildExpression(left), buildExpression(right))
-      case ast.Or(left, right) =>
-        OrFactory.create(buildExpression(left), buildExpression(right))
-      case ast.GreaterThan(left, right) =>
-        GreaterThanFactory.create(buildExpression(left), buildExpression(right))
-      case ast.LessThan(left, right) =>
-        LessThanFactory.create(buildExpression(left), buildExpression(right))
-      case ast.Equals(left, right) =>
-        EqualsFactory.create(buildExpression(left), buildExpression(right))
-      case ast.Property(identifier, ast.PropertyKeyName(propertyName)) =>
-        NodeGetPropertyFactory.create(
-          buildExpression(identifier),
-          new PropertyKeyId(propertyName)
-        )
-      case ast.HasLabels(identifier, Seq(ast.LabelName(labelName))) =>
-        HasLabelFactory.create(
-          buildExpression(identifier),
-          new LabelId(labelName)
-        )
-      case ast.Identifier(name) =>
-        val slot = Option(findNodeFrameSlot(name))
-          .orElse(Option(findRelationshipFrameSlot(name)))
-          .getOrElse(findFrameSlot(name))
-        ReadFactory.create(slot)
-      case ast.Parameter(name) =>
-        new ReadParam( descriptor.findOrAddFrameSlot( "__param__" + name, FrameSlotKind.Object ) )
-      case _ =>
-        throw new CantHandleQueryException()
-    }
+    descriptor = new FrameDescriptor()
 
     var projection: Array[String] = null
+    var hasAggregation: Boolean = false
     def buildOperator(plan: LogicalPlan): Operator = {
       plan match {
         case SingleRow(_) =>
@@ -235,7 +274,7 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
           new NodeByIdSeekOperator(
             buildExpression(nodeIdExpr),
             addNodeFrameSlot(id),
-            addAnonymousFrameSlot(FrameSlotKind.Boolean)
+            addAnonymousFrameSlot(FrameSlotKind.Object)
           )
         case NodeIndexSeek(IdName(id), labelId, propertyKeyId, valueExpr) =>
           new NodeByIndexSeekOperator(
@@ -251,8 +290,7 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
           )
         case Selection(predicates, left) =>
           predicates.foldLeft(buildOperator(left)) {
-            case (op, expr) =>
-              new SelectionOperator(op, buildExpression(expr))
+            case (op, expr) => new SelectionOperator(op, buildExpression(expr))
           }
         case Expand(left, IdName(from), dir, Seq(RelTypeName(relType)), IdName(to), IdName(relName), SimplePatternLength) =>
           val relSlot = addRelationshipFrameSlot(relName)
@@ -296,20 +334,24 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
             buildExpression( predicate )
           )
         case Projection(left, expressions) =>
-          projection = expressions.keys.toArray
-          expressions.foldLeft(buildOperator(left)) {
-            case (op, (key, astExpr)) =>
-              val expr = buildExpression( astExpr )
-              val kind = astExpr match {
-                case ast.Identifier(name) =>
-                  val slot = Option(findNodeFrameSlot(name))
-                    .orElse(Option(findRelationshipFrameSlot(name)))
-                    .getOrElse(findFrameSlot(name))
-                  slot.getKind
-                case _ =>
-                  FrameSlotKind.Object
-              }
-              new Foreach(op, WriteFactory.create( expr, addFrameSlot( key, kind ) ) )
+          if (hasAggregation)
+            buildOperator(left)
+          else {
+            projection = expressions.keys.toArray
+            expressions.foldLeft(buildOperator(left)) {
+              case (op, (key, astExpr)) =>
+                val expr = buildExpression(astExpr)
+                val kind = astExpr match {
+                  case ast.Identifier(name) =>
+                    val slot = Option(findNodeFrameSlot(name))
+                      .orElse(Option(findRelationshipFrameSlot(name)))
+                      .getOrElse(findFrameSlot(name))
+                    slot.getKind
+                  case _ =>
+                    FrameSlotKind.Object
+                }
+                new Foreach(op, WriteFactory.create(expr, addFrameSlot(key, kind)))
+            }
           }
         case NodeHashJoin(IdName(joinId), left, right) =>
           new NodeHashJoinOperator(
@@ -341,6 +383,27 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
             buildOperator(left),
             literal.value
           )
+        case Aggregation(left, keys, aggregationExpressions) =>
+          // only handles count(x)
+          hasAggregation = true
+          if (!keys.isEmpty) {
+            throw new CantHandleQueryException()
+          }
+          projection = aggregationExpressions.keys.toArray
+          aggregationExpressions.foldLeft(buildOperator(left)) {
+            case (op, (key, ast.CountStar()))=>
+              val outputSlot = descriptor.addFrameSlot("__count__"+key, FrameSlotKind.Long);
+              val countOp = new CountOperator(op, outputSlot)
+              val res = new Foreach(countOp, WriteFactory.create( ReadFactory.create(outputSlot), addFrameSlot( key, FrameSlotKind.Long ) ) )
+              res
+            case (op, (key, ast.FunctionInvocation(FunctionName(count), distinct,  Seq(nodeIdExpr)))) =>
+              val outputSlot = descriptor.addFrameSlot("__count__"+key, FrameSlotKind.Long);
+              val countOp = new CountOperator(op, outputSlot)
+              val res = new Foreach(countOp, WriteFactory.create( ReadFactory.create(outputSlot), addFrameSlot( key, FrameSlotKind.Long ) ) )
+              res
+            case _ => throw new CantHandleQueryException();
+          }
+
         case Limit(left, literal: ast.IntegerLiteral) =>
           new LimitOperator(
             buildOperator(left),
@@ -353,6 +416,7 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
     }
 
     val topLevelOp = buildOperator(plan)
+
     val projectionSlot = descriptor.addFrameSlot( "projection", FrameSlotKind.Object )
     val projectionOp = projection.foldLeft(topLevelOp) {
       case (op, name) =>
@@ -364,6 +428,183 @@ class TruffleExecutionPlanBuilder(monitors: Monitors) {
 
     implicit val monitor = monitors.newMonitor[PipeMonitor]()
     val topLevelPipe = ProxyProjectionPipe(projectionOp, projection, descriptor)
+    PipeInfo(topLevelPipe, updating, None)
+  }
+}
+
+
+case class ProxyPushProjectionPipe(operator: OperatorPush, projection: Array[String],
+                                    descriptor: FrameDescriptor)
+                                  (implicit val monitor: PipeMonitor) extends ProxyPipe {
+
+  val paramSlots = descriptor.getSlots.toArray.map(_.asInstanceOf[FrameSlot]).filter { slot =>
+    val identifier = slot.getIdentifier.asInstanceOf[String]
+    identifier.startsWith("__param__")
+  }
+  override def rootNode: PushRootNode = new PushRootNode(operator, descriptor, projection.length, paramSlots)
+  val target: CallTarget = Truffle.getRuntime.createCallTarget( rootNode )
+  val paramNames = paramSlots.map { slot =>
+    slot.getIdentifier.asInstanceOf[String].substring("__param__".length)
+  }
+
+  def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+    val paramValues = paramNames.map(state.params.getOrElse(_, null)).asInstanceOf[Array[Object]]
+    val result = target.call( state.db, state.query.getStatement, paramValues ).asInstanceOf[Array[Object]]
+    result.iterator.map { rowRef: AnyRef =>
+      val row = rowRef.asInstanceOf[Array[Object]]
+      ExecutionContext.empty.newFrom(projection.zip(row).toSeq)
+    }
+  }
+
+ }
+
+class TrufflePushModelExecutionPlanBuilder(monitors: Monitors) extends TruffleExecutionPlanBuilder(monitors) {
+  override def build(plan: LogicalPlan): PipeInfo = {
+    import org.neo4j.cypher.internal.compiler.v2_1.pushruntime.operator.{SelectionOperator,
+                ExpandOperator, IndexSeekOperator, HashJoinNodeOperator, BFSOperator, CountOperator,
+              ProjectionOperator, LabelScanOperator}
+    val updating = false
+
+    descriptor = new FrameDescriptor()
+    var projection: Array[String] = null
+    var hasAggregation: Boolean = false
+    def buildOperator(plan: LogicalPlan): OperatorPush = {
+      plan match {
+        case NodeByLabelScan(IdName(id), label) =>
+          val idExp = label match {
+            case Left(a) => new LabelId(a)
+            case Right(b) => new IntegerLiteral(b.id)
+          }
+          new LabelScanOperator(
+            idExp,
+            addNodeFrameSlot(id)
+          )
+        case NodeIndexSeek(IdName(id), labelId, propertyKeyId, valueExpr) =>
+          new IndexSeekOperator(buildExpression( valueExpr ),
+            addNodeFrameSlot(id),
+            labelId.id, propertyKeyId.id
+          )
+
+        case NodeHashJoin(IdName(joinId), left, right) =>
+          val leftOp = buildOperator(left)
+          val rightOp = buildOperator(right)
+          val hash = new HashJoinNodeOperator(
+            leftOp,
+            rightOp,
+            findNodeFrameSlot(joinId))
+          leftOp.setConsumer(hash)
+          rightOp.setConsumer(hash)
+          hash
+        case Selection(predicates, left) =>
+          predicates.foldLeft(buildOperator(left)) {
+           // case (op, NotEquals(_,_)) => op
+            case (op, expr) => {
+              val sel =  new SelectionOperator(op, buildExpression(expr))
+              op.setConsumer(sel)
+              sel
+            }
+          }
+        case Expand(left, IdName(from), dir, Seq(RelTypeName(relType)), IdName(to), IdName(relName), SimplePatternLength) =>
+          val relSlot = addRelationshipFrameSlot(relName)
+          val leftOp = buildOperator(left)
+          val expand = new ExpandOperator(leftOp,
+                      new RelationshipTypeId(relType),
+                      findNodeFrameSlot(from),
+                      findOrAddNodeFrameSlot(to),relSlot, dir)
+          leftOp.setConsumer(expand)
+          expand
+        case Expand(left, IdName(from), dir, Seq(RelTypeName(relType)), IdName(to), IdName(relName), VarPatternLength(min, max)) =>
+          val relSlot = addRelationshipFrameSlot(relName)
+          val leftOp = buildOperator(left)
+          val expand = new BFSOperator(
+            leftOp,
+            min,
+            max.getOrElse(null).asInstanceOf[Integer],
+            new RelationshipTypeId(relType),
+            findNodeFrameSlot(from),
+            relSlot,
+            addNodeFrameSlot(to),
+            dir
+          )
+          leftOp.setConsumer(expand)
+          expand
+        case Aggregation(left, keys, aggregationExpressions) =>
+          // only handles count(x)
+          hasAggregation = true
+          println("aggregation")
+          if (!keys.isEmpty) {
+            throw new CantHandleQueryException()
+          }
+          projection = aggregationExpressions.keys.toArray
+          println("projection: "+projection)
+          aggregationExpressions.foldLeft(buildOperator(left)) {
+            case (op, (key, ast.CountStar()))=>
+              println("count star")
+              //val inputExpr = buildExpression(nodeIdExpr)
+              val outputSlot = descriptor.addFrameSlot("__count__"+key, FrameSlotKind.Long);
+              val countOp = new CountOperator(op, outputSlot)
+              op.setConsumer(countOp)
+              val res = new ProjectionOperator(countOp, WriteFactory.create( ReadFactory.create(outputSlot), addFrameSlot( key, FrameSlotKind.Long ) ) )
+              countOp.setConsumer(res)
+              res
+            case (op, (key, ast.FunctionInvocation(FunctionName(count), distinct,  Seq(nodeIdExpr)))) =>
+              println("count")
+              val inputExpr = buildExpression(nodeIdExpr)
+              val outputSlot = descriptor.addFrameSlot("__count__"+key, FrameSlotKind.Long);
+              val countOp = new CountOperator(op, outputSlot)
+              op.setConsumer(countOp)
+              val res = new ProjectionOperator(countOp, WriteFactory.create( ReadFactory.create(outputSlot), addFrameSlot( key, FrameSlotKind.Long ) ) )
+              countOp.setConsumer(res)
+              res
+            case _ => throw new CantHandleQueryException();
+          }
+
+        case Projection(left, expressions) =>
+          if (hasAggregation){
+            buildOperator(left)
+          } else {
+            projection = expressions.keys.toArray
+            expressions.foldLeft(buildOperator(left)) {
+              case (op, (key, astExpr)) =>
+                val expr = buildExpression(astExpr)
+                val kind = astExpr match {
+                  case ast.Identifier(name) =>
+                    val slot = Option(findNodeFrameSlot(name))
+                      .orElse(Option(findRelationshipFrameSlot(name)))
+                      .getOrElse(findFrameSlot(name))
+                    slot.getKind
+                  case _ =>
+                    FrameSlotKind.Object
+                }
+                val proj = new ProjectionOperator(op, WriteFactory.create(expr, addFrameSlot(key, kind)))
+                op.setConsumer(proj)
+                proj
+            }
+          }
+        case _ =>
+          throw new CantHandleQueryException()
+
+      }
+    }
+    val topLevelOp = buildOperator(plan)
+
+    //println("Top level op ", topLevelOp.toString)
+    val projectionSlot = descriptor.addFrameSlot( "projection", FrameSlotKind.Object )
+    val projectionOp = projection.foldLeft(topLevelOp) {
+      case (op, name) =>
+        val slot = Option(findNodeFrameSlot(name))
+          .orElse(Option(findRelationshipFrameSlot(name)))
+          .getOrElse(findFrameSlot(name))
+       // println("SLOT for proj var: " + slot)
+       // println("projection slot: "+projectionSlot)
+        val proj = new ProjectionOperator(op, PushFactory.create( ReadFactory.create( slot ), projectionSlot ))
+        op.setConsumer(proj)
+        proj
+    }
+
+    implicit val monitor = monitors.newMonitor[PipeMonitor]()
+    val topLevelPipe = ProxyPushProjectionPipe(projectionOp, projection, descriptor)
+    //println("plan descr "+ topLevelPipe.planDescription.toString)
     PipeInfo(topLevelPipe, updating, None)
   }
 }
